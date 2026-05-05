@@ -2468,5 +2468,285 @@
     });
   })();
   </script>
+
+  <!-- ============================================================
+       TEOMARCHI · Module Outils — Normothèque interactive
+  ============================================================ -->
+  <script>
+  /* ── CSS Normothèque (injecté une fois) ─────────────────────── */
+  (function injectNormesCSS() {
+    if (document.getElementById("tm-normes-css")) return;
+    const s = document.createElement("style");
+    s.id = "tm-normes-css";
+    s.textContent = `
+      .tm-normes-split {
+        display: grid;
+        grid-template-columns: 228px 1fr;
+        gap: 1rem;
+        min-height: 500px;
+      }
+      .tm-normes-cats {
+        display: flex;
+        flex-direction: column;
+        gap: .32rem;
+        padding: .85rem;
+        border: 0.5px solid rgba(245,245,241,.09);
+        border-radius: 16px;
+        background: #0C0C0A;
+        align-content: start;
+      }
+      .tm-normes-cats-title {
+        font-family: "DM Sans", system-ui, sans-serif;
+        font-size: .56rem;
+        font-weight: 500;
+        letter-spacing: .17em;
+        text-transform: uppercase;
+        color: #7A7670;
+        padding: .3rem .5rem .5rem;
+      }
+      .tm-normes-cat-btn {
+        display: grid;
+        grid-template-columns: 8px 1fr;
+        align-items: center;
+        gap: .72rem;
+        padding: .72rem .85rem;
+        border: 0.5px solid transparent;
+        border-radius: 10px;
+        background: transparent;
+        text-align: left;
+        cursor: pointer;
+        transition: background .18s ease, border-color .18s ease, color .18s ease;
+      }
+      .tm-normes-cat-btn:hover {
+        background: rgba(201,169,110,.06);
+        border-color: rgba(201,169,110,.14);
+      }
+      .tm-normes-cat-btn.is-active {
+        background: rgba(201,169,110,.13);
+        border-color: rgba(201,169,110,.38);
+      }
+      .tm-normes-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: rgba(201,169,110,.28);
+        flex-shrink: 0;
+        transition: background .18s ease, box-shadow .18s ease;
+      }
+      .tm-normes-cat-btn.is-active .tm-normes-dot {
+        background: #C9A96E;
+        box-shadow: 0 0 6px rgba(201,169,110,.5);
+      }
+      .tm-normes-cat-text { display: grid; gap: 2px; }
+      .tm-normes-cat-label {
+        font-family: "DM Sans", system-ui, sans-serif;
+        font-size: .80rem;
+        font-weight: 400;
+        color: #C8C4BA;
+        line-height: 1;
+      }
+      .tm-normes-cat-btn.is-active .tm-normes-cat-label { color: #F5F5F1; }
+      .tm-normes-cat-count {
+        font-family: "DM Sans", system-ui, sans-serif;
+        font-size: .58rem;
+        color: #7A7670;
+        line-height: 1;
+      }
+      .tm-normes-panel { display: grid; gap: .85rem; align-content: start; }
+      .tm-normes-header {
+        padding-bottom: .72rem;
+        border-bottom: 0.5px solid rgba(245,245,241,.09);
+      }
+      .tm-normes-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(192px, 1fr));
+        gap: .72rem;
+      }
+      .tm-normes-item {
+        display: grid;
+        gap: .5rem;
+        padding: 1rem 1.1rem;
+        border: 0.5px solid rgba(245,245,241,.09);
+        border-radius: 14px;
+        background: #0C0C0A;
+        transition: border-color .18s ease;
+      }
+      .tm-normes-item:hover { border-color: rgba(201,169,110,.28); }
+      .tm-normes-dim {
+        font-family: "Cormorant Garamond", Georgia, serif;
+        font-size: 1.75rem;
+        font-weight: 300;
+        color: #C9A96E;
+        line-height: 1;
+        margin: 0;
+      }
+      .tm-normes-nom {
+        font-family: "DM Sans", system-ui, sans-serif;
+        font-size: .80rem;
+        font-weight: 400;
+        color: #F5F5F1;
+        margin: 0;
+      }
+      .tm-normes-note {
+        font-family: "DM Sans", system-ui, sans-serif;
+        font-size: .70rem;
+        font-weight: 300;
+        color: #7A7670;
+        line-height: 1.55;
+        margin: 0;
+      }
+      @media (max-width: 800px) {
+        .tm-normes-split { grid-template-columns: 1fr; }
+        .tm-normes-cats  { flex-direction: row; flex-wrap: wrap; align-content: start; }
+      }
+    `;
+    document.head.appendChild(s);
+  })();
+
+  /* ── DATA_NORMES — 3 catégories × 6 normes ──────────────────── */
+  const DATA_NORMES = [
+    {
+      id:     "mobilier",
+      label:  "Mobilier",
+      kicker: "Standards de l'habitat",
+      items: [
+        { nom: "Table à manger",     val: "75 cm",      dir: "v", note: "Hauteur plan standard. 80 cm pour cuisine debout ou îlot de travail." },
+        { nom: "Chaise — assise",    val: "45 cm",      dir: "v", note: "Hauteur d'assise standard. Dossier entre 80 et 95 cm selon usage." },
+        { nom: "Bureau",             val: "72–75 cm",   dir: "v", note: "Plan de travail assis. Profondeur utile recommandée : 60 à 80 cm." },
+        { nom: "Lit simple",         val: "90 × 190",   dir: "h", note: "Dimensions courantes. Dégagement latéral conseillé : 60 cm min." },
+        { nom: "Lit double",         val: "160 × 200",  dir: "h", note: "Passage conseillé : 70 cm de chaque côté pour accessibilité nocturne." },
+        { nom: "Armoire — profondeur", val: "P 60 cm",  dir: "h", note: "Profondeur utile pour cintres. Hauteur courante : 200 à 220 cm." }
+      ]
+    },
+    {
+      id:     "circulation",
+      label:  "Circulation",
+      kicker: "Passages et accessibilité PMR",
+      items: [
+        { nom: "Couloir standard",    val: "90 cm",        dir: "h", note: "Minimum pratique pour deux personnes. 120 cm recommandé PMR." },
+        { nom: "Porte standard",      val: "83 cm",        dir: "h", note: "Passage utile : 73 cm. Gond 90°, dégagement 1 m² côté serrure." },
+        { nom: "Porte PMR",           val: "90 cm",        dir: "h", note: "Passage utile : 80 cm minimum. Obligatoire ERP et logements accessibles." },
+        { nom: "Escalier Blondel",    val: "G + 2H = 63",  dir: "v", note: "Giron 28–32 cm, hauteur 17–18 cm par marche. Pente ≤ 37°." },
+        { nom: "Rotation fauteuil",   val: "Ø 150 cm",     dir: "h", note: "Aire de giration libre de tout obstacle. Obligatoire RT ERP." },
+        { nom: "Ascenseur — cabine",  val: "110 × 140",    dir: "h", note: "Cabine minimale PMR. Porte utile : L = 80 cm, commandes H = 90–130 cm." }
+      ]
+    },
+    {
+      id:     "structure",
+      label:  "Structure",
+      kicker: "Portées, épaisseurs et pentes",
+      items: [
+        { nom: "Dalle béton — portée",    val: "5–7 m",    dir: "h", note: "Portée courante bi-appui. Au-delà : pré-contrainte ou nervures recommandées." },
+        { nom: "Dalle béton — épaisseur", val: "L ÷ 25",   dir: "v", note: "Règle empirique : portée en cm divisée par 25. Minimum absolu : 12 cm." },
+        { nom: "Entraxe poteaux",         val: "4,5–9 m",  dir: "h", note: "Trame structurelle courante. Combinaison portée × travée selon programme." },
+        { nom: "Mur porteur béton",       val: "min. 20 cm", dir: "h", note: "Épaisseur minimale béton armé. Maçonnerie porteuse : 25 cm minimum." },
+        { nom: "Pente toiture tuile",     val: "35–45 %",  dir: "v", note: "Pente minimale tuile canal : 35 %. Ardoise : 30 %. Zinc : 25 % min." },
+        { nom: "Hauteur sous plafond",    val: "250 cm",   dir: "v", note: "Minimum légal logement (CCH art. R. 111-2). Confort : 260 à 280 cm." }
+      ]
+    }
+  ];
+
+  /* ── Schéma SVG de cote architecturale ──────────────────────── */
+  const _svgCote = dir => dir === "v"
+    ? /* cote verticale */
+      `<svg viewBox="0 0 44 56" width="36" height="46" aria-hidden="true">
+         <line x1="22" y1="5"  x2="22" y2="51" stroke="#C9A96E" stroke-width="0.8"/>
+         <line x1="11" y1="5"  x2="33" y2="5"  stroke="#C9A96E" stroke-width="0.8"/>
+         <line x1="11" y1="51" x2="33" y2="51" stroke="#C9A96E" stroke-width="0.8"/>
+         <polygon points="22,8  19,17 25,17" fill="#C9A96E"/>
+         <polygon points="22,48 19,39 25,39" fill="#C9A96E"/>
+       </svg>`
+    : /* cote horizontale */
+      `<svg viewBox="0 0 96 28" width="80" height="23" aria-hidden="true">
+         <line x1="5"  y1="14" x2="91" y2="14" stroke="#C9A96E" stroke-width="0.8"/>
+         <line x1="5"  y1="5"  x2="5"  y2="23" stroke="#C9A96E" stroke-width="0.8"/>
+         <line x1="91" y1="5"  x2="91" y2="23" stroke="#C9A96E" stroke-width="0.8"/>
+         <polygon points="8,14  17,11 17,17" fill="#C9A96E"/>
+         <polygon points="88,14 79,11 79,17" fill="#C9A96E"/>
+       </svg>`;
+
+  /* ── Rendu panneau droit ─────────────────────────────────────── */
+  const _renderNormesPanel = cat => `
+    <div class="tm-normes-header">
+      <p style="margin:0 0 .22rem;text-transform:uppercase;letter-spacing:.17em;font-size:.58rem;font-weight:500;color:var(--gold)">${cat.kicker}</p>
+      <h3 style="font-family:var(--serif);font-size:2rem;font-weight:300;line-height:1;color:var(--ink);margin:0">${cat.label}</h3>
+    </div>
+    <div class="tm-normes-grid">
+      ${cat.items.map(item => `
+        <article class="tm-normes-item">
+          ${_svgCote(item.dir)}
+          <p class="tm-normes-dim">${item.val}</p>
+          <p class="tm-normes-nom">${item.nom}</p>
+          <p class="tm-normes-note">${item.note}</p>
+        </article>
+      `).join("")}
+    </div>
+  `;
+
+  /* ── initOutils : injection dans #outils-layout ─────────────── */
+  let _normesActiveId = null; /* préservé entre les visites */
+
+  function initOutils() {
+    const root = document.getElementById("outils-layout");
+    if (!root) return;
+
+    if (!_normesActiveId) _normesActiveId = DATA_NORMES[0].id;
+    const active = DATA_NORMES.find(c => c.id === _normesActiveId) || DATA_NORMES[0];
+
+    root.innerHTML = `
+      <div class="tm-normes-split">
+
+        <nav class="tm-normes-cats" aria-label="Catégories de normes">
+          <span class="tm-normes-cats-title">Catégories</span>
+          ${DATA_NORMES.map(cat => `
+            <button type="button"
+                    class="tm-normes-cat-btn ${cat.id === active.id ? "is-active" : ""}"
+                    data-normes-cat="${cat.id}"
+                    aria-pressed="${cat.id === active.id}">
+              <span class="tm-normes-dot" aria-hidden="true"></span>
+              <span class="tm-normes-cat-text">
+                <span class="tm-normes-cat-label">${cat.label}</span>
+                <span class="tm-normes-cat-count">${cat.items.length} normes</span>
+              </span>
+            </button>
+          `).join("")}
+        </nav>
+
+        <div class="tm-normes-panel" id="tm-normes-panel">
+          ${_renderNormesPanel(active)}
+        </div>
+
+      </div>
+    `;
+
+    /* Interactions catégories */
+    root.querySelectorAll("[data-normes-cat]").forEach(btn =>
+      btn.addEventListener("click", () => {
+        const cat = DATA_NORMES.find(c => c.id === btn.dataset.normesCat);
+        if (!cat || cat.id === _normesActiveId) return;
+        _normesActiveId = cat.id;
+
+        root.querySelectorAll("[data-normes-cat]").forEach(b => {
+          const on = b.dataset.normesCat === _normesActiveId;
+          b.classList.toggle("is-active", on);
+          b.setAttribute("aria-pressed", on);
+        });
+
+        const panel = document.getElementById("tm-normes-panel");
+        if (panel) panel.innerHTML = _renderNormesPanel(cat);
+      })
+    );
+  }
+
+  /* ── Hook MutationObserver — module-outils ───────────────────── */
+  (function hookOutils() {
+    const mod = document.getElementById("module-outils");
+    if (!mod) return;
+    new MutationObserver(() => {
+      if (mod.classList.contains("is-active")) initOutils();
+    }).observe(mod, { attributes: true, attributeFilter: ["class"] });
+    if (mod.classList.contains("is-active")) initOutils();
+  })();
+  </script>
 </body>
 </html>
