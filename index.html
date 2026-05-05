@@ -2313,11 +2313,152 @@
     `).join("");
   }
 
-  /* ── Hooks MutationObserver — Panthéon + Atlas ──────────────── */
+  /* ── DATA_FEED — 6 publications communauté ─────────────────── */
+  const DATA_FEED = [
+    {
+      titre:      "Rendu concours Bordeaux",
+      sous_titre: "Livraison du projet d'équipement culturel soumis au concours ANRU de Bordeaux Métropole. Façade bois-béton, toiture végétalisée et programme de 3 200 m². Niveau M1-S7, atelier Territoire.",
+      tag:        "CONCOURS",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#0e0b08 0%,#241a0e 55%,#3a2814 100%)"
+    },
+    {
+      titre:      "Analyse — Unité d'Habitation",
+      sous_titre: "Étude de la trame structurelle et du double vitrage de l'UH de Marseille. Coupe habitée au 1/50, relevé des épaisseurs et performances thermiques actualisées selon la RE2020.",
+      tag:        "ANALYSE",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#080c0a 0%,#10201a 55%,#183028 100%)"
+    },
+    {
+      titre:      "Coupe habitée — Studio M2",
+      sous_titre: "Coupe transversale d'un logement collectif en bois massif CLT. Lecture simultanée de la structure, de l'isolation, des seuils et des menuiseries. Produit en quatre heures de studio.",
+      tag:        "PUBLICATION",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#0c0a0e 0%,#1a1428 55%,#28203e 100%)"
+    },
+    {
+      titre:      "Retour chantier — Paille & Terre",
+      sous_titre: "Visite de la Résidence Cannelle à Nanterre, structure paille-terre-bois. Observation des détails de soubassement, jonctions ossature bois et enduit de finition argile projeté.",
+      tag:        "CHANTIER",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#080e0c 0%,#121e18 55%,#1e3024 100%)"
+    },
+    {
+      titre:      "Workshop Pavillon bois — Nantes",
+      sous_titre: "72h de conception et assemblage à sec d'un pavillon temporaire en tenon-mortaise. Portée de 6 m sans assemblage métallique, testé charge à rupture à l'ENSA Nantes.",
+      tag:        "WORKSHOP",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#0e0d08 0%,#22200a 55%,#363214 100%)"
+    },
+    {
+      titre:      "Recherche ACV — Béton bas-carbone",
+      sous_titre: "Comparaison du cycle de vie du béton banché ordinaire vs béton GGBS. Résultats : réduction de 34 % des émissions CO₂ à résistance mécanique équivalente. Sources INIES 2025.",
+      tag:        "RECHERCHE",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#080a0e 0%,#10141e 55%,#18202e 100%)"
+    }
+  ];
+
+  /* ── DATA_FICHES — 6 fiches encyclopédie constructive ──────── */
+  const DATA_FICHES = [
+    {
+      titre:      "Assemblages bois CLT",
+      sous_titre: "Catalogue des assemblages structurels pour panneaux CLT : tenon-mortaise, crantage, platines acier et vis inclinées. Tolérances de mise en œuvre, charges admissibles et détails de nœuds courants en phase APD.",
+      tag:        "TECHNIQUE",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#08090e 0%,#0e1220 55%,#161e36 100%)"
+    },
+    {
+      titre:      "Béton banché",
+      sous_titre: "Coulage en banches métalliques ou bois : dosage, vibration, cure et décoffrage. Traitements de parement : grenaillage, sablage, brossage. Précautions anti-bullage et reprises de bétonnage DTU 21.",
+      tag:        "BÉTON",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#0c0c0a 0%,#1a1a14 55%,#2a2a1e 100%)"
+    },
+    {
+      titre:      "Étanchéité toiture-terrasse",
+      sous_titre: "Systèmes bicouche SBS et monocouche TPO/EPDM pour toitures inaccessibles et jardins. Points singuliers : relevés, acrotères et émergences. DTU 43.1, règles professionnelles CSNE et essais de ponçage.",
+      tag:        "ÉTANCHÉITÉ",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#090e0c 0%,#121e18 55%,#1a2c22 100%)"
+    },
+    {
+      titre:      "Mur rideau aluminium",
+      sous_titre: "Façade légère en profilés aluminium : montants, traverses, pare-vapeur et traitement des joints. Calcul des flèches admissibles sous vent et gestion des ponts thermiques par rupteur de façade NF EN 13830.",
+      tag:        "FAÇADE",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#0e0e0c 0%,#201e16 55%,#302e20 100%)"
+    },
+    {
+      titre:      "Fondations sur pieux",
+      sous_titre: "Pieux forés, battus et vissés : sélection selon la nature du sol et les charges. Dimensionnement par la méthode pressiométrique. Interface pieu-dalle, armatures de liaison au chevêtre et contrôle COFRAC.",
+      tag:        "FONDATION",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#0c0a08 0%,#1e1810 55%,#302618 100%)"
+    },
+    {
+      titre:      "ITE — Isolation par l'extérieur",
+      sous_titre: "Systèmes ETICS sous enduit et bardage ventilé : fixation mécanique vs collée, jonctions menuiseries et soubassements. Gains en déphasage thermique et compatibilité RE2020 avec vérification pont thermique Th-BCE.",
+      tag:        "THERMIQUE",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#080c10 0%,#10182a 55%,#182440 100%)"
+    }
+  ];
+
+  /* ── DATA_CHRONOS — 6 périodes de la frise historique ──────── */
+  const DATA_CHRONOS = [
+    {
+      titre:      "Ordres grecs",
+      sous_titre: "Dorique, ionique, corinthien : codification des proportions et de l'ornement structurel. L'entasis du Parthénon corrige l'illusion optique. La règle géométrique précède le calcul de résistance des matériaux.",
+      tag:        "ANTIQUITÉ",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#100e0a 0%,#261e12 55%,#3a2e1a 100%)"
+    },
+    {
+      titre:      "Architecture gothique",
+      sous_titre: "L'arc brisé et la croisée d'ogives libèrent le mur de sa fonction portante. L'arc-boutant transfère les poussées vers l'extérieur et permet l'ouverture des verrières. La pierre se réduit à une nervure tendue.",
+      tag:        "GOTHIQUE",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#080c10 0%,#0e1428 55%,#141e3e 100%)"
+    },
+    {
+      titre:      "Renaissance italienne",
+      sous_titre: "Retour aux ordres antiques, maîtrise de la perspective et codification de la coupole. Brunelleschi introduit la géométrie projective sur le chantier. La proportion gouverne la façade autant que la section.",
+      tag:        "RENAISSANCE",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#0e0c08 0%,#221c0e 55%,#382e18 100%)"
+    },
+    {
+      titre:      "Arts & Crafts · Art Nouveau",
+      sous_titre: "Réaction à l'industrialisation : retour à l'artisanat et à l'ornement organique. La fonte permet les grandes portées du Crystal Palace. Morris, Guimard et Gaudí poussent le matériau jusqu'à sa limite formelle.",
+      tag:        "XIXe SIÈCLE",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#080a08 0%,#141814 55%,#202a20 100%)"
+    },
+    {
+      titre:      "Bauhaus & Mouvement Moderne",
+      sous_titre: "Standardisation, série et suppression de l'ornement. Le plan libre naît du squelette poteau-poutre en béton armé. Le Corbusier, Gropius et Mies van der Rohe définissent un vocabulaire architectural universel.",
+      tag:        "MODERNISME",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#0a0a0a 0%,#181818 55%,#262626 100%)"
+    },
+    {
+      titre:      "Architecture contemporaine",
+      sous_titre: "Révolution numérique, BIM et fabrication assistée par ordinateur. L'ACV et le carbone intégré deviennent critères de conception. La réversibilité et le biosourcé s'imposent face au neuf énergivore.",
+      tag:        "CONTEMPORAIN",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#080c12 0%,#0e1830 55%,#14264a 100%)"
+    }
+  ];
+
+  /* ── Hooks MutationObserver — tous les modules grille ───────── */
   (function hookGridModules() {
     [
-      { mod: "module-pantheon", grid: "pantheon-grid", data: DATA_PANTHEON },
-      { mod: "module-atlas",    grid: "atlas-grid",    data: DATA_ATLAS    }
+      { mod: "module-pantheon", grid: "pantheon-grid",  data: DATA_PANTHEON },
+      { mod: "module-atlas",    grid: "atlas-grid",     data: DATA_ATLAS    },
+      { mod: "module-feed",     grid: "feed-wall",      data: DATA_FEED     },
+      { mod: "module-fiches",   grid: "fiches-grid",    data: DATA_FICHES   },
+      { mod: "module-chronos",  grid: "chronos-layout", data: DATA_CHRONOS  }
     ].forEach(({ mod, grid, data }) => {
       const el = document.getElementById(mod);
       if (!el) return;
