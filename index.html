@@ -2112,5 +2112,220 @@
     if (mod.classList.contains("is-active")) initAtelier();
   })();
   </script>
+
+  <!-- ============================================================
+       TEOMARCHI · Modules Panthéon + Atlas — renderGrid universelle
+  ============================================================ -->
+  <script>
+  /* ── CSS cartes grille (injecté une fois) ───────────────────── */
+  (function injectGridCSS() {
+    if (document.getElementById("tm-grid-css")) return;
+    const s = document.createElement("style");
+    s.id = "tm-grid-css";
+    s.textContent = `
+      .tm-card {
+        display: grid;
+        grid-template-rows: 190px 1fr;
+        border: 0.5px solid rgba(201,169,110,.24);
+        border-radius: 16px;
+        background: #0C0C0A;
+        overflow: hidden;
+        transition: border-color .22s ease, box-shadow .22s ease, transform .22s ease;
+      }
+      .tm-card:hover {
+        border-color: rgba(201,169,110,.68);
+        box-shadow: 0 16px 52px rgba(0,0,0,.66), 0 0 0 0.5px rgba(201,169,110,.20);
+        transform: translateY(-2px);
+      }
+      .tm-card__img {
+        position: relative;
+        overflow: hidden;
+      }
+      .tm-card__img::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to top, rgba(12,12,10,.94) 0%, transparent 58%);
+      }
+      .tm-card__img svg { width:100%; height:100%; display:block; }
+      .tm-card__body {
+        display: grid;
+        gap: .5rem;
+        padding: 1rem 1.1rem 1.2rem;
+      }
+      .tm-card__tag {
+        display: inline-flex;
+        align-items: center;
+        width: max-content;
+        padding: .14rem .50rem;
+        border: 0.5px solid rgba(201,169,110,.40);
+        border-radius: 999px;
+        background: rgba(201,169,110,.07);
+        color: #C9A96E;
+        font-family: "DM Sans", system-ui, sans-serif;
+        font-size: .60rem;
+        font-weight: 400;
+        letter-spacing: .11em;
+        text-transform: uppercase;
+      }
+      .tm-card__title {
+        font-family: "Cormorant Garamond", Georgia, serif;
+        font-size: 1.48rem;
+        font-weight: 400;
+        line-height: 1.08;
+        color: #F5F5F1;
+        margin: 0;
+      }
+      .tm-card__sub {
+        font-family: "DM Sans", system-ui, sans-serif;
+        font-size: .79rem;
+        font-weight: 300;
+        line-height: 1.55;
+        color: #7A7670;
+        margin: 0;
+      }
+    `;
+    document.head.appendChild(s);
+  })();
+
+  /* ── DATA_PANTHEON — 5 architectes fondateurs ───────────────── */
+  const DATA_PANTHEON = [
+    {
+      titre:      "Le Corbusier",
+      sous_titre: "Plan libre, pilotis, toit-terrasse. La grammaire moderne codifiée en cinq points.",
+      tag:        "Modernisme",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#0e0d09 0%,#291f0e 55%,#46340e 100%)"
+    },
+    {
+      titre:      "Zaha Hadid",
+      sous_titre: "Topologie fluide, sol continu et déformation de la trame orthogonale.",
+      tag:        "Paramétrique",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#08090e 0%,#0f1622 55%,#182340 100%)"
+    },
+    {
+      titre:      "Tadao Ando",
+      sous_titre: "Béton brut poli, lumière rasante, vide comme matière première.",
+      tag:        "Brutalisme zen",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#090909 0%,#161616 55%,#242424 100%)"
+    },
+    {
+      titre:      "Renzo Piano",
+      sous_titre: "Enveloppe transparente, structure visible, chantier comme spectacle urbain.",
+      tag:        "High-tech",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#07090d 0%,#101926 55%,#1a2d40 100%)"
+    },
+    {
+      titre:      "Anne Lacaton",
+      sous_titre: "Réhabiliter, agrandir, ne jamais démolir. Économie de moyens, générosité d'espace.",
+      tag:        "Bas-carbone",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#080c0a 0%,#122018 55%,#1c3228 100%)"
+    }
+  ];
+
+  /* ── DATA_ATLAS — 5 projets majeurs référencés ──────────────── */
+  const DATA_ATLAS = [
+    {
+      titre:      "Centre Pompidou",
+      sous_titre: "Paris · 1977 · Piano & Rogers — exosquelette acier, plateaux libres, services extériorisés.",
+      tag:        "Structure apparente",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#08090e 0%,#12142a 55%,#1c2048 100%)"
+    },
+    {
+      titre:      "Villa Savoye",
+      sous_titre: "Poissy · 1931 · Le Corbusier — les cinq points, pilotis, promenade architecturale.",
+      tag:        "Référence moderne",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#0b0b08 0%,#1e1e0e 55%,#323218 100%)"
+    },
+    {
+      titre:      "Guggenheim Bilbao",
+      sous_titre: "Bilbao · 1997 · Gehry — titane, forme sculpturale et revitalisation urbaine.",
+      tag:        "Déconstructivisme",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#0e0906 0%,#281808 55%,#3c2210 100%)"
+    },
+    {
+      titre:      "Teshima Art Museum",
+      sous_titre: "Japon · 2010 · Nishizawa — coque béton, eau naturelle, lumière zénithale.",
+      tag:        "Minimalisme",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#070c0c 0%,#101e1e 55%,#183030 100%)"
+    },
+    {
+      titre:      "Casa da Música",
+      sous_titre: "Porto · 2005 · Koolhaas/OMA — polyèdre irrégulier, programme hybride, section unique.",
+      tag:        "Programme",
+      image_url:  "",
+      _bg:        "linear-gradient(140deg,#0c0708 0%,#201014 55%,#34181e 100%)"
+    }
+  ];
+
+  /* ── Placeholder SVG architectural (léger, générique) ───────── */
+  const _svgSketch = (seed = 0) => {
+    /* Deux variantes selon parité de seed : élévation ou plan */
+    const v = seed % 2;
+    return v === 0
+      ? `<svg viewBox="0 0 480 190" aria-hidden="true" style="opacity:.16">
+           <path d="M40 190H440M80 190V70H220V190M280 190V30H420V190"
+                 fill="none" stroke="#C9A96E" stroke-width="1"/>
+           <path d="M100 125H200M300 80H400M100 155H200M300 120H400"
+                 stroke="#C9A96E" stroke-width="6" stroke-linecap="round" opacity=".45"/>
+           <circle cx="150" cy="70"  r="3.5" fill="#C9A96E" opacity=".6"/>
+           <circle cx="350" cy="30"  r="3.5" fill="#C9A96E" opacity=".6"/>
+         </svg>`
+      : `<svg viewBox="0 0 480 190" aria-hidden="true" style="opacity:.16">
+           <rect x="60"  y="40"  width="360" height="120" fill="none" stroke="#C9A96E" stroke-width="1"/>
+           <path d="M60 100H420M240 40V160" stroke="#C9A96E" stroke-width="1"/>
+           <rect x="100" y="60"  width="100" height="70" fill="rgba(201,169,110,.08)" stroke="#C9A96E" stroke-width=".8"/>
+           <rect x="280" y="60"  width="100" height="70" fill="rgba(201,169,110,.08)" stroke="#C9A96E" stroke-width=".8"/>
+           <circle cx="240" cy="100" r="28" fill="none" stroke="#C9A96E" stroke-width=".8" opacity=".6"/>
+         </svg>`;
+  };
+
+  /* ── renderGrid : injection universelle ─────────────────────── */
+  function renderGrid(containerId, data) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+
+    el.style.cssText = "display:grid;grid-template-columns:repeat(auto-fit,minmax(258px,1fr));gap:1rem";
+
+    el.innerHTML = data.map((item, i) => `
+      <article class="tm-card">
+        <div class="tm-card__img" style="background:${item._bg || "#0C0C0A"}">
+          ${item.image_url
+            ? `<img src="${item.image_url}" alt="${item.titre}" loading="lazy"
+                    style="width:100%;height:100%;object-fit:cover;display:block">`
+            : _svgSketch(i)
+          }
+        </div>
+        <div class="tm-card__body">
+          <span class="tm-card__tag">${item.tag}</span>
+          <h3 class="tm-card__title">${item.titre}</h3>
+          <p class="tm-card__sub">${item.sous_titre}</p>
+        </div>
+      </article>
+    `).join("");
+  }
+
+  /* ── Hooks MutationObserver — Panthéon + Atlas ──────────────── */
+  (function hookGridModules() {
+    [
+      { mod: "module-pantheon", grid: "pantheon-grid", data: DATA_PANTHEON },
+      { mod: "module-atlas",    grid: "atlas-grid",    data: DATA_ATLAS    }
+    ].forEach(({ mod, grid, data }) => {
+      const el = document.getElementById(mod);
+      if (!el) return;
+      const render = () => { if (el.classList.contains("is-active")) renderGrid(grid, data); };
+      new MutationObserver(render).observe(el, { attributes: true, attributeFilter: ["class"] });
+      render();
+    });
+  })();
+  </script>
 </body>
 </html>
