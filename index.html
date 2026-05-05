@@ -1644,5 +1644,473 @@
     init();
   })();
   </script>
+
+  <!-- ============================================================
+       TEOMARCHI · Module Atelier-Journal + Persistance Globale
+       Bloc autonome — ne pas modifier le script au-dessus
+       Hook : MutationObserver sur #module-atelier
+  ============================================================ -->
+  <script>
+  /* ── CSS responsive atelier (injecté une fois) ────────────────── */
+  (function injectAtelierCSS() {
+    if (document.getElementById("tm-atelier-css")) return;
+    const s = document.createElement("style");
+    s.id = "tm-atelier-css";
+    s.textContent = `
+      #atelier-layout { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:1.618rem; align-items:start; }
+      @media (max-width: 960px) {
+        #atelier-layout { grid-template-columns: 1fr !important; }
+        #atelier-right  { position: static !important; }
+      }
+    `;
+    document.head.appendChild(s);
+  })();
+
+  /* ── Données statiques ─────────────────────────────────────────── */
+  const ATELIER_DEFAULT_CHECKLIST = [
+    { id: "plans-100", label: "Plans 1/100",          detail: "Niveaux, cotations, nord, surfaces et trame structurelle",        done: false },
+    { id: "coupes",    label: "Coupes",                detail: "Coupe habitée, sol, toiture, structure et épaisseur d'enveloppe", done: false },
+    { id: "facades",   label: "Façades",               detail: "Matérialité, percements, rythme, rapport au sol",                 done: false },
+    { id: "details",   label: "Carnet de détails",     detail: "Seuil, acrotère, menuiserie, isolation, assemblage",              done: false },
+    { id: "acv",       label: "Tableau ACV matériaux", detail: "R, lambda, CO₂, origine et justification du choix",              done: false },
+    { id: "jury",      label: "Récit de jury",         detail: "Parti, preuves techniques, risques et synthèse orale",           done: false }
+  ];
+
+  const ATELIER_PHASES = [
+    { code: "ESQ", nom: "Esquisse",               deadline: "2026-05-10T18:00:00+02:00" },
+    { code: "APS", nom: "Avant-Projet Sommaire",  deadline: "2026-05-17T18:00:00+02:00" },
+    { code: "APD", nom: "Avant-Projet Définitif", deadline: "2026-05-31T18:00:00+02:00" },
+    { code: "PC",  nom: "Permis de Construire",   deadline: "2026-06-21T12:00:00+02:00" },
+    { code: "PRO", nom: "Projet / DCE",           deadline: "2026-07-12T18:00:00+02:00" }
+  ];
+
+  const _MONTHS_FR = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août",
+                      "Septembre","Octobre","Novembre","Décembre"];
+
+  /* ── TEOMARCHI_APP : Persistance Globale ───────────────────────── */
+  const TEOMARCHI_APP = (() => {
+    const P = "teomarchi.";
+
+    const _ls = {
+      get: (k, fb = null) => { try { return JSON.parse(localStorage.getItem(P + k)) ?? fb; } catch { return fb; } },
+      set: (k, v)         => { try { localStorage.setItem(P + k, JSON.stringify(v)); }        catch {}              },
+      del: (k)            => { try { localStorage.removeItem(P + k); }                         catch {}              }
+    };
+
+    const _cbs  = {};
+    const _emit = k => (_cbs[k] || []).forEach(fn => fn(_ls.get(k)));
+
+    const _readJournal = () => {
+      const s = _ls.get("journal", {});
+      return {
+        checklist: (s.checklist?.length ? s.checklist : ATELIER_DEFAULT_CHECKLIST.map(i => ({ ...i }))),
+        logs:      s.logs      || [],
+        materials: s.materials || [],
+        products:  s.products  || [],
+        updatedAt: s.updatedAt || null
+      };
+    };
+
+    const _writeJournal = j => {
+      j.updatedAt = new Date().toISOString();
+      _ls.set("journal", j);
+      _emit("journal");
+    };
+
+    return {
+      /* Abonnement réactif : TEOMARCHI_APP.on("journal", fn) */
+      on: (key, fn) => { _cbs[key] = _cbs[key] || []; _cbs[key].push(fn); },
+
+      theme: {
+        get: ()  => _ls.get("theme", "dark"),
+        set: (v) => { _ls.set("theme", v); _emit("theme"); }
+      },
+
+      session: {
+        get:   ()  => _ls.get("session"),
+        set:   (v) => { _ls.set("session", v); _emit("session"); },
+        clear: ()  => { _ls.del("session");    _emit("session"); }
+      },
+
+      journal: {
+        get: _readJournal,
+        set: _writeJournal,
+
+        addLog: entry => {
+          const j = _readJournal();
+          j.logs.unshift({ ...entry, date: new Date().toISOString() });
+          _writeJournal(j);
+        },
+
+        toggleCheck: id => {
+          const j   = _readJournal();
+          const itm = j.checklist.find(c => c.id === id);
+          if (itm) { itm.done = !itm.done; _writeJournal(j); }
+          return itm?.done ?? false;
+        },
+
+        addTask: (label, detail = "") => {
+          if (!label.trim()) return null;
+          const j  = _readJournal();
+          const id = "custom-" + Date.now();
+          j.checklist.push({ id, label: label.trim(), detail, done: false, custom: true });
+          _writeJournal(j);
+          return id;
+        },
+
+        /* Protection : seules les tâches custom (ajoutées par l'utilisateur) sont supprimables */
+        removeTask: id => {
+          const j = _readJournal();
+          if (!j.checklist.find(c => c.id === id && c.custom)) return;
+          j.checklist = j.checklist.filter(c => c.id !== id);
+          _writeJournal(j);
+        }
+      }
+    };
+  })();
+
+  /* ── Helpers internes ──────────────────────────────────────────── */
+  const _esc = str =>
+    String(str ?? "").replace(/[&<>"']/g, c =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+    );
+
+  /* Calcule le délai humain et l'état sémantique d'une deadline */
+  const _countdown = deadline => {
+    const diff = new Date(deadline).getTime() - Date.now();
+    const abs  = Math.abs(diff);
+    const d    = Math.floor(abs / 86400000);
+    const h    = Math.floor((abs % 86400000) / 3600000);
+    if (diff < 0) return { text: `Dépassé · ${d}j ${h}h`,                         state: "past"   };
+    if (d < 1)    return { text: `Aujourd'hui · ${h}h restante${h > 1 ? "s" : ""}`, state: "today"  };
+    if (d < 8)    return { text: `${d}j ${h}h restant${d > 1 ? "s" : ""}`,          state: "soon"   };
+    return               { text: `${d}j ${h}h`,                                    state: "future" };
+  };
+
+  /* Détermine le statut d'une phase selon sa deadline */
+  const _phaseStatus = deadline => {
+    const diff = new Date(deadline).getTime() - Date.now();
+    if (diff < -3600000)        return "Clôturé";
+    if (diff < 7 * 86400000)    return "En cours";
+    return "À venir";
+  };
+
+  /* ── Rendu : Barre de progression ──────────────────────────────── */
+  function _refreshProgress() {
+    const el = document.getElementById("atelier-progress");
+    if (!el) return;
+
+    const { checklist } = TEOMARCHI_APP.journal.get();
+    const total = checklist.length;
+    const done  = checklist.filter(c => c.done).length;
+    const pct   = total ? Math.round(done / total * 100) : 0;
+    const col   = pct === 100 ? "var(--ok)" : "var(--gold)";
+
+    el.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.5rem">
+        <p style="margin:0;text-transform:uppercase;letter-spacing:.17em;font-size:.58rem;font-weight:500;color:var(--muted)">Avancement technique</p>
+        <span style="font-family:var(--serif);font-size:2.6rem;font-weight:300;line-height:1;color:${col}">${pct}<sup style="font-size:1rem;vertical-align:super">%</sup></span>
+      </div>
+      <div role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"
+           aria-label="Progression des livrables"
+           style="height:2px;border-radius:999px;background:rgba(245,245,241,.08)">
+        <div style="height:100%;width:${pct}%;border-radius:999px;background:${col};transition:width .44s cubic-bezier(.4,0,.2,1)"></div>
+      </div>
+      <p style="margin:.38rem 0 0;font-size:.68rem;color:var(--muted)">
+        ${done} / ${total} livrable${total > 1 ? "s" : ""} complété${done > 1 ? "s" : ""}
+      </p>
+    `;
+  }
+
+  /* ── Rendu : Todo List ──────────────────────────────────────────── */
+  function _refreshTodo() {
+    const el = document.getElementById("atelier-todo-list");
+    if (!el) return;
+
+    const { checklist } = TEOMARCHI_APP.journal.get();
+
+    if (!checklist.length) {
+      el.innerHTML = `<p style="color:var(--muted);font-size:.80rem;padding:1rem;text-align:center">Aucune tâche. Ajoutez-en une ci-dessus.</p>`;
+      return;
+    }
+
+    el.innerHTML = checklist.map(item => `
+      <label style="display:grid;grid-template-columns:18px 1fr auto;gap:.618rem;align-items:start;
+          padding:.68rem .78rem;border:var(--border);border-radius:10px;cursor:pointer;
+          background:color-mix(in srgb,var(--surface-2) 50%,transparent);
+          transition:background .16s ease">
+        <input type="checkbox" ${item.done ? "checked" : ""}
+          style="width:16px;height:16px;accent-color:var(--gold);margin-top:.14rem;flex-shrink:0;cursor:pointer"
+          data-check="${_esc(item.id)}" />
+        <span>
+          <strong style="display:block;font-size:.83rem;color:var(--ink);transition:opacity .2s,text-decoration .2s;
+            ${item.done ? "text-decoration:line-through;opacity:.42" : ""}">${_esc(item.label)}</strong>
+          ${item.detail
+            ? `<small style="font-size:.68rem;color:var(--muted);line-height:1.5">${_esc(item.detail)}</small>`
+            : ""}
+        </span>
+        ${item.custom
+          ? `<button type="button" data-remove="${_esc(item.id)}"
+               style="align-self:start;margin-top:.1rem;width:22px;height:22px;display:flex;
+                 align-items:center;justify-content:center;border:var(--border);border-radius:5px;
+                 color:var(--muted);font-size:1rem;cursor:pointer;background:none;flex-shrink:0;
+                 transition:color .15s,border-color .15s"
+               aria-label="Supprimer cette tâche">&times;</button>`
+          : "<span></span>"}
+      </label>
+    `).join("");
+
+    /* Bind checkboxes */
+    el.querySelectorAll("[data-check]").forEach(cb =>
+      cb.addEventListener("change", () => {
+        TEOMARCHI_APP.journal.toggleCheck(cb.dataset.check);
+        _refreshProgress();
+        _refreshTodo();
+      })
+    );
+
+    /* Bind boutons suppression (custom uniquement) */
+    el.querySelectorAll("[data-remove]").forEach(btn =>
+      btn.addEventListener("click", e => {
+        e.preventDefault();
+        TEOMARCHI_APP.journal.removeTask(btn.dataset.remove);
+        _refreshProgress();
+        _refreshTodo();
+      })
+    );
+  }
+
+  /* ── Rendu : Phase strip ────────────────────────────────────────── */
+  function _refreshPhases() {
+    const el = document.getElementById("atelier-phases");
+    if (!el) return;
+
+    el.innerHTML = ATELIER_PHASES.map(p => {
+      const status = _phaseStatus(p.deadline);
+      const cd     = _countdown(p.deadline);
+      const active = status === "En cours";
+      const done   = status === "Clôturé";
+
+      return `
+        <article style="padding:.68rem .85rem;border-radius:12px;display:grid;gap:.22rem;
+          ${active ? "background:var(--gold-glow);border:var(--border-gold)"
+          : done   ? "background:rgba(90,154,106,.06);border:0.5px solid rgba(90,154,106,.28)"
+                   : "background:color-mix(in srgb,var(--surface-2) 38%,transparent);border:var(--border)"}">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:.38rem">
+            <strong style="font-family:var(--mono);font-size:.66rem;letter-spacing:.14em;
+              color:${active ? "var(--gold)" : done ? "var(--ok)" : "var(--muted)"}">${_esc(p.code)}</strong>
+            <span style="font-size:.54rem;padding:.10rem .40rem;border-radius:999px;
+              font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;
+              ${active ? "background:var(--gold-dim);color:var(--gold);border:var(--border-gold)"
+              : done   ? "background:rgba(90,154,106,.12);color:var(--ok);border:0.5px solid rgba(90,154,106,.32)"
+                       : "color:var(--muted);border:var(--border)"}">
+              ${_esc(status)}
+            </span>
+          </div>
+          <p style="font-size:.78rem;color:var(--ink-2);margin:0">${_esc(p.nom)}</p>
+          <p style="font-size:.62rem;font-family:var(--mono);margin:0;
+            color:${cd.state === "past"  ? "var(--danger)"
+                  : cd.state === "today" ? "var(--gold)"
+                  : cd.state === "soon"  ? "var(--warn)"
+                                         : "var(--muted)"}">
+            ${_esc(cd.text)}
+          </p>
+        </article>
+      `;
+    }).join("");
+  }
+
+  /* ── Rendu : Calendrier ─────────────────────────────────────────── */
+  let _calState = { year: new Date().getFullYear(), month: new Date().getMonth() };
+
+  function _refreshCalendar() {
+    const el = document.getElementById("atelier-cal-grid");
+    if (!el) return;
+
+    const { year, month } = _calState;
+    const today  = new Date();
+    const first  = new Date(year, month, 1);
+    const total  = new Date(year, month + 1, 0).getDate();
+    let offset   = first.getDay() - 1;
+    if (offset < 0) offset = 6; /* Lundi en premier */
+
+    /* Map des deadlines pour ce mois */
+    const dlMap = {};
+    ATELIER_PHASES.forEach(p => {
+      const d = new Date(p.deadline);
+      if (d.getFullYear() === year && d.getMonth() === month) dlMap[d.getDate()] = p;
+    });
+
+    const isToday = d =>
+      today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
+    const isPast  = d => new Date(year, month, d, 23, 59) < today;
+
+    /* En-têtes des jours (semaine lundi-dimanche) */
+    const dayHeaders = ["L","M","M","J","V","S","D"].map(n =>
+      `<div style="text-align:center;font-size:.55rem;letter-spacing:.14em;text-transform:uppercase;
+                   color:var(--muted);padding:.22rem 0">${n}</div>`
+    ).join("");
+
+    /* Cellules */
+    const cells = [];
+    for (let i = 0; i < offset; i++) cells.push("<div></div>");
+
+    for (let d = 1; d <= total; d++) {
+      const ph = dlMap[d];
+      const td = isToday(d);
+      const ps = isPast(d) && !td;
+
+      cells.push(`
+        <div ${ph ? `title="${_esc(ph.code)} · ${_esc(ph.nom)}"` : ""}
+          style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+            padding:.36rem .06rem;border-radius:7px;
+            background:${td ? "var(--gold-dim)" : ph ? "rgba(201,169,110,.04)" : "transparent"};
+            border:${td ? "var(--border-gold)" : ph ? "0.5px solid rgba(201,169,110,.20)" : "0.5px solid transparent"};
+            min-height:32px;${ph ? "cursor:default" : ""}">
+          <span style="font-size:.78rem;line-height:1.2;
+            font-weight:${td ? "500" : "300"};
+            color:${td ? "var(--gold)" : ps ? "var(--muted)" : "var(--ink-2)"}">
+            ${d}
+          </span>
+          <span style="font-size:.44rem;line-height:1;font-family:var(--mono);letter-spacing:.05em;
+            color:${ph ? "var(--gold)" : "transparent"};min-height:.55rem;display:block">
+            ${ph ? _esc(ph.code) : "·"}
+          </span>
+        </div>
+      `);
+    }
+
+    el.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.72rem">
+        <button type="button" class="icon-btn" id="cal-prev"
+                style="width:28px;height:28px" aria-label="Mois précédent">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+               stroke-linecap="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <span style="font-family:var(--serif);font-size:1.06rem;font-weight:400;color:var(--ink)">
+          ${_MONTHS_FR[month]} ${year}
+        </span>
+        <button type="button" class="icon-btn" id="cal-next"
+                style="width:28px;height:28px" aria-label="Mois suivant">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+               stroke-linecap="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">
+        ${dayHeaders}${cells.join("")}
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:.78rem;margin-top:.72rem;
+                  padding-top:.618rem;border-top:var(--border)">
+        <span style="display:inline-flex;align-items:center;gap:.38rem;font-size:.60rem;color:var(--muted)">
+          <span style="width:12px;height:12px;border-radius:3px;flex-shrink:0;
+                       background:var(--gold-dim);border:var(--border-gold)"></span>
+          Aujourd'hui
+        </span>
+        <span style="display:inline-flex;align-items:center;gap:.38rem;font-size:.60rem;color:var(--muted)">
+          <span style="width:12px;height:12px;border-radius:3px;flex-shrink:0;
+                       background:rgba(201,169,110,.04);border:0.5px solid rgba(201,169,110,.22)"></span>
+          Échéance de rendu
+        </span>
+      </div>
+    `;
+
+    /* Navigation mois */
+    document.getElementById("cal-prev")?.addEventListener("click", () => {
+      if (--_calState.month < 0) { _calState.month = 11; _calState.year--; }
+      _refreshCalendar();
+    });
+    document.getElementById("cal-next")?.addEventListener("click", () => {
+      if (++_calState.month > 11) { _calState.month = 0; _calState.year++; }
+      _refreshCalendar();
+    });
+  }
+
+  /* ── initAtelier : Injection principale dans #atelier-layout ───── */
+  function initAtelier() {
+    const root = document.getElementById("atelier-layout");
+    if (!root) return;
+
+    root.innerHTML = `
+      <!-- Colonne gauche : progression + todo -->
+      <div id="atelier-left" style="display:grid;gap:1.618rem">
+
+        <article class="card">
+          <p style="margin:0 0 .38rem;text-transform:uppercase;letter-spacing:.17em;font-size:.58rem;font-weight:500;color:var(--gold)">Projet actif</p>
+          <h3 style="font-family:var(--serif);font-size:2rem;font-weight:300;line-height:1;color:var(--ink);margin:0 0 1rem">
+            Ville poreuse bas-carbone
+          </h3>
+          <div id="atelier-progress"></div>
+        </article>
+
+        <article class="card">
+          <div style="padding-bottom:.78rem;border-bottom:var(--border);margin-bottom:.78rem">
+            <p style="margin:0 0 .18rem;text-transform:uppercase;letter-spacing:.17em;font-size:.58rem;font-weight:500;color:var(--gold)">Check-list technique</p>
+            <h3 style="font-family:var(--serif);font-size:1.7rem;font-weight:300;line-height:1;color:var(--ink);margin:0">Livrables à rendre</h3>
+          </div>
+          <form id="atelier-add-form"
+                style="display:grid;grid-template-columns:1fr auto;gap:.618rem;margin-bottom:.72rem">
+            <label class="field" style="min-height:38px">
+              <input id="atelier-add-input" type="text" placeholder="Nouvelle tâche personnalisée…"
+                     maxlength="120" autocomplete="off" />
+            </label>
+            <button type="submit" class="text-btn text-btn--primary" style="white-space:nowrap">
+              + Ajouter
+            </button>
+          </form>
+          <div id="atelier-todo-list"
+               style="display:grid;gap:.42rem;max-height:460px;overflow-y:auto;padding-right:.2rem">
+          </div>
+        </article>
+
+      </div>
+
+      <!-- Colonne droite : phases + calendrier -->
+      <div id="atelier-right" style="display:grid;gap:1.618rem;position:sticky;top:88px">
+
+        <article class="card">
+          <p style="margin:0 0 .38rem;text-transform:uppercase;letter-spacing:.17em;font-size:.58rem;font-weight:500;color:var(--gold)">Chronos du projet</p>
+          <h3 style="font-family:var(--serif);font-size:1.7rem;font-weight:300;line-height:1;color:var(--ink);margin:0 0 .85rem">Phases ESQ → PRO</h3>
+          <div id="atelier-phases" style="display:grid;gap:.5rem"></div>
+        </article>
+
+        <article class="card">
+          <p style="margin:0 0 .72rem;text-transform:uppercase;letter-spacing:.17em;font-size:.58rem;font-weight:500;color:var(--gold)">Calendrier des échéances</p>
+          <div id="atelier-cal-grid"></div>
+        </article>
+
+      </div>
+    `;
+
+    /* Sous-composants */
+    _refreshProgress();
+    _refreshTodo();
+    _refreshPhases();
+    _refreshCalendar();
+
+    /* Formulaire d'ajout de tâche */
+    document.getElementById("atelier-add-form")?.addEventListener("submit", e => {
+      e.preventDefault();
+      const input = document.getElementById("atelier-add-input");
+      if (TEOMARCHI_APP.journal.addTask(input.value)) {
+        input.value = "";
+        _refreshProgress();
+        _refreshTodo();
+      }
+    });
+  }
+
+  /* ── Hook : init/refresh quand #module-atelier devient actif ───── */
+  (function hookAtelierNav() {
+    const mod = document.getElementById("module-atelier");
+    if (!mod) return;
+
+    new MutationObserver(() => {
+      if (mod.classList.contains("is-active")) initAtelier();
+    }).observe(mod, { attributes: true, attributeFilter: ["class"] });
+
+    /* Cas où l'URL pointe déjà sur #atelier au chargement */
+    if (mod.classList.contains("is-active")) initAtelier();
+  })();
+  </script>
 </body>
 </html>
