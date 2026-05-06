@@ -4082,5 +4082,315 @@
   injectSponsor();
   _verifyPersistence();
   </script>
+
+  <!-- ============================================================
+       TEOMARCHI · Script Final (8) — Toast · Export · Feed · Persistance
+       Bloc de clôture — ne pas ajouter de scripts après celui-ci
+  ============================================================ -->
+  <script>
+  /* ── CSS Toast + Export + Feed interactions (injecté une fois) ── */
+  (function injectInterCSS() {
+    if (document.getElementById("tm-inter-css")) return;
+    const s = document.createElement("style");
+    s.id = "tm-inter-css";
+    s.textContent = `
+      /* ── Toast ── */
+      #tm-toast-wrap {
+        position: fixed; top: 80px; right: 20px; z-index: 20000;
+        display: flex; flex-direction: column; gap: .52rem;
+        pointer-events: none; width: max-content;
+        max-width: min(340px, calc(100vw - 40px));
+      }
+      .tm-toast {
+        display: flex; align-items: center; gap: .58rem;
+        padding: .62rem 1rem;
+        border: var(--border-gold); border-radius: var(--r-pill);
+        background: color-mix(in srgb, var(--surface) 94%, transparent);
+        backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+        box-shadow: 0 8px 32px rgba(0,0,0,.55), 0 0 0 0.5px rgba(201,169,110,.16);
+        font-size: .74rem; color: var(--ink);
+        pointer-events: auto; cursor: pointer;
+        transform: translateX(calc(100% + 28px)); opacity: 0;
+        transition: transform .30s cubic-bezier(.34,1.48,.64,1), opacity .26s ease;
+      }
+      .tm-toast.is-in  { transform: translateX(0); opacity: 1; }
+      .tm-toast.is-out { transform: translateX(calc(100% + 28px)); opacity: 0; }
+      .tm-toast__dot   { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); flex-shrink: 0; }
+
+      /* ── Export panel ── */
+      .tm-export-panel {
+        display: grid; gap: 1rem;
+        padding: 1.618rem;
+        border: var(--border-gold); border-radius: var(--r-xl);
+        background:
+          radial-gradient(ellipse at 0% 100%, rgba(201,169,110,.06) 0%, transparent 58%),
+          var(--surface);
+      }
+      .tm-export-track {
+        height: 2px; border-radius: 999px;
+        background: rgba(245,245,241,.08); overflow: hidden;
+      }
+      .tm-export-bar {
+        height: 100%; width: 0%; border-radius: 999px;
+        background: linear-gradient(to right, var(--gold), color-mix(in srgb, var(--gold) 72%, #fff));
+        transition: width .12s ease;
+      }
+      .tm-export-btns { display: flex; gap: .72rem; flex-wrap: wrap; }
+
+      /* ── Feed interactions ── */
+      .tm-feed-actions {
+        display: flex; gap: .48rem; flex-wrap: wrap;
+        margin-top: .58rem; padding-top: .58rem;
+        border-top: var(--border);
+      }
+      .tm-feed-btn {
+        display: inline-flex; align-items: center; gap: .32rem;
+        padding: .22rem .58rem;
+        border: var(--border); border-radius: var(--r-pill);
+        background: transparent; color: var(--muted);
+        font-family: var(--sans); font-size: .60rem; font-weight: 400;
+        letter-spacing: .10em; text-transform: uppercase; cursor: pointer;
+        transition: color .16s ease, border-color .16s ease, background .16s ease;
+      }
+      .tm-feed-btn svg { width: 11px; height: 11px; flex-shrink: 0; transition: fill .16s ease; }
+      .tm-feed-btn:hover { border-color: rgba(201,169,110,.28); color: var(--ink-2); }
+      .tm-feed-btn.is-on {
+        border-color: var(--gold); color: var(--gold); background: var(--gold-glow);
+      }
+      .tm-feed-btn.is-on svg { fill: currentColor; }
+    `;
+    document.head.appendChild(s);
+  })();
+
+  /* ── pushNotification : toast doré global ───────────────────── */
+  window.pushNotification = function(message) {
+    const _e = s => String(s ?? "").replace(/[&<>"']/g, c =>
+      ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])
+    );
+    let wrap = document.getElementById("tm-toast-wrap");
+    if (!wrap) {
+      wrap = document.createElement("div");
+      wrap.id = "tm-toast-wrap";
+      document.body.appendChild(wrap);
+    }
+    const toast = document.createElement("div");
+    toast.className = "tm-toast";
+    toast.innerHTML = `<span class="tm-toast__dot"></span><span>${_e(message)}</span>`;
+    wrap.appendChild(toast);
+    requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add("is-in")));
+    const dismiss = () => {
+      toast.classList.replace("is-in", "is-out");
+      toast.addEventListener("transitionend", () => toast.remove(), { once: true });
+    };
+    const t = setTimeout(dismiss, 3400);
+    toast.addEventListener("click", () => { clearTimeout(t); dismiss(); });
+  };
+
+  /* ── Feed Like + Save ────────────────────────────────────────── */
+  const _feedState = (() => {
+    try { return JSON.parse(localStorage.getItem("teomarchi.feed")) || {}; } catch { return {}; }
+  })();
+
+  function _saveFeedState() {
+    try { localStorage.setItem("teomarchi.feed", JSON.stringify(_feedState)); } catch {}
+  }
+
+  function initFeedInteractions() {
+    const wall = document.getElementById("feed-wall");
+    if (!wall) return;
+    wall.querySelectorAll(".tm-card").forEach((card, i) => {
+      if (card.querySelector(".tm-feed-actions")) return;
+      const st = _feedState[i] || { liked: false, saved: false };
+
+      const bar = document.createElement("div");
+      bar.className = "tm-feed-actions";
+      bar.innerHTML = `
+        <button class="tm-feed-btn ${st.liked ? "is-on" : ""}"
+                data-ff="like" data-fi="${i}"
+                aria-label="${st.liked ? "Retirer le like" : "Aimer"}"
+                aria-pressed="${st.liked}">
+          <svg viewBox="0 0 24 24" fill="${st.liked ? "currentColor" : "none"}" stroke="currentColor"
+               stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+          <span>${st.liked ? "Aimé" : "Aimer"}</span>
+        </button>
+        <button class="tm-feed-btn ${st.saved ? "is-on" : ""}"
+                data-ff="save" data-fi="${i}"
+                aria-label="${st.saved ? "Retiré" : "Sauvegarder"}"
+                aria-pressed="${st.saved}">
+          <svg viewBox="0 0 24 24" fill="${st.saved ? "currentColor" : "none"}" stroke="currentColor"
+               stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span>${st.saved ? "Sauvegardé" : "Sauvegarder"}</span>
+        </button>
+      `;
+      card.querySelector(".tm-card__body")?.appendChild(bar);
+
+      bar.querySelectorAll("[data-ff]").forEach(btn => {
+        btn.addEventListener("click", e => {
+          e.stopPropagation();
+          const isLike = btn.dataset.ff === "like";
+          const idx    = +btn.dataset.fi;
+          if (!_feedState[idx]) _feedState[idx] = { liked: false, saved: false };
+          const key    = isLike ? "liked" : "saved";
+          const newVal = !_feedState[idx][key];
+          _feedState[idx][key] = newVal;
+
+          btn.classList.toggle("is-on", newVal);
+          btn.setAttribute("aria-pressed", newVal);
+          btn.querySelector("svg").setAttribute("fill", newVal ? "currentColor" : "none");
+          btn.querySelector("span").textContent = isLike
+            ? (newVal ? "Aimé" : "Aimer")
+            : (newVal ? "Sauvegardé" : "Sauvegarder");
+
+          pushNotification(isLike
+            ? (newVal ? "Rendu ajouté à vos coups de cœur" : "Like retiré")
+            : (newVal ? "Rendu sauvegardé dans votre collection" : "Sauvegarde retirée"));
+          _saveFeedState();
+        });
+      });
+    });
+  }
+
+  /* Hook Feed — MutationObserver sur #feed-wall (childList) ── */
+  (function hookFeedInteractions() {
+    const wall = document.getElementById("feed-wall");
+    const mod  = document.getElementById("module-feed");
+    if (!wall || !mod) return;
+    new MutationObserver(() => initFeedInteractions()).observe(wall, { childList: true });
+    new MutationObserver(() => {
+      if (mod.classList.contains("is-active")) setTimeout(initFeedInteractions, 0);
+    }).observe(mod, { attributes: true, attributeFilter: ["class"] });
+    if (mod.classList.contains("is-active")) setTimeout(initFeedInteractions, 0);
+  })();
+
+  /* ── Export PDF / DWG Simulator ─────────────────────────────── */
+  function initExport() {
+    if (document.getElementById("tm-export-wrap")) return;
+    const section = document.getElementById("module-showroom");
+    if (!section) return;
+
+    const wrap = document.createElement("div");
+    wrap.id = "tm-export-wrap";
+    section.appendChild(wrap);
+
+    wrap.innerHTML = `
+      <div class="tm-export-panel">
+        <div>
+          <p style="margin:0 0 .16rem;text-transform:uppercase;letter-spacing:.17em;
+                    font-size:.58rem;font-weight:500;color:var(--gold)">Export technique</p>
+          <h3 style="font-family:var(--serif);font-size:clamp(1.7rem,3.5vw,2.8rem);font-weight:300;
+                     line-height:1;color:var(--ink);margin:0">Exporter le dossier TEOMARCHI</h3>
+        </div>
+        <p style="font-size:.82rem;color:var(--muted);line-height:1.60;max-width:70ch;margin:0">
+          Génère un dossier complet incluant les plans de phases, le journal de bord horodaté,
+          les fiches matières sélectionnées, les notes ACV et les échéances ESQ → PRO.
+        </p>
+        <div id="tm-ep" style="display:none;gap:.5rem">
+          <div class="tm-export-track">
+            <div class="tm-export-bar" id="tm-eb"></div>
+          </div>
+          <p id="tm-es" style="font-size:.68rem;font-family:var(--mono);color:var(--muted);margin:0">
+            Initialisation…
+          </p>
+        </div>
+        <div class="tm-export-btns" id="tm-ect">
+          <button type="button" class="text-btn text-btn--primary" id="tm-export-pdf">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                 stroke-linecap="round" stroke-linejoin="round"
+                 style="width:13px;height:13px;flex-shrink:0" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span>Exporter le dossier (PDF)</span>
+          </button>
+          <button type="button" class="text-btn" id="tm-export-dwg">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                 stroke-linecap="round" stroke-linejoin="round"
+                 style="width:13px;height:13px;flex-shrink:0" aria-hidden="true">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <path d="M14 2v6h6M9 13h6M9 17h4"/>
+            </svg>
+            <span>Plans DWG / IFC</span>
+          </button>
+        </div>
+      </div>
+    `;
+
+    const STEPS = [
+      { p: 10, msg: "Compilation des phases ESQ → PRO…"    },
+      { p: 28, msg: "Intégration des fiches matières…"      },
+      { p: 50, msg: "Export du journal de bord horodaté…"   },
+      { p: 70, msg: "Rendu des coupes et façades…"           },
+      { p: 88, msg: "Assemblage et contrôle qualité…"        },
+      { p: 100,msg: "Dossier TEOMARCHI généré avec succès ✓" }
+    ];
+
+    function _run(label) {
+      const pr  = document.getElementById("tm-ep");
+      const bar = document.getElementById("tm-eb");
+      const st  = document.getElementById("tm-es");
+      const ct  = document.getElementById("tm-ect");
+      if (!pr || !bar || !st || !ct) return;
+
+      pr.style.display  = "grid";
+      ct.style.display  = "none";
+      bar.style.width   = "0%";
+      st.style.color    = "var(--muted)";
+
+      let i = 0;
+      const tick = setInterval(() => {
+        if (i >= STEPS.length) {
+          clearInterval(tick);
+          pushNotification("Dossier " + label + " prêt — téléchargement simulé");
+          setTimeout(() => { pr.style.display = "none"; ct.style.display = ""; }, 4200);
+          return;
+        }
+        const step = STEPS[i++];
+        bar.style.width    = step.p + "%";
+        st.textContent     = step.msg;
+        if (step.p === 100) st.style.color = "var(--ok)";
+      }, 480);
+    }
+
+    document.getElementById("tm-export-pdf")?.addEventListener("click", () => _run("PDF"));
+    document.getElementById("tm-export-dwg")?.addEventListener("click", () => _run("DWG / IFC"));
+  }
+
+  (function hookExport() {
+    const mod = document.getElementById("module-showroom");
+    if (!mod) return;
+    new MutationObserver(() => {
+      if (mod.classList.contains("is-active")) initExport();
+    }).observe(mod, { attributes: true, attributeFilter: ["class"] });
+    if (mod.classList.contains("is-active")) initExport();
+  })();
+
+  /* ── Persistance des messages Messagerie ─────────────────────── */
+  (function setupMsgPersistence() {
+    if (typeof DATA_CONTACTS === "undefined") return;
+    try {
+      const saved = JSON.parse(localStorage.getItem("teomarchi.messages"));
+      if (Array.isArray(saved)) {
+        saved.forEach(d => {
+          const c = DATA_CONTACTS.find(x => x.id === d.id);
+          if (c) { c.messages = d.messages; c.preview = d.preview || c.preview; }
+        });
+      }
+    } catch {}
+    window.addEventListener("beforeunload", () => {
+      try {
+        localStorage.setItem("teomarchi.messages", JSON.stringify(
+          DATA_CONTACTS.map(c => ({ id: c.id, preview: c.preview, messages: c.messages }))
+        ));
+      } catch {}
+    });
+  })();
+
+  /* ── Toast de bienvenue au démarrage ─────────────────────────── */
+  setTimeout(() => pushNotification("TEOMARCHI — 11 modules actifs"), 1400);
+  </script>
 </body>
 </html>
