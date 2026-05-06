@@ -3202,5 +3202,462 @@
     if (mod.classList.contains("is-active")) initPremium();
   })();
   </script>
+
+  <!-- ============================================================
+       TEOMARCHI · Module Messagerie (H)
+       Bloc autonome — ne pas modifier les scripts au-dessus
+       Hook : MutationObserver sur #module-messagerie
+       Conteneur réel : #messaging-layout
+  ============================================================ -->
+  <script>
+  /* ── CSS Messagerie (injecté une fois) ─────────────────────── */
+  (function injectMsgCSS() {
+    if (document.getElementById("tm-msg-css")) return;
+    const s = document.createElement("style");
+    s.id = "tm-msg-css";
+    s.textContent = `
+      .tm-msg-wrap {
+        display: grid;
+        grid-template-columns: 272px 1fr;
+        height: 680px;
+        border: var(--border);
+        border-radius: var(--r-xl);
+        background: var(--surface);
+        overflow: hidden;
+      }
+      @media (max-width: 860px) {
+        .tm-msg-wrap { grid-template-columns: 1fr; grid-template-rows: 180px 1fr; height: 760px; }
+        .tm-msg-sidebar { border-right: none !important; border-bottom: var(--border); }
+      }
+
+      /* ── Sidebar ── */
+      .tm-msg-sidebar {
+        border-right: var(--border);
+        display: flex; flex-direction: column; overflow: hidden;
+      }
+      .tm-msg-sidebar-hd {
+        padding: 1.2rem 1rem 1rem;
+        border-bottom: var(--border);
+        flex-shrink: 0;
+      }
+      .tm-msg-contacts {
+        flex: 1; overflow-y: auto; padding: .38rem 0;
+        scrollbar-width: thin; scrollbar-color: rgba(201,169,110,.18) transparent;
+      }
+      .tm-msg-contacts::-webkit-scrollbar { width: 3px; }
+      .tm-msg-contacts::-webkit-scrollbar-thumb { background: rgba(201,169,110,.18); border-radius: 2px; }
+
+      .tm-msg-contact {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: .55rem; align-items: center;
+        padding: .68rem 1rem;
+        cursor: pointer;
+        border-left: 2px solid transparent;
+        transition: background .14s ease, border-color .14s ease;
+      }
+      .tm-msg-contact:hover   { background: var(--gold-glow); }
+      .tm-msg-contact.is-active {
+        background: var(--gold-dim);
+        border-left-color: var(--gold);
+      }
+      .tm-msg-contact-av {
+        width: 36px; height: 36px; border-radius: 50%;
+        border: var(--border-gold); background: var(--gold-glow);
+        display: grid; place-items: center;
+        font-family: var(--serif); font-size: .86rem; font-weight: 400;
+        color: var(--gold); flex-shrink: 0;
+      }
+      .tm-msg-contact-info { overflow: hidden; }
+      .tm-msg-contact-name {
+        font-size: .80rem; font-weight: 400; color: var(--ink);
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      }
+      .tm-msg-contact-preview {
+        font-size: .66rem; color: var(--muted);
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      }
+      .tm-msg-dot {
+        width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+      }
+      .tm-msg-dot--on  { background: var(--ok); box-shadow: 0 0 0 2px rgba(90,154,106,.18); }
+      .tm-msg-dot--off { background: var(--muted); opacity: .5; }
+
+      /* ── Chat ── */
+      .tm-msg-chat { display: flex; flex-direction: column; overflow: hidden; }
+      .tm-msg-chat-hd {
+        padding: .9rem 1.2rem;
+        border-bottom: var(--border);
+        display: flex; align-items: center; gap: .68rem;
+        flex-shrink: 0;
+      }
+      .tm-msg-messages {
+        flex: 1; overflow-y: auto;
+        padding: 1.1rem 1.2rem;
+        display: flex; flex-direction: column; gap: .78rem;
+        scrollbar-width: thin; scrollbar-color: rgba(201,169,110,.14) transparent;
+      }
+      .tm-msg-messages::-webkit-scrollbar { width: 3px; }
+      .tm-msg-messages::-webkit-scrollbar-thumb { background: rgba(201,169,110,.14); border-radius: 2px; }
+
+      .tm-msg-row      { display: flex; gap: .46rem; align-items: flex-end; }
+      .tm-msg-row--me  { flex-direction: row-reverse; }
+      .tm-msg-bav {
+        width: 26px; height: 26px; border-radius: 50%;
+        border: var(--border); background: var(--surface-2);
+        display: grid; place-items: center;
+        font-family: var(--serif); font-size: .64rem; color: var(--muted); flex-shrink: 0;
+      }
+      .tm-msg-bubble {
+        max-width: 66%; padding: .62rem .85rem;
+        border-radius: 16px; font-size: .81rem; line-height: 1.52;
+      }
+      .tm-msg-bubble--other {
+        background: var(--surface-2); border: var(--border);
+        color: var(--ink-2); border-bottom-left-radius: 4px;
+      }
+      .tm-msg-bubble--me {
+        background: rgba(201,169,110,.07);
+        border: var(--border-gold); color: var(--ink);
+        border-bottom-right-radius: 4px;
+      }
+      .tm-msg-time {
+        font-size: .56rem; color: var(--muted);
+        letter-spacing: .06em; margin-top: .14rem;
+        font-family: var(--mono);
+      }
+      .tm-msg-row--me .tm-msg-time { text-align: right; }
+
+      .tm-msg-file {
+        display: inline-flex; align-items: center; gap: .45rem;
+        padding: .44rem .68rem; margin-top: .32rem;
+        border: var(--border-gold); border-radius: 9px;
+        background: var(--gold-glow);
+        font-size: .68rem; color: var(--gold); cursor: default;
+      }
+
+      /* ── Footer ── */
+      .tm-msg-footer {
+        flex-shrink: 0; border-top: var(--border);
+        padding: .78rem 1.1rem; display: grid; gap: .55rem;
+      }
+      .tm-msg-irow {
+        display: grid; grid-template-columns: 1fr auto; gap: .55rem; align-items: center;
+      }
+      .tm-msg-input {
+        min-height: 38px; padding: .48rem .82rem;
+        border: var(--border); border-radius: var(--r-pill);
+        background: var(--surface-2); font-size: .81rem; color: var(--ink);
+        font-family: var(--sans); transition: border-color .18s ease;
+      }
+      .tm-msg-input:focus  { outline: none; border-color: rgba(201,169,110,.38); }
+      .tm-msg-input::placeholder { color: var(--muted); }
+
+      /* ── Dropzone ── */
+      .tm-msg-dropzone {
+        display: flex; align-items: center; justify-content: center; gap: .65rem;
+        padding: .65rem 1rem;
+        border: 0.5px dashed rgba(201,169,110,.44);
+        border-radius: var(--r-md);
+        background: rgba(201,169,110,.025);
+        cursor: pointer;
+        transition: border-color .18s ease, background .18s ease;
+      }
+      .tm-msg-dropzone:hover,
+      .tm-msg-dropzone.is-over { border-color: var(--gold); background: var(--gold-glow); }
+      .tm-msg-dropzone-icon { color: var(--gold); flex-shrink: 0; }
+      .tm-msg-dropzone-text { font-size: .69rem; color: var(--muted); line-height: 1.38; }
+      .tm-msg-dropzone-text strong {
+        display: block; font-weight: 400;
+        color: var(--gold); letter-spacing: .04em;
+      }
+      .tm-msg-dropzone-types { font-size: .59rem; font-family: var(--mono); letter-spacing: .07em; }
+    `;
+    document.head.appendChild(s);
+  })();
+
+  /* ── Données : contacts et messages ────────────────────────── */
+  const DATA_CONTACTS = [
+    {
+      id: "be", initials: "BE", name: "Bureau d'Études", role: "Ingénierie structure",
+      online: true, preview: "OK pour la semelle filante.",
+      messages: [
+        { me: false, text: "Bonjour, j'ai analysé vos plans de fondation. La charge en pied de poteau dépasse les 120 kN.", time: "09:14" },
+        { me: true,  text: "Merci. Pouvez-vous confirmer les charges sur la travée centrale et la flèche admissible ?", time: "09:17" },
+        { me: false, text: "Confirmé — G = 8 kN/m², Q = 2,5 kN/m². Flèche admissible L/400 selon EN 1990.", time: "09:22" },
+        { me: true,  text: "Parfait. Je corrige le plan de coffrage et vous renvoie avant 18h.", time: "09:25" },
+        { me: false, text: "OK pour la semelle filante. Voir note de calcul ci-jointe.", time: "10:08",
+          file: { name: "note_calcul_structurel_v3.pdf", size: "340 Ko" } }
+      ]
+    },
+    {
+      id: "client", initials: "CM", name: "Client Martin", role: "Maître d'ouvrage",
+      online: true, preview: "Livraison confirmée pour juillet.",
+      messages: [
+        { me: false, text: "Bonjour, où en sommes-nous sur le permis de construire ?", time: "08:30" },
+        { me: true,  text: "Le dossier PC est déposé depuis le 12 mai. Délai d'instruction : 3 mois réglementaires.", time: "08:35" },
+        { me: false, text: "Le budget TCE tient-il toujours à 420 000 € TTC ?", time: "08:40" },
+        { me: true,  text: "Oui, sous réserve du rapport géotechnique G2 — attendu semaine 22.", time: "08:44" },
+        { me: false, text: "Livraison confirmée pour juillet.", time: "09:01" }
+      ]
+    },
+    {
+      id: "tp", initials: "TP", name: "TP Construction", role: "Entreprise gros œuvre",
+      online: false, preview: "Planning de phasage envoyé.",
+      messages: [
+        { me: false, text: "Nous avons reçu le DCE. Questions sur le lot charpente métallique — préchargement des boulons ?", time: "Hier" },
+        { me: true,  text: "Je transmets à l'ingénieur charpente. Retour sous 48h.", time: "Hier" },
+        { me: false, text: "Planning de phasage envoyé.", time: "Hier",
+          file: { name: "phasage_chantier_S22.pdf", size: "210 Ko" } }
+      ]
+    },
+    {
+      id: "amo", initials: "DL", name: "Delphine Lévy", role: "AMO / CSPS",
+      online: true, preview: "PGC V2 disponible.",
+      messages: [
+        { me: false, text: "Le PIC a été mis à jour suite à la réunion de chantier #4. Deux points restent ouverts : RGIE et balisage.", time: "11:00" },
+        { me: true,  text: "Reçu. Je l'intègre au dossier de synthèse et préviens le responsable de lot.", time: "11:08" },
+        { me: false, text: "PGC V2 disponible.", time: "11:20",
+          file: { name: "PGC_v2_chantier.pdf", size: "128 Ko" } }
+      ]
+    },
+    {
+      id: "atelier", initials: "AP", name: "Atelier Principal", role: "Direction de projet",
+      online: false, preview: "Réunion de synthèse vendredi 14h.",
+      messages: [
+        { me: false, text: "Les plans APS sont validés avec réserves sur la hauteur sous plafond R+2 (H libre < 2,50 m).", time: "Lundi" },
+        { me: true,  text: "Bien reçu. Je prends en compte les réserves pour l'APD — nouvelle coupe habitable en cours.", time: "Lundi" },
+        { me: false, text: "Réunion de synthèse vendredi 14h.", time: "Lundi" }
+      ]
+    }
+  ];
+
+  /* ── État inter-visites ─────────────────────────────────────── */
+  let _msgActiveId = "be";
+
+  /* ── initMessagerie : injection dans #messaging-layout ─────── */
+  function initMessagerie() {
+    const root = document.getElementById("messaging-layout");
+    if (!root) return;
+
+    /* Sur re-visite : juste scroll bas */
+    if (root.dataset.loaded === "msg") {
+      root.querySelector(".tm-msg-messages")?.scrollTo({ top: 999999 });
+      return;
+    }
+    root.dataset.loaded = "msg";
+
+    /* ── Helpers de rendu ── */
+    function _contactHTML(c) {
+      return `
+        <div class="tm-msg-contact ${c.id === _msgActiveId ? "is-active" : ""}"
+             data-contact="${c.id}" role="button" tabindex="0"
+             aria-label="Ouvrir la conversation avec ${_esc(c.name)}">
+          <div class="tm-msg-contact-av">${_esc(c.initials)}</div>
+          <div class="tm-msg-contact-info">
+            <p class="tm-msg-contact-name">${_esc(c.name)}</p>
+            <p class="tm-msg-contact-preview">${_esc(c.preview)}</p>
+          </div>
+          <div class="tm-msg-dot tm-msg-dot--${c.online ? "on" : "off"}"
+               title="${c.online ? "En ligne" : "Hors ligne"}"></div>
+        </div>
+      `;
+    }
+
+    function _fileHTML(f) {
+      return `
+        <div class="tm-msg-file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"
+               style="width:13px;height:13px;flex-shrink:0" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <path d="M14 2v6h6M9 13h6M9 17h4"/>
+          </svg>
+          <span>${_esc(f.name)}</span>
+          <span style="color:var(--muted);font-size:.58rem">${_esc(f.size)}</span>
+        </div>
+      `;
+    }
+
+    function _msgHTML(msg, contactInitials) {
+      const avLabel = msg.me ? "Moi" : contactInitials;
+      return `
+        <div class="tm-msg-row ${msg.me ? "tm-msg-row--me" : ""}">
+          <div class="tm-msg-bav" aria-hidden="true">${_esc(avLabel)}</div>
+          <div>
+            <div class="tm-msg-bubble tm-msg-bubble--${msg.me ? "me" : "other"}">
+              ${_esc(msg.text)}
+              ${msg.file ? _fileHTML(msg.file) : ""}
+            </div>
+            <p class="tm-msg-time">${_esc(msg.time)}</p>
+          </div>
+        </div>
+      `;
+    }
+
+    function _refreshChat() {
+      const contact  = DATA_CONTACTS.find(c => c.id === _msgActiveId);
+      if (!contact) return;
+
+      /* En-tête */
+      const hd = root.querySelector(".tm-msg-chat-hd");
+      if (hd) hd.innerHTML = `
+        <div class="tm-msg-contact-av" style="width:34px;height:34px;font-size:.78rem">
+          ${_esc(contact.initials)}
+        </div>
+        <div>
+          <p style="margin:0;font-size:.85rem;font-weight:400;color:var(--ink)">${_esc(contact.name)}</p>
+          <p style="margin:0;font-size:.62rem;color:${contact.online ? "var(--ok)" : "var(--muted)"}">
+            ${contact.online ? "● En ligne" : "○ Hors ligne"}
+            <span style="color:var(--muted)"> · ${_esc(contact.role)}</span>
+          </p>
+        </div>
+      `;
+
+      /* Messages */
+      const msgs = root.querySelector(".tm-msg-messages");
+      if (msgs) {
+        msgs.innerHTML = contact.messages.map(m => _msgHTML(m, contact.initials)).join("");
+        msgs.scrollTop = msgs.scrollHeight;
+      }
+    }
+
+    /* ── Structure HTML complète ── */
+    const onlineCount = DATA_CONTACTS.filter(c => c.online).length;
+
+    root.innerHTML = `
+      <div class="tm-msg-wrap">
+
+        <aside class="tm-msg-sidebar" aria-label="Liste des contacts">
+          <div class="tm-msg-sidebar-hd">
+            <p style="margin:0 0 .12rem;text-transform:uppercase;letter-spacing:.17em;
+                      font-size:.58rem;font-weight:500;color:var(--gold)">Messagerie</p>
+            <h3 style="font-family:var(--serif);font-size:1.48rem;font-weight:300;
+                       line-height:1;color:var(--ink);margin:0">Atelier silencieux</h3>
+            <p style="margin:.32rem 0 0;font-size:.62rem;color:var(--muted)">
+              ${onlineCount} interlocuteur${onlineCount > 1 ? "s" : ""} en ligne
+            </p>
+          </div>
+          <nav class="tm-msg-contacts" role="list">
+            ${DATA_CONTACTS.map(_contactHTML).join("")}
+          </nav>
+        </aside>
+
+        <div class="tm-msg-chat">
+          <div class="tm-msg-chat-hd"></div>
+
+          <div class="tm-msg-messages" aria-live="polite" aria-label="Messages"></div>
+
+          <div class="tm-msg-footer">
+            <div class="tm-msg-irow">
+              <input class="tm-msg-input" id="tm-msg-input" type="text"
+                     placeholder="Rédigez un message technique…"
+                     autocomplete="off" aria-label="Zone de message" />
+              <button type="button" class="text-btn text-btn--primary" id="tm-msg-send">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+                     style="width:13px;height:13px" aria-hidden="true">
+                  <line x1="22" y1="2" x2="11" y2="13"/>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                </svg>
+                <span>Envoyer</span>
+              </button>
+            </div>
+
+            <div class="tm-msg-dropzone" id="tm-msg-dropzone" role="region"
+                 aria-label="Zone de partage de plans et documents">
+              <svg class="tm-msg-dropzone-icon" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="1.4" stroke-linecap="round"
+                   stroke-linejoin="round" style="width:22px;height:22px" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              <div class="tm-msg-dropzone-text">
+                <strong>Glissez vos plans ici</strong>
+                <span class="tm-msg-dropzone-types">DWG · PDF · IFC · DXF — max 50 Mo</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    `;
+
+    _refreshChat();
+
+    /* ── Événements : sélection contact ── */
+    root.querySelectorAll("[data-contact]").forEach(el => {
+      const activate = () => {
+        _msgActiveId = el.dataset.contact;
+        root.querySelectorAll("[data-contact]").forEach(b =>
+          b.classList.toggle("is-active", b.dataset.contact === _msgActiveId)
+        );
+        _refreshChat();
+        root.querySelector("#tm-msg-input")?.focus();
+      };
+      el.addEventListener("click", activate);
+      el.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") activate(); });
+    });
+
+    /* ── Événements : envoi message ── */
+    function _send() {
+      const inp  = root.querySelector("#tm-msg-input");
+      const text = inp?.value.trim();
+      if (!text) return;
+      const contact = DATA_CONTACTS.find(c => c.id === _msgActiveId);
+      if (!contact) return;
+      const now = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+      contact.messages.push({ me: true, text, time: now });
+      contact.preview = text.length > 38 ? text.slice(0, 38) + "…" : text;
+      inp.value = "";
+      _refreshChat();
+    }
+
+    root.querySelector("#tm-msg-send")?.addEventListener("click", _send);
+    root.querySelector("#tm-msg-input")?.addEventListener("keydown", e => {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); _send(); }
+    });
+
+    /* ── Événements : dropzone ── */
+    const dz = root.querySelector("#tm-msg-dropzone");
+    if (dz) {
+      ["dragenter", "dragover"].forEach(ev =>
+        dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add("is-over"); })
+      );
+      ["dragleave", "drop"].forEach(ev =>
+        dz.addEventListener(ev, e => {
+          e.preventDefault();
+          dz.classList.remove("is-over");
+          if (ev !== "drop") return;
+          const files   = Array.from(e.dataTransfer?.files || []);
+          const contact = DATA_CONTACTS.find(c => c.id === _msgActiveId);
+          if (!contact || !files.length) return;
+          const now = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+          files.forEach(f => {
+            const kb = Math.round(f.size / 1024);
+            const sz = kb < 1024 ? kb + " Ko" : (kb / 1024).toFixed(1) + " Mo";
+            contact.messages.push({
+              me: true, text: "Document partagé", time: now,
+              file: { name: f.name, size: sz }
+            });
+            contact.preview = f.name;
+          });
+          _refreshChat();
+        })
+      );
+    }
+  }
+
+  /* ── Hook MutationObserver — module-messagerie ──────────────── */
+  (function hookMessagerie() {
+    const mod = document.getElementById("module-messagerie");
+    if (!mod) return;
+    new MutationObserver(() => {
+      if (mod.classList.contains("is-active")) initMessagerie();
+    }).observe(mod, { attributes: true, attributeFilter: ["class"] });
+    if (mod.classList.contains("is-active")) initMessagerie();
+  })();
+  </script>
 </body>
 </html>
