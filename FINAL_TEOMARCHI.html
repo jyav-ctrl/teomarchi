@@ -16,6 +16,9 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   ═══════════════════════════════════════════════════════════════════════════════════════════════ -->
 
+  <!-- Stripe Buy Button -->
+  <script async src="https://js.stripe.com/v3/buy-button.js"></script>
+
   <style>
     /* ============================================================
        DESIGN SYSTEM — TEOMARCHI
@@ -2906,6 +2909,12 @@
         background: color-mix(in srgb, var(--gold) 84%, #fff);
         border-color: color-mix(in srgb, var(--gold) 84%, #fff); color: #050505;
       }
+      /* ── Stripe Buy Button container ── */
+      .tm-stripe-wrap {
+        width: 100%; display: flex; justify-content: center;
+        margin-top: .5rem;
+      }
+      stripe-buy-button { width: 100% !important; }
     `;
     document.head.appendChild(s);
   })();
@@ -3157,11 +3166,22 @@
                 </li>
               `).join("")}
             </ul>
-            <button type="button"
-                    class="tm-plan__cta ${plan.featured ? "tm-plan__cta--gold" : ""}"
-                    data-plan="${plan.id}">
-              ${_esc(plan.cta)}
-            </button>
+            ${plan.id === "studio" ? `
+              <div class="tm-stripe-wrap">
+                <stripe-buy-button
+                  buy-button-id="TON_ID_BOUTON_STUDIO"
+                  publishable-key="pk_live_51TUEOL3WxFY8ACg4Vy8sPX1sGHjMa6FW3vU5zWzaTFcNmb2dEG3wdFr3WLDaoptcuIobqe5GdJMyc3PbbdCWUOYc004byVd23R">
+                </stripe-buy-button>
+              </div>` : plan.id === "agence" ? `
+              <div class="tm-stripe-wrap">
+                <stripe-buy-button
+                  buy-button-id="buy_btn_1TUFzm3WxFY8ACg4ikbk2Xdi"
+                  publishable-key="pk_live_51TUEOL3WxFY8ACg4Vy8sPX1sGHjMa6FW3vU5zWzaTFcNmb2dEG3wdFr3WLDaoptcuIobqe5GdJMyc3PbbdCWUOYc004byVd23R">
+                </stripe-buy-button>
+              </div>` : `
+              <button type="button" class="tm-plan__cta" data-plan="${plan.id}">
+                ${_esc(plan.cta)}
+              </button>`}
           </article>
         `).join("")}
       </div>
