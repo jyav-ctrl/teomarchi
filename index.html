@@ -1791,6 +1791,7 @@
           data-nav="${m.id}"
           aria-selected="false"
           aria-controls="module-${m.id}"
+          onclick="window.navigateTo&&window.navigateTo('${m.id}')"
           ${m.hidden ? 'style="display:none"' : ""}
         >${MODULE_ICONS[m.id] || ""}<span>${m.label}</span></button>`
       ).join("");
