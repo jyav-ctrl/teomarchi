@@ -833,16 +833,17 @@
        OVERLAY MODAL
     ============================================================ */
     .modal-overlay {
+      display: none;
       position: fixed;
       inset: 0;
       z-index: 10000;
-      display: grid;
       place-items: center;
       padding: var(--sp-lg);
       background: rgba(5, 5, 5, 0.84);
       backdrop-filter: blur(22px);
       -webkit-backdrop-filter: blur(22px);
     }
+    .modal-overlay.is-open { display: grid; }
 
     .modal {
       width: min(720px, 100%);
@@ -1751,7 +1752,9 @@
 
     /* ── Métriques ────────────────────────────────────────────── */
     function buildMetrics () {
-      $("#metrics-bar").innerHTML = METRICS.map(m =>
+      const bar = $("#metrics-bar");
+      if (!bar) return;
+      bar.innerHTML = METRICS.map(m =>
         `<div class="metric">
           <span class="metric__value">${m.value}</span>
           <span class="metric__label">${m.label}</span>
@@ -1922,15 +1925,20 @@
 
     /* ── Initialisation ───────────────────────────────────────── */
     function init () {
-      applyTheme(store.get(STORAGE.theme, "dark"));
-      buildTabs();
-      buildMetrics();
-      syncSessionBtn();
-      navigateTo(resolveHash(), false);
-      bindEvents();
+      const run = (name, fn) => { try { fn(); } catch(e) { console.error("[TEOMARCHI] " + name + ":", e); } };
+      run("applyTheme",   () => applyTheme(store.get(STORAGE.theme, "dark")));
+      run("buildTabs",    buildTabs);
+      run("buildMetrics", buildMetrics);
+      run("syncSession",  syncSessionBtn);
+      run("navigate",     () => navigateTo(resolveHash(), false));
+      run("bindEvents",   bindEvents);
     }
 
-    init();
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", init);
+    } else {
+      init();
+    }
   })();
   </script>
 
