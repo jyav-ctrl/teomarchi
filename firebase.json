@@ -1,0 +1,33 @@
+{
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": ["node_modules", ".git", "firebase-debug.log"]
+    }
+  ],
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "functions/**",
+      "firebase.json",
+      ".firebaserc",
+      "firestore.rules",
+      "FINAL_TEOMARCHI.html",
+      ".gitignore",
+      "node_modules/**"
+    ],
+    "headers": [
+      {
+        "source": "**/*.svg",
+        "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400" }]
+      }
+    ],
+    "rewrites": [
+      { "source": "**", "destination": "/index.html" }
+    ]
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  }
+}
