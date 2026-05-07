@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mentions légales · CGV · Confidentialité — TEOMARCHI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:         #050505;
+      --surface:    #0C0C0A;
+      --surface-2:  #131310;
+      --ink:        #F5F5F1;
+      --ink-2:      #C8C4BA;
+      --muted:      #7A7670;
+      --gold:       #C9A96E;
+      --gold-dim:   rgba(201,169,110,.14);
+      --gold-glow:  rgba(201,169,110,.07);
+      --border:     0.5px solid rgba(245,245,241,.09);
+      --border-gold:0.5px solid rgba(201,169,110,.38);
+      --serif:      "Cormorant Garamond", Georgia, serif;
+      --sans:       "DM Sans", system-ui, sans-serif;
+      --mono:       "SFMono-Regular", Consolas, monospace;
+      --r-md:       14px;
+      --r-xl:       28px;
+      --r-pill:     999px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 15px;
+      font-weight: 300;
+      line-height: 1.72;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: var(--gold); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    h1, h2, h3, h4, p, ul, ol { margin: 0; }
+    ul, ol { list-style: none; padding: 0; }
+
+    /* ── Topbar ── */
+    .topbar {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 66px; padding: 0 clamp(1.618rem, 4vw, 3rem);
+      background: rgba(5,5,5,.88);
+      backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+      border-bottom: var(--border);
+    }
+    .brand {
+      display: flex; align-items: center; gap: .72rem;
+      font-family: var(--serif); font-size: 1.1rem; font-weight: 300;
+      letter-spacing: .18em; text-transform: uppercase;
+      color: var(--ink); text-decoration: none;
+    }
+    .brand svg { color: var(--gold); }
+    .back-btn {
+      display: inline-flex; align-items: center; gap: .42rem;
+      height: 32px; padding: 0 .9rem;
+      border: var(--border); border-radius: var(--r-pill);
+      background: transparent; color: var(--ink-2);
+      font-family: var(--sans); font-size: .62rem; font-weight: 400;
+      letter-spacing: .10em; text-transform: uppercase;
+      cursor: pointer; text-decoration: none;
+      transition: border-color .18s, color .18s;
+    }
+    .back-btn:hover { border-color: var(--gold); color: var(--ink); text-decoration: none; }
+
+    /* ── Layout ── */
+    .wrap {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 4rem clamp(1.618rem, 4vw, 3rem) 6rem;
+      display: grid; gap: 5rem;
+    }
+
+    /* ── Sidebar nav (desktop) ── */
+    .page-layout {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 3rem;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 4rem clamp(1.618rem, 4vw, 3rem) 6rem;
+    }
+    .sidebar {
+      position: sticky; top: 90px; align-self: start;
+      display: grid; gap: .32rem;
+    }
+    .sidebar-title {
+      font-size: .56rem; font-weight: 500; letter-spacing: .17em;
+      text-transform: uppercase; color: var(--muted);
+      padding: .3rem 0 .6rem;
+    }
+    .sidebar a {
+      display: block; padding: .52rem .72rem;
+      border-radius: var(--r-md);
+      font-size: .78rem; color: var(--ink-2);
+      text-decoration: none;
+      transition: background .15s, color .15s;
+    }
+    .sidebar a:hover { background: var(--gold-glow); color: var(--ink); }
+    @media (max-width: 760px) {
+      .page-layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; display: flex; flex-wrap: wrap; gap: .5rem; padding-bottom: 1rem; border-bottom: var(--border); }
+      .sidebar-title { display: none; }
+      .sidebar a { padding: .32rem .65rem; border: var(--border); border-radius: var(--r-pill); font-size: .62rem; }
+    }
+
+    /* ── Document ── */
+    .doc { display: grid; gap: 2.5rem; }
+
+    .doc-header {
+      padding-bottom: 2rem;
+      border-bottom: var(--border);
+    }
+    .doc-kicker {
+      font-size: .58rem; font-weight: 500; letter-spacing: .17em;
+      text-transform: uppercase; color: var(--gold);
+      margin-bottom: .4rem;
+    }
+    .doc-title {
+      font-family: var(--serif);
+      font-size: clamp(2.2rem, 5vw, 3.6rem);
+      font-weight: 300; line-height: 1; color: var(--ink);
+      margin-bottom: .6rem;
+    }
+    .doc-meta {
+      font-size: .72rem; color: var(--muted);
+    }
+
+    .doc-section { display: grid; gap: 1rem; }
+
+    .doc-section h3 {
+      font-family: var(--serif);
+      font-size: 1.5rem; font-weight: 400; color: var(--ink);
+      padding-bottom: .5rem;
+      border-bottom: var(--border);
+    }
+    .doc-section h4 {
+      font-size: .78rem; font-weight: 500; letter-spacing: .10em;
+      text-transform: uppercase; color: var(--gold);
+      margin-top: .5rem;
+    }
+    .doc-section p, .doc-section li {
+      font-size: .88rem; color: var(--ink-2); line-height: 1.78;
+    }
+    .doc-section ul {
+      display: grid; gap: .38rem; padding-left: 1rem;
+    }
+    .doc-section ul li::before {
+      content: "—"; margin-right: .5rem; color: var(--gold); opacity: .6;
+    }
+
+    .placeholder {
+      display: inline-block;
+      padding: .1rem .5rem;
+      border: 0.5px dashed rgba(201,169,110,.45);
+      border-radius: 4px;
+      background: rgba(201,169,110,.06);
+      color: var(--gold);
+      font-family: var(--mono); font-size: .80em;
+      font-style: normal;
+    }
+
+    .info-box {
+      padding: 1rem 1.2rem;
+      border: var(--border-gold);
+      border-radius: var(--r-md);
+      background: var(--gold-glow);
+      font-size: .82rem; color: var(--ink-2); line-height: 1.65;
+    }
+    .info-box strong { color: var(--gold); font-weight: 400; }
+
+    /* ── Divider ── */
+    .doc-divider {
+      height: 0.5px; background: rgba(245,245,241,.06);
+    }
+
+    /* ── Footer ── */
+    .legal-footer {
+      border-top: var(--border);
+      padding: 2rem clamp(1.618rem, 4vw, 3rem);
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 1rem;
+      font-size: .68rem; color: var(--muted);
+    }
+    .legal-footer a { color: var(--muted); }
+    .legal-footer a:hover { color: var(--gold); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+  <!-- Topbar -->
+  <nav class="topbar">
+    <a class="brand" href="index.html">
+      <svg width="28" height="28" viewBox="0 0 64 64" fill="none">
+        <path d="M12 47H52" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        <path d="M32 13V47" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        <path d="M19 17H45" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        <path d="M32 17L19 47M32 17L45 47" stroke="currentColor" stroke-width="1.0" stroke-linecap="round"/>
+        <circle cx="32" cy="17" r="2.1" fill="currentColor"/>
+      </svg>
+      Teomarchi
+    </a>
+    <a class="back-btn" href="index.html">
+      ← Retour à la plateforme
+    </a>
+  </nav>
+
+  <!-- Layout avec sidebar -->
+  <div class="page-layout">
+
+    <!-- Sidebar navigation -->
+    <aside class="sidebar" aria-label="Navigation légale">
+      <p class="sidebar-title">Documents</p>
+      <a href="#mentions">Mentions légales</a>
+      <a href="#cgv">CGV · CGU</a>
+      <a href="#privacy">Confidentialité</a>
+    </aside>
+
+    <!-- Contenu -->
+    <main>
+
+      <!-- ══════════════════════════════════════════
+           1. MENTIONS LÉGALES
+      ══════════════════════════════════════════ -->
+      <section id="mentions" class="doc">
+
+        <div class="doc-header">
+          <p class="doc-kicker">Document 1 / 3</p>
+          <h1 class="doc-title">Mentions légales</h1>
+          <p class="doc-meta">En vigueur à compter du 1er janvier 2026</p>
+        </div>
+
+        <div class="doc-section">
+          <h3>Éditeur du site</h3>
+          <p>Le site <strong>TEOMARCHI</strong> (accessible à l'adresse <strong>teomarchi.com</strong>) est édité par :</p>
+          <ul>
+            <li>Nom / Raison sociale : <span class="placeholder">[VOTRE NOM OU ENTREPRISE]</span></li>
+            <li>Statut juridique : <span class="placeholder">[EI / SASU / SAS / etc.]</span></li>
+            <li>SIRET : <span class="placeholder">[NUMÉRO SIRET]</span> — si applicable</li>
+            <li>Adresse : <span class="placeholder">[ADRESSE COMPLÈTE]</span></li>
+            <li>E-mail : <a href="mailto:teomarchi@teomarchi.com">teomarchi@teomarchi.com</a></li>
+            <li>Directeur de la publication : <span class="placeholder">[VOTRE NOM]</span></li>
+          </ul>
+        </div>
+
+        <div class="doc-section">
+          <h3>Hébergement</h3>
+          <p>Le site est hébergé par :</p>
+          <ul>
+            <li>Société : <span class="placeholder">[NOM DE L'HÉBERGEUR — ex: Vercel, OVH, Netlify]</span></li>
+            <li>Adresse : <span class="placeholder">[ADRESSE DE L'HÉBERGEUR]</span></li>
+            <li>Site : <span class="placeholder">[URL DE L'HÉBERGEUR]</span></li>
+          </ul>
+        </div>
+
+        <div class="doc-section">
+          <h3>Propriété intellectuelle</h3>
+          <p>
+            L'ensemble des contenus présents sur TEOMARCHI — textes, données, interfaces, modules Atlas,
+            Normothèque, fiches constructives, structures de navigation, illustrations et code source —
+            constituent une création originale protégée par le droit d'auteur
+            (articles L.111-1 et suivants du Code de la propriété intellectuelle).
+          </p>
+          <p>
+            Toute reproduction, extraction, adaptation, diffusion ou réutilisation, totale ou partielle,
+            sans autorisation écrite préalable de l'éditeur, est strictement interdite et
+            susceptible de constituer une contrefaçon punie par la loi.
+          </p>
+        </div>
+
+        <div class="doc-section">
+          <h3>Limitation de responsabilité</h3>
+          <p>
+            Les informations techniques et réglementaires publiées sur TEOMARCHI sont fournies à titre
+            indicatif. Elles ne constituent pas un avis juridique ou professionnel opposable.
+            Chaque professionnel est responsable de la vérification des normes applicables au contexte
+            réglementaire de son projet.
+          </p>
+        </div>
+
+      </section>
+
+      <div class="doc-divider" style="margin: 3rem 0"></div>
+
+      <!-- ══════════════════════════════════════════
+           2. CGV / CGU
+      ══════════════════════════════════════════ -->
+      <section id="cgv" class="doc">
+
+        <div class="doc-header">
+          <p class="doc-kicker">Document 2 / 3</p>
+          <h1 class="doc-title">Conditions générales</h1>
+          <p class="doc-meta">Vente · Utilisation — En vigueur à compter du 1er janvier 2026</p>
+        </div>
+
+        <div class="info-box">
+          <strong>À qui s'appliquent ces conditions ?</strong> À toute personne physique ou morale
+          accédant à la plateforme TEOMARCHI, qu'elle soit abonnée ou non. La création d'un compte
+          ou la souscription d'un abonnement vaut acceptation sans réserve des présentes conditions.
+        </div>
+
+        <div class="doc-section">
+          <h3>1. Description du service</h3>
+          <p>
+            TEOMARCHI est une plateforme numérique de ressources professionnelles destinée
+            aux architectes, étudiants en architecture et ateliers de projet. Elle met à disposition :
+          </p>
+          <ul>
+            <li>Un <strong>Atlas mondial</strong> des systèmes constructifs</li>
+            <li>Une <strong>Normothèque</strong> interactive (dimensions, réglementations, matériaux)</li>
+            <li>Un <strong>Panthéon</strong> des architectes fondateurs</li>
+            <li>Des <strong>Fiches constructives</strong> et un <strong>Journal de bord</strong> de projet</li>
+            <li>Une <strong>Messagerie</strong> et un <strong>Showroom</strong> de prescriptions</li>
+          </ul>
+        </div>
+
+        <div class="doc-section">
+          <h3>2. Offres et tarification</h3>
+          <h4>Offre Gratuit</h4>
+          <p>Accès limité à certains modules en lecture. Aucun paiement requis.</p>
+
+          <h4>Offre Studio — 29 € / mois</h4>
+          <p>
+            Accès complet à l'ensemble des modules, journal de bord illimité, export PDF,
+            normothèque intégrale et profil public portfolio. Abonnement mensuel sans engagement,
+            résiliable à tout moment.
+          </p>
+
+          <h4>Offre Agence — 89 € / mois</h4>
+          <p>
+            Toutes les fonctionnalités Studio, avec en plus la gestion d'équipe, la messagerie
+            collaborative, le tableau de bord agence et l'archivage sécurisé 5 ans.
+            Abonnement mensuel sans engagement, résiliable à tout moment.
+          </p>
+
+          <p style="margin-top:.5rem">
+            Tous les prix sont indiqués en euros TTC. L'éditeur se réserve le droit de modifier
+            les tarifs. Les abonnés en cours sont notifiés 30 jours avant toute modification tarifaire.
+          </p>
+        </div>
+
+        <div class="doc-section">
+          <h3>3. Paiement</h3>
+          <p>
+            Les paiements sont intégralement gérés par <strong>Stripe, Inc.</strong>,
+            prestataire de paiement certifié PCI-DSS. TEOMARCHI ne stocke à aucun moment
+            vos données bancaires (numéro de carte, CVV, date d'expiration).
+          </p>
+          <p>
+            Le prélèvement est effectué le jour de la souscription, puis automatiquement
+            à la même date chaque mois. En cas d'échec de paiement, l'accès aux modules
+            premium est suspendu jusqu'à régularisation.
+          </p>
+        </div>
+
+        <div class="doc-section">
+          <h3>4. Accès au service</h3>
+          <p>
+            L'accès aux modules selon l'offre souscrite est ouvert <strong>immédiatement</strong>
+            après confirmation du paiement par Stripe. L'utilisateur reconnaît que le service
+            est pleinement accessible dès cet instant.
+          </p>
+        </div>
+
+        <div class="doc-section">
+          <h3>5. Droit de rétractation</h3>
+          <div class="info-box">
+            <strong>Exception légale applicable.</strong> Conformément à l'article L.221-28 du
+            Code de la consommation, le droit de rétractation de 14 jours ne s'applique pas
+            aux contenus numériques dont l'exécution a commencé avec l'accord exprès de
+            l'utilisateur, qui a reconnu renoncer à ce droit lors de la souscription.
+          </div>
+          <p>
+            En cliquant sur le bouton de paiement, l'utilisateur consent explicitement à la
+            fourniture immédiate du service numérique et renonce à son droit de rétractation.
+          </p>
+        </div>
+
+        <div class="doc-section">
+          <h3>6. Résiliation</h3>
+          <p>
+            L'abonné peut résilier son abonnement à tout moment, sans frais ni pénalité,
+            depuis son espace client Stripe ou en contactant
+            <a href="mailto:teomarchi@teomarchi.com">teomarchi@teomarchi.com</a>.
+          </p>
+          <p>
+            La résiliation prend effet à la fin de la période mensuelle en cours.
+            L'accès aux modules premium reste actif jusqu'à cette date. Aucun remboursement
+            au prorata n'est effectué sauf obligation légale.
+          </p>
+        </div>
+
+        <div class="doc-section">
+          <h3>7. Protection du contenu — Anti-pillage</h3>
+          <p>
+            Les données, textes, fiches, structures de l'Atlas et de la Normothèque constituent
+            une base de données originale au sens de la directive européenne 96/9/CE et du droit
+            français (articles L.341-1 et suivants du CPI).
+          </p>
+          <ul>
+            <li>Le scraping automatisé des contenus est strictement interdit</li>
+            <li>L'extraction systématique ou la réutilisation commerciale de la base est prohibée</li>
+            <li>La revente ou la redistribution de tout contenu issu de la plateforme est interdite</li>
+            <li>Toute violation expose son auteur à des poursuites civiles et pénales</li>
+          </ul>
+        </div>
+
+        <div class="doc-section">
+          <h3>8. Obligations de l'utilisateur</h3>
+          <ul>
+            <li>Ne pas partager ses identifiants de connexion avec des tiers</li>
+            <li>Ne pas tenter de contourner les mécanismes de protection ou d'accès</li>
+            <li>Utiliser la plateforme à des fins professionnelles ou pédagogiques licites uniquement</li>
+            <li>Signaler toute faille ou anomalie à <a href="mailto:teomarchi@teomarchi.com">teomarchi@teomarchi.com</a></li>
+          </ul>
+        </div>
+
+        <div class="doc-section">
+          <h3>9. Suspension et résiliation par l'éditeur</h3>
+          <p>
+            TEOMARCHI se réserve le droit de suspendre ou résilier tout compte en cas de
+            violation manifeste des présentes conditions, sans préavis ni remboursement.
+            L'utilisateur en sera notifié par e-mail.
+          </p>
+        </div>
+
+        <div class="doc-section">
+          <h3>10. Droit applicable</h3>
+          <p>
+            Les présentes conditions sont régies par le droit français. En cas de litige,
+            les parties s'engagent à rechercher une solution amiable avant tout recours judiciaire.
+            À défaut, le tribunal compétent sera celui du ressort du siège de l'éditeur.
+          </p>
+        </div>
+
+      </section>
+
+      <div class="doc-divider" style="margin: 3rem 0"></div>
+
+      <!-- ══════════════════════════════════════════
+           3. POLITIQUE DE CONFIDENTIALITÉ
+      ══════════════════════════════════════════ -->
+      <section id="privacy" class="doc">
+
+        <div class="doc-header">
+          <p class="doc-kicker">Document 3 / 3</p>
+          <h1 class="doc-title">Politique de confidentialité</h1>
+          <p class="doc-meta">Conformité RGPD — En vigueur à compter du 1er janvier 2026</p>
+        </div>
+
+        <div class="info-box">
+          <strong>Notre engagement.</strong> TEOMARCHI collecte uniquement les données
+          strictement nécessaires au fonctionnement du service. Vos données bancaires ne nous
+          parviennent jamais — elles sont gérées exclusivement par Stripe.
+        </div>
+
+        <div class="doc-section">
+          <h3>1. Responsable du traitement</h3>
+          <ul>
+            <li>Identité : <span class="placeholder">[VOTRE NOM OU ENTREPRISE]</span></li>
+            <li>Adresse : <span class="placeholder">[ADRESSE COMPLÈTE]</span></li>
+            <li>Contact DPO / RGPD : <a href="mailto:teomarchi@teomarchi.com">teomarchi@teomarchi.com</a></li>
+          </ul>
+        </div>
+
+        <div class="doc-section">
+          <h3>2. Données collectées et finalités</h3>
+
+          <h4>Authentification (Firebase — Google)</h4>
+          <p>
+            Lors de la création de votre compte, nous collectons votre <strong>adresse e-mail</strong>
+            et, si vous utilisez la connexion Google, votre nom d'affichage et photo de profil publique.
+            Ces données sont traitées par <strong>Google Firebase Authentication</strong> pour :
+          </p>
+          <ul>
+            <li>Créer et sécuriser votre session utilisateur</li>
+            <li>Identifier votre niveau d'accès (Gratuit, Studio, Agence)</li>
+            <li>Vous permettre de vous reconnecter sans saisir vos identifiants à chaque visite</li>
+          </ul>
+
+          <h4>Paiement (Stripe)</h4>
+          <p>
+            Vos données de paiement (numéro de carte, date d'expiration, CVV) sont saisies
+            directement sur les serveurs sécurisés de <strong>Stripe, Inc.</strong>
+            TEOMARCHI ne reçoit et ne stocke à aucun moment ces informations bancaires.
+            Stripe nous transmet uniquement : un identifiant de client anonymisé, l'état de
+            votre abonnement et la date de renouvellement.
+          </p>
+
+          <h4>Données de navigation</h4>
+          <p>
+            Vos préférences d'affichage (thème sombre/clair), votre journal de bord,
+            vos messages et votre progression sont stockés localement dans le
+            <code style="font-family:var(--mono);font-size:.88em">localStorage</code>
+            de votre navigateur. Ces données ne quittent pas votre appareil.
+          </p>
+        </div>
+
+        <div class="doc-section">
+          <h3>3. Base légale des traitements</h3>
+          <ul>
+            <li><strong>Exécution du contrat</strong> — traitement de l'e-mail pour la gestion du compte et de l'abonnement</li>
+            <li><strong>Intérêt légitime</strong> — sécurité de la plateforme, prévention de la fraude</li>
+            <li><strong>Consentement</strong> — connexion via Google (révocable à tout moment)</li>
+          </ul>
+        </div>
+
+        <div class="doc-section">
+          <h3>4. Sous-traitants et transferts</h3>
+          <ul>
+            <li>
+              <strong>Google Firebase</strong> (Google LLC, USA) — authentification et gestion des
+              comptes. Transfert encadré par les clauses contractuelles types UE.
+              <a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener">Politique Firebase ↗</a>
+            </li>
+            <li>
+              <strong>Stripe, Inc.</strong> (USA) — traitement des paiements.
+              Certifié PCI-DSS niveau 1. Transfert encadré par les clauses contractuelles types UE.
+              <a href="https://stripe.com/fr/privacy" target="_blank" rel="noopener">Politique Stripe ↗</a>
+            </li>
+          </ul>
+          <p>Aucune donnée personnelle n'est vendue ou transmise à des tiers à des fins commerciales.</p>
+        </div>
+
+        <div class="doc-section">
+          <h3>5. Durée de conservation</h3>
+          <ul>
+            <li>Données de compte (Firebase) : conservées tant que le compte est actif, puis supprimées sous 30 jours après demande</li>
+            <li>Données de paiement (Stripe) : selon la politique de Stripe, minimum 5 ans pour obligations légales comptables</li>
+            <li>Données locales (localStorage) : stockées sur votre appareil, supprimables à tout moment depuis les paramètres de votre navigateur</li>
+          </ul>
+        </div>
+
+        <div class="doc-section">
+          <h3>6. Vos droits (RGPD)</h3>
+          <p>
+            Conformément au Règlement général sur la protection des données (UE) 2016/679,
+            vous disposez des droits suivants sur vos données personnelles :
+          </p>
+          <ul>
+            <li><strong>Droit d'accès</strong> — obtenir une copie des données vous concernant</li>
+            <li><strong>Droit de rectification</strong> — corriger des informations inexactes</li>
+            <li><strong>Droit à l'effacement</strong> — demander la suppression de votre compte et de vos données</li>
+            <li><strong>Droit à la portabilité</strong> — recevoir vos données dans un format structuré</li>
+            <li><strong>Droit d'opposition</strong> — vous opposer à un traitement basé sur l'intérêt légitime</li>
+            <li><strong>Droit de retrait du consentement</strong> — révoquer la connexion Google à tout moment</li>
+          </ul>
+          <p>
+            Pour exercer ces droits, contactez-nous à
+            <a href="mailto:teomarchi@teomarchi.com">teomarchi@teomarchi.com</a>.
+            Nous répondons sous 30 jours maximum. En cas de désaccord persistant, vous pouvez
+            saisir la <a href="https://www.cnil.fr" target="_blank" rel="noopener">CNIL ↗</a>.
+          </p>
+        </div>
+
+        <div class="doc-section">
+          <h3>7. Cookies</h3>
+          <p>
+            TEOMARCHI n'utilise pas de cookies de traçage ou publicitaires.
+            Le seul stockage côté navigateur est le <code style="font-family:var(--mono);font-size:.88em">localStorage</code>
+            utilisé pour vos préférences locales (thème, journal, messages). Aucun cookie tiers n'est déposé.
+          </p>
+        </div>
+
+        <div class="doc-section">
+          <h3>8. Modifications</h3>
+          <p>
+            Cette politique peut être mise à jour pour refléter l'évolution du service ou
+            des obligations légales. Toute modification substantielle sera notifiée par e-mail
+            aux utilisateurs disposant d'un compte actif, avec un préavis de 15 jours.
+          </p>
+        </div>
+
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Footer -->
+  <footer class="legal-footer">
+    <span>© 2026 TEOMARCHI — Tous droits réservés</span>
+    <span>
+      <a href="mailto:teomarchi@teomarchi.com">teomarchi@teomarchi.com</a>
+      &nbsp;·&nbsp;
+      <a href="index.html">Retour à la plateforme</a>
+    </span>
+  </footer>
+
+</body>
+</html>
