@@ -1038,9 +1038,62 @@
       .text-btn span     { display: none; }
       .brand__title      { font-size: 0.88rem; letter-spacing: 0.18em; }
     }
+
+    /* ============================================================
+       CUSTOM CURSOR
+    ============================================================ */
+    @media (min-width: 1024px) {
+      html, body { cursor: none; }
+      a, button, input, select, textarea, [data-nav], [role="tab"] { cursor: none; }
+    }
+
+    .cursor-dot,
+    .cursor-outline {
+      pointer-events: none;
+      position: fixed;
+      top: 0; left: 0;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      opacity: 0;
+      z-index: 99999;
+      transition: opacity .3s ease, width .15s ease, height .15s ease,
+                  background .15s ease, border-color .15s ease;
+      will-change: left, top;
+    }
+
+    .cursor-dot {
+      width: 6px;
+      height: 6px;
+      background-color: var(--gold);
+      transition: opacity .3s ease, transform .1s ease;
+    }
+
+    .cursor-outline {
+      width: 28px;
+      height: 28px;
+      border: 1px solid rgba(201, 169, 110, 0.7);
+    }
+
+    .cursor-hover .cursor-dot {
+      transform: translate(-50%, -50%) scale(0);
+    }
+    .cursor-hover .cursor-outline {
+      width: 42px;
+      height: 42px;
+      background: var(--gold-glow);
+      border-color: var(--gold);
+    }
+
+    .cursor-click .cursor-outline {
+      transform: translate(-50%, -50%) scale(0.7);
+    }
   </style>
 </head>
 <body>
+
+  <!-- Curseur custom -->
+  <div class="cursor-dot"     id="cursor-dot"     aria-hidden="true"></div>
+  <div class="cursor-outline" id="cursor-outline" aria-hidden="true"></div>
 
   <!-- ============================================================
        NAVBAR — barre fixe du haut
@@ -1923,6 +1976,61 @@
       window.addEventListener("popstate", () => navigateTo(resolveHash(), false));
     }
 
+    /* ── Curseur custom ──────────────────────────────────────── */
+    function initCursor () {
+      if (window.matchMedia("(max-width: 1023px)").matches) return;
+      if (window.matchMedia("(pointer: coarse)").matches)   return;
+
+      const dot     = document.getElementById("cursor-dot");
+      const outline = document.getElementById("cursor-outline");
+      if (!dot || !outline) return;
+
+      let ox = 0, oy = 0, rafId;
+
+      window.addEventListener("mousemove", e => {
+        const x = e.clientX, y = e.clientY;
+        dot.style.opacity = "1";
+        outline.style.opacity = "1";
+        dot.style.left = x + "px";
+        dot.style.top  = y + "px";
+
+        cancelAnimationFrame(rafId);
+        function ease () {
+          ox += (x - ox) * 0.14;
+          oy += (y - oy) * 0.14;
+          outline.style.left = ox + "px";
+          outline.style.top  = oy + "px";
+          if (Math.abs(x - ox) > 0.3 || Math.abs(y - oy) > 0.3)
+            rafId = requestAnimationFrame(ease);
+        }
+        rafId = requestAnimationFrame(ease);
+      });
+
+      /* Hover sur cliquables */
+      document.addEventListener("mouseover", e => {
+        if (e.target.closest("a, button, [data-nav], input, select, textarea, [role='tab']"))
+          document.body.classList.add("cursor-hover");
+      });
+      document.addEventListener("mouseout", e => {
+        if (e.target.closest("a, button, [data-nav], input, select, textarea, [role='tab']"))
+          document.body.classList.remove("cursor-hover");
+      });
+
+      /* Feedback clic */
+      document.addEventListener("mousedown", () => document.body.classList.add("cursor-click"));
+      document.addEventListener("mouseup",   () => document.body.classList.remove("cursor-click"));
+
+      /* Quitter la fenêtre */
+      document.addEventListener("mouseleave", () => {
+        dot.style.opacity = "0";
+        outline.style.opacity = "0";
+      });
+      document.addEventListener("mouseenter", () => {
+        dot.style.opacity = "1";
+        outline.style.opacity = "1";
+      });
+    }
+
     /* ── Initialisation ───────────────────────────────────────── */
     function init () {
       const run = (name, fn) => { try { fn(); } catch(e) { console.error("[TEOMARCHI] " + name + ":", e); } };
@@ -1932,6 +2040,7 @@
       run("syncSession",  syncSessionBtn);
       run("navigate",     () => navigateTo(resolveHash(), false));
       run("bindEvents",   bindEvents);
+      run("cursor",       initCursor);
     }
 
     if (document.readyState === "loading") {
