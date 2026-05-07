@@ -1166,11 +1166,22 @@
   ============================================================ -->
   <div class="app-body">
 
-    <!-- Sidebar gauche — modules générés par JS -->
+    <!-- Sidebar gauche — modules générés par JS, pré-rendus en fallback -->
     <aside class="sidebar" aria-label="Navigation modules">
       <p class="sidebar__label">Modules</p>
       <nav class="sidebar-nav" id="sidebar-nav"
-           role="tablist" aria-label="Modules de la plateforme"></nav>
+           role="tablist" aria-label="Modules de la plateforme">
+        <button class="sidebar-item nav-tab is-active" type="button" role="tab" id="tab-atlas"      data-nav="atlas"      aria-selected="true"  aria-controls="module-atlas"     ><span>Atlas</span></button>
+        <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-chronos"    data-nav="chronos"    aria-selected="false" aria-controls="module-chronos"   ><span>Chronos</span></button>
+        <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-pantheon"   data-nav="pantheon"   aria-selected="false" aria-controls="module-pantheon"  ><span>Panthéon</span></button>
+        <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-fiches"     data-nav="fiches"     aria-selected="false" aria-controls="module-fiches"    ><span>Fiches</span></button>
+        <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-etudes"     data-nav="etudes"     aria-selected="false" aria-controls="module-etudes"    ><span>Études</span></button>
+        <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-outils"     data-nav="outils"     aria-selected="false" aria-controls="module-outils"    ><span>Outils</span></button>
+        <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-atelier"    data-nav="atelier"    aria-selected="false" aria-controls="module-atelier"   ><span>Atelier</span></button>
+        <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-journalier" data-nav="journalier" aria-selected="false" aria-controls="module-journalier"><span>Journalier</span></button>
+        <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-showroom"   data-nav="showroom"   aria-selected="false" aria-controls="module-showroom"  ><span>Showroom</span></button>
+        <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-feed"       data-nav="feed"       aria-selected="false" aria-controls="module-feed"      ><span>Feed</span></button>
+      </nav>
     </aside>
 
     <!-- Zone de contenu principale -->
@@ -1205,7 +1216,7 @@
     <div class="view" id="view" aria-live="polite">
 
       <!-- ── MODULE 01 · ATLAS ── -->
-      <section class="module" id="module-atlas"
+      <section class="module is-active" id="module-atlas"
                role="tabpanel" aria-labelledby="tab-atlas" data-module="atlas">
         <header class="section-head">
           <div>
