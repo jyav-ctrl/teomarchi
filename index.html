@@ -11,9 +11,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet" />
 
-  <!-- Firebase Auth -->
+  <!-- Firebase Auth + Firestore -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
   <!-- Stripe Buy Button -->
   <script async src="https://js.stripe.com/v3/buy-button.js"></script>
@@ -169,10 +170,11 @@
     img                     { display: block; max-width: 100%; }
 
     /* Empilement Z */
-    .topbar       { position: relative; z-index: 100; }
-    .app          { position: relative; z-index: 1;   }
+    .navbar       { position: relative; z-index: 9000; }
+    .sidebar      { position: relative; z-index: 500;  }
+    .app          { position: relative; z-index: 1;    }
     footer,
-    .legal-strip  { position: relative; z-index: 1;   }
+    .legal-strip  { position: relative; z-index: 1;    }
 
     /* ============================================================
        UTILITAIRES
@@ -190,20 +192,22 @@
     }
 
     /* ============================================================
-       TOPBAR
+       NAVBAR — barre fixe du haut
     ============================================================ */
-    .topbar {
-      position: sticky;
+    .navbar {
+      position: fixed;
       top: 0;
+      left: 0;
+      right: 0;
       z-index: 9000;
       height: var(--topbar-h);
       display: grid;
       grid-template-columns: auto 1fr auto;
       align-items: center;
       gap: var(--sp-lg);
-      padding: 0 clamp(var(--sp-lg), 3.5vw, var(--sp-xl));
+      padding: 0 clamp(var(--sp-md), 3vw, var(--sp-xl));
       border-bottom: var(--border);
-      background: color-mix(in srgb, var(--bg) 84%, transparent);
+      background: color-mix(in srgb, var(--bg) 88%, transparent);
       backdrop-filter: blur(28px) saturate(160%);
       -webkit-backdrop-filter: blur(28px) saturate(160%);
     }
@@ -248,53 +252,121 @@
       line-height: 1;
     }
 
-    /* ── Tabs de navigation ── */
-    .nav-tabs {
+    /* ============================================================
+       SIDEBAR — barre latérale gauche fixe
+    ============================================================ */
+    .app-body {
       display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 1px;
-      flex-wrap: nowrap;
-      overflow-x: auto;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
+      min-height: 100dvh;
+      padding-top: var(--topbar-h);
     }
-    .nav-tabs::-webkit-scrollbar { display: none; }
 
-    .nav-tab {
-      position: relative;
-      padding: 0.44rem 0.80rem;
-      border-radius: var(--r-pill);
+    .sidebar {
+      position: fixed;
+      top: var(--topbar-h);
+      left: 0;
+      width: 220px;
+      height: calc(100dvh - var(--topbar-h));
+      overflow-y: auto;
+      overflow-x: hidden;
+      border-right: var(--border);
+      background: color-mix(in srgb, var(--surface) 70%, var(--bg));
+      z-index: 500;
+      display: flex;
+      flex-direction: column;
+      padding: var(--sp-lg) 0 var(--sp-xxl);
+      scrollbar-width: thin;
+      scrollbar-color: rgba(201,169,110,.12) transparent;
+    }
+
+    .sidebar__label {
+      font-size: 0.52rem;
+      font-weight: 500;
+      letter-spacing: 0.20em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 0 1rem var(--sp-xs);
+      opacity: 0.6;
+    }
+
+    .sidebar-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 0 0.60rem;
+    }
+
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 0.58rem;
+      padding: 0.54rem 0.72rem;
+      border-radius: var(--r-sm);
       border: 0.5px solid transparent;
       color: var(--muted);
-      font-size: 0.64rem;
+      font-size: 0.67rem;
       font-weight: 400;
-      letter-spacing: 0.14em;
+      letter-spacing: 0.10em;
       text-transform: uppercase;
       white-space: nowrap;
+      text-align: left;
       transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease;
     }
 
-    .nav-tab:hover {
+    .sidebar-item svg {
+      width: 13px;
+      height: 13px;
+      flex-shrink: 0;
+      opacity: 0.55;
+      transition: opacity 0.18s ease, color 0.18s ease;
+    }
+
+    .sidebar-item:hover {
       color: var(--ink-2);
       background: var(--gold-glow);
-      border-color: rgba(201, 169, 110, 0.12);
+      border-color: rgba(201, 169, 110, 0.10);
     }
+    .sidebar-item:hover svg { opacity: 1; }
 
-    .nav-tab.is-active {
+    .sidebar-item.is-active {
       color: var(--ink);
       background: var(--gold-dim);
-      border-color: rgba(201, 169, 110, 0.26);
+      border-color: rgba(201, 169, 110, 0.24);
+    }
+    .sidebar-item.is-active svg {
+      opacity: 1;
+      color: var(--gold);
     }
 
+    .sidebar-sep {
+      height: 0.5px;
+      background: rgba(245,245,241,.07);
+      margin: var(--sp-sm) 0.60rem;
+    }
+
+    .main-wrap {
+      flex: 1;
+      min-width: 0;
+      margin-left: 220px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Tabs (conservé pour compat JS syncTabs) ── */
+    .nav-tab.is-active {
+      /* masqué — rendu par .sidebar-item.is-active */
+    }
+
+    /* Trick : nav-tab dans la sidebar hérite du style sidebar-item */
+    .sidebar-item.nav-tab.is-active::after {
+      content: "";
+      display: none;  /* désactive le pointeur sous les tabs */
+    }
+
+    /* PLACEHOLDER — kept to not break old reference */
     .nav-tab.is-active::after {
       content: "";
-      position: absolute;
-      left: 50%;
-      bottom: 5px;
-      width: 12px;
-      height: 0.5px;
-      transform: translateX(-50%);
+      display: none;
       background: var(--gold);
     }
 
@@ -436,11 +508,11 @@
        LAYOUT PRINCIPAL
     ============================================================ */
     .app {
-      width: min(100%, 1440px);
-      margin-inline: auto;
+      width: 100%;
       padding: var(--sp-xl) clamp(var(--sp-lg), 4vw, var(--sp-xl));
       display: grid;
       gap: var(--sp-xl);
+      flex: 1;
     }
 
     /* ============================================================
@@ -904,20 +976,8 @@
        RESPONSIVE
     ============================================================ */
     @media (max-width: 1100px) {
-      .topbar {
-        grid-template-columns: auto auto;
-        grid-template-rows: auto auto;
-        height: auto;
-        padding-block: var(--sp-sm);
-        gap: var(--sp-sm);
-      }
-
-      .nav-tabs {
-        grid-column: 1 / -1;
-        justify-content: flex-start;
-        padding-bottom: 2px;
-      }
-
+      .sidebar  { width: 190px; }
+      .main-wrap { margin-left: 190px; }
       .hero            { grid-template-columns: 1fr; }
       .metrics         { grid-template-columns: repeat(2, 1fr); }
       .footer__inner   { grid-template-columns: 1fr 1fr; }
@@ -925,9 +985,11 @@
     }
 
     @media (max-width: 720px) {
+      .sidebar         { display: none; }
+      .main-wrap       { margin-left: 0; }
       .brand__sub      { display: none; }
       .nav-tools       { gap: var(--sp-xs); }
-      .search          { width: 140px; }
+      .search          { width: 120px; }
       .hero            { padding: var(--sp-lg); }
       .hero__title     { font-size: clamp(3rem, 17vw, 4.6rem); }
       .metrics         { grid-template-columns: repeat(2, 1fr); }
@@ -949,11 +1011,11 @@
 <body>
 
   <!-- ============================================================
-       TOPBAR
+       NAVBAR — barre fixe du haut
   ============================================================ -->
-  <nav class="topbar" aria-label="Navigation principale">
+  <header class="navbar" aria-label="Barre principale">
 
-    <!-- Marque -->
+    <!-- Marque (gauche) -->
     <a class="brand" href="#atlas" data-nav="atlas" aria-label="TEOMARCHI — Accueil">
       <svg class="brand__logo" viewBox="0 0 64 64" fill="none"
            role="img" aria-labelledby="logo-title">
@@ -971,34 +1033,67 @@
       </span>
     </a>
 
-    <!-- Tabs — générés par JS -->
-    <nav class="nav-tabs" id="nav-tabs"
-         role="tablist" aria-label="Modules de la plateforme"></nav>
+    <!-- Recherche globale (centre) -->
+    <div class="search-wrap">
+      <div class="search" role="search" aria-label="Recherche globale">
+        <svg class="search__icon" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.6"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"/>
+          <path d="M20 20l-3-3"/>
+        </svg>
+        <input
+          class="search__input"
+          id="global-search"
+          type="search"
+          placeholder="Recherche technique…"
+          autocomplete="off"
+          aria-label="Recherche dans la plateforme"
+        />
+      </div>
+      <div class="search-results" id="search-results"
+           role="listbox" aria-label="Résultats de recherche"></div>
+    </div>
 
     <!-- Outils droite -->
     <div class="nav-tools">
 
-      <!-- Recherche globale -->
-      <div class="search-wrap">
-        <div class="search" role="search" aria-label="Recherche globale">
-          <svg class="search__icon" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="1.6"
-               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="11" cy="11" r="7"/>
-            <path d="M20 20l-3-3"/>
-          </svg>
-          <input
-            class="search__input"
-            id="global-search"
-            type="search"
-            placeholder="Recherche technique…"
-            autocomplete="off"
-            aria-label="Recherche dans la plateforme"
-          />
-        </div>
-        <div class="search-results" id="search-results"
-             role="listbox" aria-label="Résultats de recherche"></div>
-      </div>
+      <!-- Messagerie -->
+      <button class="icon-btn" type="button" data-nav="messagerie"
+              aria-label="Messagerie">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+          <polyline points="22,6 12,12 2,6"/>
+        </svg>
+      </button>
+
+      <!-- Profil -->
+      <button class="icon-btn" type="button" data-nav="profil"
+              aria-label="Mon profil">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true">
+          <circle cx="12" cy="8" r="4"/>
+          <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+        </svg>
+      </button>
+
+      <!-- Dashboard Admin (masqué par défaut, affiché via JS) -->
+      <button class="text-btn tm-admin-btn" id="btn-admin-dash"
+              type="button" data-nav="admin" style="display:none"
+              aria-label="Dashboard Admin">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true" style="width:12px;height:12px;flex-shrink:0">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="14" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        <span>Dashboard</span>
+      </button>
 
       <!-- Bascule thème -->
       <button class="icon-btn" id="theme-toggle" type="button"
@@ -1020,8 +1115,24 @@
         </svg>
         <span id="session-label">Session</span>
       </button>
+
     </div>
-  </nav>
+  </header>
+
+  <!-- ============================================================
+       APP BODY — sidebar + contenu principal
+  ============================================================ -->
+  <div class="app-body">
+
+    <!-- Sidebar gauche — modules générés par JS -->
+    <aside class="sidebar" aria-label="Navigation modules">
+      <p class="sidebar__label">Modules</p>
+      <nav class="sidebar-nav" id="sidebar-nav"
+           role="tablist" aria-label="Modules de la plateforme"></nav>
+    </aside>
+
+    <!-- Zone de contenu principale -->
+    <div class="main-wrap">
 
   <!-- ============================================================
        CONTENU PRINCIPAL
@@ -1355,6 +1466,51 @@
         </div>
       </section>
 
+      <!-- ── MODULE JOURNALIER ── -->
+      <section class="module" id="module-journalier"
+               role="tabpanel" aria-labelledby="tab-journalier" data-module="journalier">
+        <header class="section-head">
+          <div>
+            <p class="section-head__kicker">Journal de bord</p>
+            <h2 class="section-head__title">Chronologie du projet</h2>
+          </div>
+          <p class="section-head__desc">
+            Log horodaté des décisions, notes de chantier, observations et étapes
+            clés du projet en cours.
+          </p>
+        </header>
+        <div id="journalier-layout">
+          <div class="module-empty">
+            <svg class="module-empty__icon" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+                 aria-hidden="true">
+              <rect x="3" y="4" width="18" height="18" rx="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+              <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>
+            </svg>
+            <p class="module-empty__title">Journalier</p>
+            <p class="module-empty__sub">Journal de bord horodaté — contenu disponible via l'Atelier</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── MODULE ADMIN — visible uniquement pour teomarchi@teomarchi.com ── -->
+      <section class="module" id="module-admin"
+               role="tabpanel" aria-labelledby="tab-admin" data-module="admin">
+        <header class="section-head">
+          <div>
+            <p class="section-head__kicker">Administration</p>
+            <h2 class="section-head__title">Panneau de contrôle</h2>
+          </div>
+          <p class="section-head__desc">
+            Vue réservée au fondateur. Gestion des utilisateurs, revenus et modération.
+          </p>
+        </header>
+        <div id="admin-layout"></div>
+      </section>
+
     </div><!-- /view -->
 
   </main>
@@ -1418,6 +1574,9 @@
     </div>
   </footer>
 
+  </div><!-- /main-wrap -->
+  </div><!-- /app-body -->
+
   <!-- ============================================================
        SCRIPT — Coquille SPA minimale
        Navigation · Thème · Session · Métriques · Recherche (stub)
@@ -1434,18 +1593,39 @@
     };
 
     const MODULES = [
-      { id: "atlas",      label: "Atlas"          },
-      { id: "chronos",    label: "Chronos"        },
-      { id: "pantheon",   label: "Panthéon"       },
-      { id: "fiches",     label: "Fiches"         },
-      { id: "etudes",     label: "Études"         },
-      { id: "feed",       label: "Feed"           },
-      { id: "profil",     label: "Profil"         },
-      { id: "messagerie", label: "Messagerie"     },
-      { id: "outils",     label: "Outils"         },
-      { id: "showroom",   label: "Showroom"       },
-      { id: "atelier",    label: "Atelier-Journal"}
+      /* ── Modules dans la sidebar ── */
+      { id: "atlas",      label: "Atlas"      },
+      { id: "chronos",    label: "Chronos"    },
+      { id: "pantheon",   label: "Panthéon"   },
+      { id: "fiches",     label: "Fiches"     },
+      { id: "etudes",     label: "Études"     },
+      { id: "outils",     label: "Outils"     },
+      { id: "atelier",    label: "Atelier"    },
+      { id: "journalier", label: "Journalier" },
+      { id: "showroom",   label: "Showroom"   },
+      { id: "feed",       label: "Feed"       },
+      /* ── Modules accédés via la navbar (hors sidebar) ── */
+      { id: "profil",     label: "Profil",     noSidebar: true },
+      { id: "messagerie", label: "Messagerie", noSidebar: true },
+      { id: "admin",      label: "Admin",      noSidebar: true, hidden: true }
     ];
+
+    /* Icônes SVG par module */
+    const MODULE_ICONS = {
+      atlas:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c-2.5 3-4 5.5-4 9s1.5 6 4 9M12 3c2.5 3 4 5.5 4 9s-1.5 6-4 9"/></svg>`,
+      chronos:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>`,
+      pantheon:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18M5 20V10M19 20V10M9 20V10M15 20V10M12 4l8 6H4l8-6z"/></svg>`,
+      fiches:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg>`,
+      etudes:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`,
+      outils:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`,
+      atelier:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+      journalier: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>`,
+      showroom:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1.5"/></svg>`,
+      feed:       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`,
+      profil:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>`,
+      messagerie: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,12 2,6"/></svg>`,
+      admin:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>`
+    };
 
     const METRICS = [
       { value: "11", label: "Modules"        },
@@ -1490,24 +1670,26 @@
       store.set(STORAGE.theme, next);
     }
 
-    /* ── Tabs ─────────────────────────────────────────────────── */
+    /* ── Sidebar ──────────────────────────────────────────────── */
     function buildTabs () {
-      const container = $("#nav-tabs");
-      container.innerHTML = MODULES.map(m =>
+      const container = $("#sidebar-nav");
+      if (!container) return;
+      container.innerHTML = MODULES.filter(m => !m.noSidebar).map(m =>
         `<button
-          class="nav-tab"
+          class="sidebar-item nav-tab${m.hidden ? " tm-admin-tab" : ""}"
           type="button"
           role="tab"
           id="tab-${m.id}"
           data-nav="${m.id}"
           aria-selected="false"
           aria-controls="module-${m.id}"
-        >${m.label}</button>`
+          ${m.hidden ? 'style="display:none"' : ""}
+        >${MODULE_ICONS[m.id] || ""}<span>${m.label}</span></button>`
       ).join("");
     }
 
     function syncTabs (activeId) {
-      $$(".nav-tab").forEach(btn => {
+      $$(".sidebar-item, .nav-tab").forEach(btn => {
         const active = btn.dataset.nav === activeId;
         btn.classList.toggle("is-active", active);
         btn.setAttribute("aria-selected", String(active));
@@ -1573,6 +1755,14 @@
     }
 
     /* ── Recherche (stub — logique complète en phase 2) ───────── */
+    /* ── Données utilisateurs pour la recherche ─────────────────── */
+    const DATA_USERS = DATA_FEED.map(p => ({
+      slug:  p.slug,
+      name:  p.auteur,
+      role:  p.role,
+      init:  p.initiales
+    }));
+
     function handleSearch (e) {
       const q       = normalize(e.target.value.trim());
       const results = $("#search-results");
@@ -1583,21 +1773,44 @@
         return;
       }
 
-      const matches = MODULES
+      const modMatches  = MODULES
         .filter(m => normalize(m.label).includes(q))
-        .slice(0, 6);
+        .slice(0, 4);
 
-      results.innerHTML = matches.length
-        ? matches.map(m =>
-            `<button class="result-item" type="button" data-result="${m.id}">
-              <strong>${m.label}</strong>
-              <span>Module · ${m.id}</span>
-            </button>`
-          ).join("")
-        : `<div class="result-item">
-            <strong>Aucun résultat</strong>
-            <span>Essayez : Atlas, Chronos, Fiches, PMR…</span>
-          </div>`;
+      const userMatches = DATA_USERS
+        .filter(u => normalize(u.name).includes(q) || normalize(u.role).includes(q))
+        .slice(0, 3);
+
+      const modHTML = modMatches.map(m =>
+        `<button class="result-item" type="button" data-result="${m.id}">
+          <strong>${m.label}</strong>
+          <span>Module · ${m.id}</span>
+        </button>`
+      ).join("");
+
+      const userHTML = userMatches.map(u =>
+        `<button class="result-item" type="button" data-user-slug="${u.slug}"
+                 style="display:flex;align-items:center;gap:.62rem">
+          <span style="width:26px;height:26px;border-radius:50%;background:rgba(201,169,110,.15);
+                       border:0.5px solid rgba(201,169,110,.32);display:grid;place-items:center;
+                       font-size:.6rem;font-weight:600;color:var(--gold);flex-shrink:0">${u.init}</span>
+          <span>
+            <strong>${u.name}</strong>
+            <span style="display:block;font-size:.65rem">${u.role}</span>
+          </span>
+        </button>`
+      ).join("");
+
+      if (!modMatches.length && !userMatches.length) {
+        results.innerHTML = `<div class="result-item">
+          <strong>Aucun résultat</strong>
+          <span>Essayez : Atlas, Chronos, Fiches, PMR…</span>
+        </div>`;
+      } else {
+        results.innerHTML =
+          (userMatches.length ? `<div style="padding:.3rem .75rem .15rem;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)">Membres</div>` + userHTML : "") +
+          (modMatches.length  ? `<div style="padding:.3rem .75rem .15rem;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)">Modules</div>`  + modHTML  : "");
+      }
 
       results.classList.add("is-open");
 
@@ -1606,6 +1819,14 @@
           results.classList.remove("is-open");
           $("#global-search").value = "";
           navigateTo(btn.dataset.result);
+        })
+      );
+
+      $$("[data-user-slug]", results).forEach(btn =>
+        btn.addEventListener("click", () => {
+          results.classList.remove("is-open");
+          $("#global-search").value = "";
+          window.open(`profil-public.html?user=${btn.dataset.userSlug}`, "_blank");
         })
       );
     }
@@ -2079,7 +2300,7 @@
 
       </div>
 
-      <!-- Colonne droite : phases + calendrier -->
+      <!-- Colonne droite : phases + calendrier + calculatrice échelle -->
       <div id="atelier-right" style="display:grid;gap:1.618rem;position:sticky;top:88px">
 
         <article class="card">
@@ -2091,6 +2312,34 @@
         <article class="card">
           <p style="margin:0 0 .72rem;text-transform:uppercase;letter-spacing:.17em;font-size:.58rem;font-weight:500;color:var(--gold)">Calendrier des échéances</p>
           <div id="atelier-cal-grid"></div>
+        </article>
+
+        <article class="card" id="atelier-scale-card">
+          <p style="margin:0 0 .18rem;text-transform:uppercase;letter-spacing:.17em;font-size:.58rem;font-weight:500;color:var(--gold)">Calculatrice</p>
+          <h3 style="font-family:var(--serif);font-size:1.7rem;font-weight:300;line-height:1;color:var(--ink);margin:0 0 1rem">Échelle exacte</h3>
+          <div style="display:grid;gap:.72rem">
+            <label class="field">
+              <span style="font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.28rem">Mesure réelle</span>
+              <div style="display:grid;grid-template-columns:1fr auto;gap:.5rem">
+                <input id="sc-real" type="number" min="0.001" step="any" placeholder="ex : 5" style="width:100%" />
+                <select id="sc-unit" style="background:var(--surface-2);border:var(--border);color:var(--ink);border-radius:var(--r-sm);padding:.4rem .6rem;font-size:.82rem;cursor:pointer">
+                  <option value="1000">m</option>
+                  <option value="10">cm</option>
+                  <option value="1" selected>mm</option>
+                </select>
+              </div>
+            </label>
+            <label class="field">
+              <span style="font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.28rem">Mesure sur plan (mm)</span>
+              <input id="sc-plan" type="number" min="0.001" step="any" placeholder="ex : 50" style="width:100%" />
+            </label>
+            <button type="button" id="sc-btn" class="text-btn text-btn--primary" style="width:100%;justify-content:center">Calculer l'échelle</button>
+            <div id="sc-result" style="display:none;padding:.85rem;background:rgba(201,169,110,.07);border:0.5px solid rgba(201,169,110,.32);border-radius:var(--r-sm);text-align:center">
+              <p id="sc-main" style="font-family:var(--serif);font-size:2rem;font-weight:300;color:var(--gold);margin:0 0 .2rem"></p>
+              <p id="sc-nearest" style="font-size:.68rem;color:var(--muted);margin:0;letter-spacing:.08em"></p>
+            </div>
+            <p id="sc-error" style="display:none;font-size:.72rem;color:#e07070;text-align:center;margin:0"></p>
+          </div>
         </article>
 
       </div>
@@ -2112,6 +2361,53 @@
         _refreshTodo();
       }
     });
+
+    /* ── Calculatrice d'échelle ──────────────────────────────────── */
+    document.getElementById("sc-btn")?.addEventListener("click", () => {
+      const realRaw  = parseFloat(document.getElementById("sc-real").value);
+      const planRaw  = parseFloat(document.getElementById("sc-plan").value);
+      const unitMult = parseFloat(document.getElementById("sc-unit").value);
+      const errEl    = document.getElementById("sc-error");
+      const resEl    = document.getElementById("sc-result");
+
+      errEl.style.display = "none";
+      resEl.style.display = "none";
+
+      if (!realRaw || !planRaw || realRaw <= 0 || planRaw <= 0) {
+        errEl.textContent = "Entre deux valeurs positives.";
+        errEl.style.display = "block";
+        return;
+      }
+
+      const realMm  = realRaw * unitMult;
+      const denom   = Math.round(realMm / planRaw);
+
+      if (denom < 1) {
+        errEl.textContent = "La mesure sur plan est plus grande que la mesure réelle.";
+        errEl.style.display = "block";
+        return;
+      }
+
+      const STANDARDS = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
+      const nearest   = STANDARDS.reduce((a, b) =>
+        Math.abs(b - denom) < Math.abs(a - denom) ? b : a
+      );
+
+      document.getElementById("sc-main").textContent    = `1 : ${denom.toLocaleString("fr-FR")}`;
+      document.getElementById("sc-nearest").textContent =
+        nearest === denom
+          ? "Échelle standard exacte"
+          : `Échelle standard la plus proche : 1 : ${nearest.toLocaleString("fr-FR")}`;
+
+      resEl.style.display = "block";
+    });
+
+    /* Calcul au clavier (Entrée) */
+    ["sc-real", "sc-plan"].forEach(id =>
+      document.getElementById(id)?.addEventListener("keydown", e => {
+        if (e.key === "Enter") document.getElementById("sc-btn")?.click();
+      })
+    );
   }
 
   /* ── Hook : init/refresh quand #module-atelier devient actif ───── */
@@ -2332,45 +2628,69 @@
   const DATA_FEED = [
     {
       titre:      "Rendu concours Bordeaux",
-      sous_titre: "Livraison du projet d'équipement culturel soumis au concours ANRU de Bordeaux Métropole. Façade bois-béton, toiture végétalisée et programme de 3 200 m². Niveau M1-S7, atelier Territoire.",
+      sous_titre: "Livraison du projet d'équipement culturel soumis au concours ANRU de Bordeaux Métropole. Façade bois-béton, toiture végétalisée et programme de 3 200 m².",
       tag:        "CONCOURS",
       image_url:  "",
-      _bg:        "linear-gradient(140deg,#0e0b08 0%,#241a0e 55%,#3a2814 100%)"
+      _bg:        "linear-gradient(140deg,#0e0b08 0%,#241a0e 55%,#3a2814 100%)",
+      auteur:     "Sarah Mbeki",
+      initiales:  "SM",
+      role:       "M2 · ENSA Paris-Belleville",
+      slug:       "sarah-mbeki"
     },
     {
       titre:      "Analyse — Unité d'Habitation",
-      sous_titre: "Étude de la trame structurelle et du double vitrage de l'UH de Marseille. Coupe habitée au 1/50, relevé des épaisseurs et performances thermiques actualisées selon la RE2020.",
+      sous_titre: "Étude de la trame structurelle de l'UH de Marseille. Coupe habitée au 1/50, relevé des épaisseurs et performances thermiques RE2020.",
       tag:        "ANALYSE",
       image_url:  "",
-      _bg:        "linear-gradient(140deg,#080c0a 0%,#10201a 55%,#183028 100%)"
+      _bg:        "linear-gradient(140deg,#080c0a 0%,#10201a 55%,#183028 100%)",
+      auteur:     "Théo Vanderberg",
+      initiales:  "TV",
+      role:       "Architecte · Bruxelles",
+      slug:       "theo-vanderberg"
     },
     {
       titre:      "Coupe habitée — Studio M2",
-      sous_titre: "Coupe transversale d'un logement collectif en bois massif CLT. Lecture simultanée de la structure, de l'isolation, des seuils et des menuiseries. Produit en quatre heures de studio.",
+      sous_titre: "Coupe transversale d'un logement collectif en bois massif CLT. Lecture simultanée structure, isolation, seuils et menuiseries. Produit en quatre heures.",
       tag:        "PUBLICATION",
       image_url:  "",
-      _bg:        "linear-gradient(140deg,#0c0a0e 0%,#1a1428 55%,#28203e 100%)"
+      _bg:        "linear-gradient(140deg,#0c0a0e 0%,#1a1428 55%,#28203e 100%)",
+      auteur:     "Inès Kourouma",
+      initiales:  "IK",
+      role:       "M1 · La Cambre — Horta",
+      slug:       "ines-kourouma"
     },
     {
       titre:      "Retour chantier — Paille & Terre",
-      sous_titre: "Visite de la Résidence Cannelle à Nanterre, structure paille-terre-bois. Observation des détails de soubassement, jonctions ossature bois et enduit de finition argile projeté.",
+      sous_titre: "Visite de la Résidence Cannelle à Nanterre. Observation des détails de soubassement, ossature bois et enduit argile projeté.",
       tag:        "CHANTIER",
       image_url:  "",
-      _bg:        "linear-gradient(140deg,#080e0c 0%,#121e18 55%,#1e3024 100%)"
+      _bg:        "linear-gradient(140deg,#080e0c 0%,#121e18 55%,#1e3024 100%)",
+      auteur:     "Nassim Ferrahi",
+      initiales:  "NF",
+      role:       "Chef de projet · Atelier 17",
+      slug:       "nassim-ferrahi"
     },
     {
       titre:      "Workshop Pavillon bois — Nantes",
-      sous_titre: "72h de conception et assemblage à sec d'un pavillon temporaire en tenon-mortaise. Portée de 6 m sans assemblage métallique, testé charge à rupture à l'ENSA Nantes.",
+      sous_titre: "72h de conception et assemblage à sec. Portée de 6 m sans assemblage métallique, testé charge à rupture à l'ENSA Nantes.",
       tag:        "WORKSHOP",
       image_url:  "",
-      _bg:        "linear-gradient(140deg,#0e0d08 0%,#22200a 55%,#363214 100%)"
+      _bg:        "linear-gradient(140deg,#0e0d08 0%,#22200a 55%,#363214 100%)",
+      auteur:     "Chiara Lombardi",
+      initiales:  "CL",
+      role:       "Enseignante-chercheuse · ENSA Nantes",
+      slug:       "chiara-lombardi"
     },
     {
       titre:      "Recherche ACV — Béton bas-carbone",
-      sous_titre: "Comparaison du cycle de vie du béton banché ordinaire vs béton GGBS. Résultats : réduction de 34 % des émissions CO₂ à résistance mécanique équivalente. Sources INIES 2025.",
+      sous_titre: "Comparaison du cycle de vie béton ordinaire vs GGBS. Résultats : réduction de 34 % des émissions CO₂ à résistance mécanique équivalente.",
       tag:        "RECHERCHE",
       image_url:  "",
-      _bg:        "linear-gradient(140deg,#080a0e 0%,#10141e 55%,#18202e 100%)"
+      _bg:        "linear-gradient(140deg,#080a0e 0%,#10141e 55%,#18202e 100%)",
+      auteur:     "Jonathan YAV",
+      initiales:  "JY",
+      role:       "Fondateur · TEOMARCHI",
+      slug:       "jonathan-yav"
     }
   ];
 
@@ -2471,7 +2791,6 @@
     [
       { mod: "module-pantheon", grid: "pantheon-grid",  data: DATA_PANTHEON },
       { mod: "module-atlas",    grid: "atlas-grid",     data: DATA_ATLAS    },
-      { mod: "module-feed",     grid: "feed-wall",      data: DATA_FEED     },
       { mod: "module-fiches",   grid: "fiches-grid",    data: DATA_FICHES   },
       { mod: "module-chronos",  grid: "chronos-layout", data: DATA_CHRONOS  }
     ].forEach(({ mod, grid, data }) => {
@@ -3186,7 +3505,7 @@
             ${plan.id === "studio" ? `
               <div class="tm-stripe-wrap">
                 <stripe-buy-button
-                  buy-button-id="buy_btn_1TUFzm3WxFY8ACg4ikbk2Xdi"
+                  buy-button-id="buy_btn_1TUFvM3WxFY8ACg4LX9qyaMI"
                   publishable-key="pk_live_51TUEOL3WxFY8ACg4Vy8sPX1sGHjMa6FW3vU5zWzaTFcNmb2dEG3wdFr3WLDaoptcuIobqe5GdJMyc3PbbdCWUOYc004byVd23R">
                 </stripe-buy-button>
                 <span class="tm-stripe-secure">
@@ -4291,17 +4610,158 @@
     });
   }
 
-  /* Hook Feed — MutationObserver sur #feed-wall (childList) ── */
-  (function hookFeedInteractions() {
-    const wall = document.getElementById("feed-wall");
-    const mod  = document.getElementById("module-feed");
-    if (!wall || !mod) return;
-    new MutationObserver(() => initFeedInteractions()).observe(wall, { childList: true });
+  /* ── Feed — En cours de construction ────────────────────────── */
+  (function initFeedWall() {
+    function renderFeedWall() {
+      const wall = document.getElementById("feed-wall");
+      if (!wall || wall.dataset.loaded) return;
+      wall.dataset.loaded = "1";
+      wall.innerHTML = `
+        <div style="display:grid;place-items:center;min-height:340px;text-align:center;padding:3rem 1rem">
+          <div>
+            <svg style="width:52px;height:52px;stroke:rgba(201,169,110,.4);margin:0 auto 1.4rem;display:block"
+                 viewBox="0 0 24 24" fill="none" stroke-width="1"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <path d="M3 9h18M9 21V9"/>
+            </svg>
+            <p style="font-family:var(--serif);font-size:2rem;font-weight:300;color:var(--ink);margin:0 0 .5rem">
+              Feed en cours de construction
+            </p>
+            <p style="font-size:.78rem;color:var(--muted);max-width:360px;line-height:1.6;margin:0 auto 1.4rem">
+              Le réseau social des architectes arrive bientôt.<br>
+              Partage de rendus, coupes habitées, retours chantier.
+            </p>
+            <span style="display:inline-block;padding:.35rem 1rem;border-radius:99px;
+                         background:rgba(201,169,110,.08);border:0.5px solid rgba(201,169,110,.32);
+                         font-size:.65rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)">
+              Bientôt disponible
+            </span>
+          </div>
+        </div>
+      `;
+    }
+
+    const mod = document.getElementById("module-feed");
+    if (!mod) return;
     new MutationObserver(() => {
-      if (mod.classList.contains("is-active")) setTimeout(initFeedInteractions, 0);
+      if (mod.classList.contains("is-active")) renderFeedWall();
     }).observe(mod, { attributes: true, attributeFilter: ["class"] });
-    if (mod.classList.contains("is-active")) setTimeout(initFeedInteractions, 0);
+    if (mod.classList.contains("is-active")) renderFeedWall();
   })();
+
+  /* ── Feed Pinterest — CSS + renderer (activé quand le Feed est prêt) ── */
+  (function _feedPinterestReserve() {
+    /* CSS injecté une fois */
+    if (!document.getElementById("tm-feed-css")) {
+      const s = document.createElement("style");
+      s.id = "tm-feed-css";
+      s.textContent = `
+        #feed-wall { columns: 3 260px; column-gap: 1rem; }
+        .tm-post {
+          break-inside: avoid; margin-bottom: 1rem;
+          border: 0.5px solid rgba(201,169,110,.22);
+          border-radius: 16px; overflow: hidden;
+          background: #0C0C0A;
+          transition: border-color .22s, box-shadow .22s, transform .22s;
+          cursor: pointer;
+        }
+        .tm-post:hover {
+          border-color: rgba(201,169,110,.62);
+          box-shadow: 0 16px 48px rgba(0,0,0,.6);
+          transform: translateY(-2px);
+        }
+        .tm-post__img {
+          width: 100%; aspect-ratio: 4/3; position: relative; overflow: hidden;
+        }
+        .tm-post__img--tall  { aspect-ratio: 3/4; }
+        .tm-post__img--wide  { aspect-ratio: 16/7; }
+        .tm-post__tag {
+          position: absolute; top: .65rem; left: .65rem;
+          font-size: .52rem; font-weight: 600; letter-spacing: .14em;
+          text-transform: uppercase; padding: .22rem .55rem;
+          background: rgba(5,5,5,.78); color: var(--gold);
+          border: 0.5px solid rgba(201,169,110,.38); border-radius: 99px;
+        }
+        .tm-post__body { padding: .9rem; display: grid; gap: .5rem; }
+        .tm-post__title {
+          font-family: var(--serif); font-size: 1.18rem; font-weight: 300;
+          color: var(--ink); line-height: 1.25; margin: 0;
+        }
+        .tm-post__desc {
+          font-size: .7rem; color: var(--muted); line-height: 1.55;
+          margin: 0; display: -webkit-box; -webkit-line-clamp: 3;
+          -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .tm-post__author {
+          display: flex; align-items: center; gap: .55rem;
+          padding-top: .6rem; border-top: 0.5px solid rgba(245,245,241,.07);
+          margin-top: .1rem;
+        }
+        .tm-post__avatar {
+          width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+          background: rgba(201,169,110,.18);
+          border: 0.5px solid rgba(201,169,110,.35);
+          display: grid; place-items: center;
+          font-size: .6rem; font-weight: 600; color: var(--gold);
+          letter-spacing: .04em;
+        }
+        .tm-post__author-info { min-width: 0; }
+        .tm-post__author-name {
+          font-size: .72rem; font-weight: 500; color: var(--ink);
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .tm-post__author-role {
+          font-size: .62rem; color: var(--muted); white-space: nowrap;
+          overflow: hidden; text-overflow: ellipsis;
+        }
+        @media (max-width: 600px) { #feed-wall { columns: 1; } }
+        @media (max-width: 900px) { #feed-wall { columns: 2; } }
+      `;
+      document.head.appendChild(s);
+    }
+
+    /* Renderer */
+    const RATIOS = ["", "tm-post__img--tall", "", "tm-post__img--wide", "tm-post__img--tall", ""];
+
+    function renderFeedWall() {
+      const wall = document.getElementById("feed-wall");
+      if (!wall || wall.querySelector(".tm-post")) return;
+      wall.innerHTML = DATA_FEED.map((p, i) => `
+        <article class="tm-post" data-slug="${p.slug}" role="button" tabindex="0"
+                 aria-label="Voir le post de ${p.auteur}">
+          <div class="tm-post__img ${RATIOS[i] || ""}"
+               style="background:${p._bg}">
+            <span class="tm-post__tag">${p.tag}</span>
+          </div>
+          <div class="tm-post__body">
+            <h3 class="tm-post__title">${p.titre}</h3>
+            <p class="tm-post__desc">${p.sous_titre}</p>
+            <div class="tm-post__author">
+              <div class="tm-post__avatar">${p.initiales}</div>
+              <div class="tm-post__author-info">
+                <p class="tm-post__author-name">${p.auteur}</p>
+                <p class="tm-post__author-role">${p.role}</p>
+              </div>
+            </div>
+          </div>
+        </article>
+      `).join("");
+
+      /* Clic → profil public */
+      wall.querySelectorAll(".tm-post").forEach(card => {
+        const go = () => {
+          window.open(`profil-public.html?user=${card.dataset.slug}`, "_blank");
+        };
+        card.addEventListener("click", go);
+        card.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") go(); });
+      });
+
+      /* Injecter actions like/save après rendu */
+      setTimeout(initFeedInteractions, 0);
+    }
+    /* hook désactivé — réactiver quand le feed est prêt */
+  })(); /* fin _feedPinterestReserve */
 
   /* ── Export PDF / DWG Simulator ─────────────────────────────── */
   function initExport() {
@@ -4464,6 +4924,7 @@
     /* ── État ───────────────────────────────────────────────────── */
     let _auth        = null;
     let _user        = null;
+    let _isPremium   = false;
     let _returnMod   = null;
     let _activeTab   = "login";
 
@@ -4660,14 +5121,22 @@
 
     /* ── Handlers ───────────────────────────────────────────────── */
     const _ERR = {
-      "auth/invalid-email":          "E-mail invalide.",
-      "auth/user-not-found":         "Aucun compte avec cet e-mail.",
-      "auth/wrong-password":         "Mot de passe incorrect.",
-      "auth/invalid-credential":     "E-mail ou mot de passe incorrect.",
-      "auth/email-already-in-use":   "Cet e-mail est déjà utilisé.",
-      "auth/weak-password":          "Mot de passe trop court (min. 6 caractères).",
-      "auth/popup-closed-by-user":   "Connexion annulée.",
-      "auth/network-request-failed": "Erreur réseau."
+      "auth/invalid-email":            "E-mail invalide.",
+      "auth/user-not-found":           "Aucun compte avec cet e-mail.",
+      "auth/wrong-password":           "Mot de passe incorrect.",
+      "auth/invalid-credential":       "E-mail ou mot de passe incorrect.",
+      "auth/email-already-in-use":     "Cet e-mail est déjà utilisé.",
+      "auth/weak-password":            "Mot de passe trop court (min. 6 caractères).",
+      "auth/popup-closed-by-user":     "Fenêtre fermée — réessaie.",
+      "auth/popup-blocked":            "Popup bloquée par le navigateur — autorise les popups pour ce site.",
+      "auth/cancelled-popup-request":  "Connexion annulée.",
+      "auth/network-request-failed":   "Erreur réseau — vérifie ta connexion.",
+      "auth/too-many-requests":        "Trop de tentatives. Attends quelques minutes.",
+      "auth/user-disabled":            "Ce compte a été désactivé.",
+      "auth/operation-not-allowed":    "Connexion par e-mail non activée dans Firebase Console.",
+      "auth/unauthorized-domain":      "Domaine non autorisé — ajoute ce domaine dans Firebase Console → Authentication → Authorized domains.",
+      "auth/internal-error":           "Erreur interne Firebase. Réessaie.",
+      "auth/requires-recent-login":    "Reconnecte-toi pour continuer."
     };
 
     function _err(msg)  { const el = document.getElementById("tm-ae"); if (el) el.textContent = msg; }
@@ -4708,29 +5177,197 @@
       } catch(e) { _err(_ERR[e.code] || "Erreur Google."); }
     }
 
+    /* ── Vérifier isPremium depuis Firestore ────────────────────── */
+    async function _checkPremium(user) {
+      _isPremium = false;
+      if (!user) return;
+      try {
+        const doc = await firebase.firestore()
+          .collection("users").doc(user.uid).get();
+        _isPremium = doc.exists && doc.data().isPremium === true;
+      } catch (_) { /* offline ou règles — pas bloquant */ }
+    }
+
     /* ── Sync UI après changement d'état ────────────────────────── */
+    const ADMIN_EMAIL = "teomarchi@teomarchi.com";
+
     function _syncUI(user) {
       const lbl = document.getElementById("session-label");
       if (lbl) lbl.textContent = user
         ? (user.displayName || user.email.split("@")[0])
         : "Session";
+
+      /* ── Panneau Admin : visible uniquement pour le fondateur ─── */
+      const adminTab     = document.getElementById("tab-admin");
+      const adminDashBtn = document.getElementById("btn-admin-dash");
+      const isAdmin      = user?.email === ADMIN_EMAIL;
+      if (adminTab)     adminTab.style.display     = isAdmin ? "" : "none";
+      if (adminDashBtn) adminDashBtn.style.display = isAdmin ? "" : "none";
+      if (isAdmin && document.getElementById("module-admin")?.classList.contains("is-active")) {
+        _initAdmin();
+      }
+
       if (typeof TEOMARCHI_APP !== "undefined") {
         if (user) TEOMARCHI_APP.session.set({
-          name: user.displayName || user.email.split("@")[0],
-          role: "Utilisateur TEOMARCHI", grade: "M",
+          name:        user.displayName || user.email.split("@")[0],
+          role:        isAdmin ? "Fondateur · Admin" : (_isPremium ? "Membre Premium" : "Utilisateur TEOMARCHI"),
+          grade:       isAdmin ? "★★" : (_isPremium ? "★" : "M"),
           connectedAt: new Date().toISOString()
         });
         else TEOMARCHI_APP.session.clear();
       }
     }
 
+    /* ── Panneau Admin ──────────────────────────────────────────── */
+    function _initAdmin() {
+      const root = document.getElementById("admin-layout");
+      if (!root || root.dataset.loaded) return;
+      root.dataset.loaded = "1";
+
+      /* CSS Admin */
+      if (!document.getElementById("tm-admin-css")) {
+        const s = document.createElement("style");
+        s.id = "tm-admin-css";
+        s.textContent = `
+          .tm-adm { display:grid; gap:1.2rem; }
+          .tm-adm-kpis { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:1rem; }
+          .tm-adm-kpi {
+            background:var(--surface); border:var(--border); border-radius:var(--r-md);
+            padding:1.1rem 1.2rem; display:grid; gap:.28rem;
+          }
+          .tm-adm-kpi__val {
+            font-family:var(--serif); font-size:2.4rem; font-weight:300; color:var(--gold); line-height:1;
+          }
+          .tm-adm-kpi__lbl { font-size:.62rem; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+          .tm-adm-section { background:var(--surface); border:var(--border); border-radius:var(--r-xl); padding:1.4rem 1.6rem; }
+          .tm-adm-section h3 {
+            font-family:var(--serif); font-size:1.5rem; font-weight:300; color:var(--ink);
+            margin:0 0 1rem; padding-bottom:.72rem; border-bottom:var(--border);
+          }
+          .tm-adm-table { width:100%; border-collapse:collapse; }
+          .tm-adm-table th, .tm-adm-table td {
+            text-align:left; padding:.55rem .6rem; font-size:.72rem; border-bottom:var(--border);
+          }
+          .tm-adm-table th { color:var(--muted); font-weight:500; letter-spacing:.1em; text-transform:uppercase; }
+          .tm-adm-table td { color:var(--ink); }
+          .tm-adm-badge {
+            display:inline-block; padding:.18rem .55rem; border-radius:99px; font-size:.58rem;
+            font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+          }
+          .tm-adm-badge--premium { background:rgba(201,169,110,.15); color:var(--gold); border:0.5px solid rgba(201,169,110,.35); }
+          .tm-adm-badge--free    { background:rgba(107,107,101,.12); color:var(--muted); border:var(--border); }
+          .tm-adm-actions { display:flex; gap:.6rem; flex-wrap:wrap; margin-top:.5rem; }
+          .tm-adm-btn {
+            padding:.5rem 1rem; border-radius:var(--r-sm); font-size:.72rem; font-weight:500;
+            cursor:pointer; border:0.5px solid rgba(201,169,110,.38);
+            background:rgba(201,169,110,.08); color:var(--gold); transition:background .15s;
+          }
+          .tm-adm-btn:hover { background:rgba(201,169,110,.18); }
+          .tm-adm-btn--danger { border-color:rgba(220,80,80,.38); background:rgba(220,80,80,.08); color:#dc8080; }
+          .tm-adm-btn--danger:hover { background:rgba(220,80,80,.18); }
+        `;
+        document.head.appendChild(s);
+      }
+
+      /* Utilisateurs fictifs (démo — remplacer par appel Firestore Admin) */
+      const DEMO_USERS = [
+        { email:"sarah.mbeki@archi.fr",      plan:"studio",  date:"2026-04-12", premium:true  },
+        { email:"theo.vanderberg@gmail.com",  plan:"agence",  date:"2026-04-18", premium:true  },
+        { email:"ines.kourouma@lacambre.be",  plan:"gratuit", date:"2026-04-22", premium:false },
+        { email:"nassim.ferrahi@atelier17.fr",plan:"studio",  date:"2026-05-01", premium:true  },
+        { email:"chiara.lombardi@ensa.fr",    plan:"gratuit", date:"2026-05-03", premium:false },
+      ];
+
+      const premiumCount = DEMO_USERS.filter(u => u.premium).length;
+      const mrrStudio    = DEMO_USERS.filter(u => u.plan==="studio").length * 29;
+      const mrrAgence    = DEMO_USERS.filter(u => u.plan==="agence").length * 89;
+
+      root.innerHTML = `
+        <div class="tm-adm">
+
+          <div class="tm-adm-kpis">
+            <div class="tm-adm-kpi">
+              <span class="tm-adm-kpi__val">${DEMO_USERS.length}</span>
+              <span class="tm-adm-kpi__lbl">Utilisateurs</span>
+            </div>
+            <div class="tm-adm-kpi">
+              <span class="tm-adm-kpi__val">${premiumCount}</span>
+              <span class="tm-adm-kpi__lbl">Membres premium</span>
+            </div>
+            <div class="tm-adm-kpi">
+              <span class="tm-adm-kpi__val">${mrrStudio + mrrAgence} €</span>
+              <span class="tm-adm-kpi__lbl">MRR estimé</span>
+            </div>
+            <div class="tm-adm-kpi">
+              <span class="tm-adm-kpi__val">${((premiumCount / DEMO_USERS.length) * 100).toFixed(0)} %</span>
+              <span class="tm-adm-kpi__lbl">Taux conversion</span>
+            </div>
+          </div>
+
+          <div class="tm-adm-section">
+            <h3>Utilisateurs inscrits</h3>
+            <table class="tm-adm-table">
+              <thead>
+                <tr><th>Email</th><th>Plan</th><th>Inscription</th><th>Statut</th></tr>
+              </thead>
+              <tbody>
+                ${DEMO_USERS.map(u => `
+                  <tr>
+                    <td>${u.email}</td>
+                    <td>${u.plan.charAt(0).toUpperCase() + u.plan.slice(1)}</td>
+                    <td>${u.date}</td>
+                    <td><span class="tm-adm-badge ${u.premium ? "tm-adm-badge--premium" : "tm-adm-badge--free"}">
+                      ${u.premium ? "Premium" : "Gratuit"}
+                    </span></td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="tm-adm-section">
+            <h3>Actions rapides</h3>
+            <div class="tm-adm-actions">
+              <button class="tm-adm-btn" onclick="window.open('https://dashboard.stripe.com','_blank')">
+                Stripe Dashboard
+              </button>
+              <button class="tm-adm-btn" onclick="window.open('https://console.firebase.google.com','_blank')">
+                Firebase Console
+              </button>
+              <button class="tm-adm-btn" onclick="window.open('https://github.com/jyav-ctrl/teomarchi','_blank')">
+                GitHub Repo
+              </button>
+              <button class="tm-adm-btn tm-adm-btn--danger"
+                      onclick="if(confirm('Forcer la déconnexion de tous les utilisateurs ?')) alert('Action réservée à la Cloud Function Admin.')">
+                Reset sessions
+              </button>
+            </div>
+            <p style="margin-top:.85rem;font-size:.68rem;color:var(--muted)">
+              ⚠️ Les données affichées sont indicatives. Pour les données réelles, connecte Firestore Admin SDK via Cloud Function.
+            </p>
+          </div>
+
+        </div>
+      `;
+    }
+
+    /* Hook Admin — active _initAdmin quand le module devient visible */
+    (function hookAdmin() {
+      const mod = document.getElementById("module-admin");
+      if (!mod) return;
+      new MutationObserver(() => {
+        if (mod.classList.contains("is-active") && _user?.email === ADMIN_EMAIL) _initAdmin();
+      }).observe(mod, { attributes: true, attributeFilter: ["class"] });
+    })();
+
     /* ── Firebase init ──────────────────────────────────────────── */
     function _initFirebase() {
       if (!_ready()) return;
       if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
       _auth = firebase.auth();
-      _auth.onAuthStateChanged(user => {
+      _auth.onAuthStateChanged(async user => {
         _user = user;
+        await _checkPremium(user);
         _syncUI(user);
 
         if (!user) {
@@ -4785,12 +5422,25 @@
       window.open(STRIPE_PAYMENT_LINK + (uid ? "?client_reference_id=" + uid : ""), "_blank");
     }, true);
 
-    /* ── Détection retour Stripe (success_url = teomarchi.com?paiement=ok) ─ */
+    /* ── Retour Stripe : recharge isPremium depuis Firestore ────────
+       Le webhook peut prendre 2–5s. On poll jusqu'à isPremium = true.  */
     if (new URLSearchParams(location.search).get("paiement") === "ok") {
-      setTimeout(() => {
-        if (typeof pushNotification === "function")
-          pushNotification("Paiement confirmé — accès Studio activé !");
-      }, 1000);
+      history.replaceState(null, "", location.pathname);
+      if (typeof pushNotification === "function")
+        pushNotification("Paiement reçu — vérification en cours…");
+
+      let _tries = 0;
+      const _pollPremium = setInterval(async () => {
+        _tries++;
+        if (!_user || _tries > 20) { clearInterval(_pollPremium); return; }
+        await _checkPremium(_user);
+        if (_isPremium) {
+          clearInterval(_pollPremium);
+          _syncUI(_user);
+          if (typeof pushNotification === "function")
+            pushNotification("Accès Premium activé — bienvenue !");
+        }
+      }, 2000);
     }
 
     /* ── Attente du SDK Firebase (chargé depuis CDN) ─────────────── */
