@@ -5223,7 +5223,7 @@
     }
 
     /* ── Panneau Admin ──────────────────────────────────────────── */
-    function _initAdmin() {
+    async function _initAdmin() {
       const root = document.getElementById("admin-layout");
       if (!root || root.dataset.loaded) return;
       root.dataset.loaded = "1";
@@ -5273,25 +5273,39 @@
         document.head.appendChild(s);
       }
 
-      /* Utilisateurs fictifs (démo — remplacer par appel Firestore Admin) */
-      const DEMO_USERS = [
-        { email:"sarah.mbeki@archi.fr",      plan:"studio",  date:"2026-04-12", premium:true  },
-        { email:"theo.vanderberg@gmail.com",  plan:"agence",  date:"2026-04-18", premium:true  },
-        { email:"ines.kourouma@lacambre.be",  plan:"gratuit", date:"2026-04-22", premium:false },
-        { email:"nassim.ferrahi@atelier17.fr",plan:"studio",  date:"2026-05-01", premium:true  },
-        { email:"chiara.lombardi@ensa.fr",    plan:"gratuit", date:"2026-05-03", premium:false },
-      ];
+      root.innerHTML = `<p style="color:var(--muted);font-size:.8rem;padding:1.2rem">Chargement…</p>`;
 
-      const premiumCount = DEMO_USERS.filter(u => u.premium).length;
-      const mrrStudio    = DEMO_USERS.filter(u => u.plan==="studio").length * 29;
-      const mrrAgence    = DEMO_USERS.filter(u => u.plan==="agence").length * 89;
+      let users = [];
+      try {
+        const snap = await firebase.firestore().collection("users").get();
+        snap.forEach(doc => {
+          const d = doc.data();
+          const ts = d.createdAt;
+          const date = ts?.toDate ? ts.toDate().toISOString().slice(0,10) : (ts || "—");
+          users.push({
+            email:   d.email   || doc.id,
+            plan:    d.plan    || "gratuit",
+            date,
+            premium: !!d.premium
+          });
+        });
+      } catch(err) {
+        root.dataset.loaded = "";
+        root.innerHTML = `<p style="color:var(--danger);font-size:.8rem;padding:1.2rem">Erreur Firestore : ${err.message}</p>`;
+        return;
+      }
+
+      const premiumCount = users.filter(u => u.premium).length;
+      const mrrStudio    = users.filter(u => u.plan==="studio").length * 29;
+      const mrrAgence    = users.filter(u => u.plan==="agence").length * 89;
+      const convRate     = users.length ? ((premiumCount / users.length) * 100).toFixed(0) : 0;
 
       root.innerHTML = `
         <div class="tm-adm">
 
           <div class="tm-adm-kpis">
             <div class="tm-adm-kpi">
-              <span class="tm-adm-kpi__val">${DEMO_USERS.length}</span>
+              <span class="tm-adm-kpi__val">${users.length}</span>
               <span class="tm-adm-kpi__lbl">Utilisateurs</span>
             </div>
             <div class="tm-adm-kpi">
@@ -5303,7 +5317,7 @@
               <span class="tm-adm-kpi__lbl">MRR estimé</span>
             </div>
             <div class="tm-adm-kpi">
-              <span class="tm-adm-kpi__val">${((premiumCount / DEMO_USERS.length) * 100).toFixed(0)} %</span>
+              <span class="tm-adm-kpi__val">${convRate} %</span>
               <span class="tm-adm-kpi__lbl">Taux conversion</span>
             </div>
           </div>
@@ -5315,7 +5329,7 @@
                 <tr><th>Email</th><th>Plan</th><th>Inscription</th><th>Statut</th></tr>
               </thead>
               <tbody>
-                ${DEMO_USERS.map(u => `
+                ${users.length ? users.map(u => `
                   <tr>
                     <td>${u.email}</td>
                     <td>${u.plan.charAt(0).toUpperCase() + u.plan.slice(1)}</td>
@@ -5324,7 +5338,7 @@
                       ${u.premium ? "Premium" : "Gratuit"}
                     </span></td>
                   </tr>
-                `).join("")}
+                `).join("") : `<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:1.2rem">Aucun utilisateur</td></tr>`}
               </tbody>
             </table>
           </div>
@@ -5341,18 +5355,25 @@
               <button class="tm-adm-btn" onclick="window.open('https://github.com/jyav-ctrl/teomarchi','_blank')">
                 GitHub Repo
               </button>
-              <button class="tm-adm-btn tm-adm-btn--danger"
-                      onclick="if(confirm('Forcer la déconnexion de tous les utilisateurs ?')) alert('Action réservée à la Cloud Function Admin.')">
+              <button class="tm-adm-btn tm-adm-btn--danger" id="btn-reset-sessions">
                 Reset sessions
               </button>
             </div>
-            <p style="margin-top:.85rem;font-size:.68rem;color:var(--muted)">
-              ⚠️ Les données affichées sont indicatives. Pour les données réelles, connecte Firestore Admin SDK via Cloud Function.
-            </p>
           </div>
 
         </div>
       `;
+
+      document.getElementById("btn-reset-sessions")?.addEventListener("click", async () => {
+        if (!confirm("Forcer la déconnexion de tous les utilisateurs ?")) return;
+        try {
+          await firebase.firestore().collection("_meta").doc("global")
+            .set({ sessionsResetAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+          await firebase.auth().signOut();
+        } catch(err) {
+          alert("Erreur : " + err.message);
+        }
+      });
     }
 
     /* Hook Admin — active _initAdmin quand le module devient visible */
@@ -5448,8 +5469,11 @@
     }
 
     /* ── Attente du SDK Firebase (chargé depuis CDN) ─────────────── */
+    let _pollTries = 0;
     const _poll = setInterval(() => {
-      if (_ready()) { clearInterval(_poll); _initFirebase(); }
+      _pollTries++;
+      if (_ready()) { clearInterval(_poll); _initFirebase(); return; }
+      if (_pollTries > 40) { clearInterval(_poll); console.warn("Firebase SDK non chargé après 10s — vérifier la connexion CDN."); }
     }, 250);
 
   })();
