@@ -3716,26 +3716,8 @@
       </div>
     `;
 
-    root.querySelectorAll("[data-plan]").forEach(btn =>
-      btn.addEventListener("click", () => {
-        const plan = btn.dataset.plan;
-        if (plan === "agence") {
-          alert("Contactez l'équipe TEOMARCHI pour une offre Agence personnalisée.");
-        } else if (plan === "studio") {
-          if (typeof TEOMARCHI_APP !== "undefined" && !TEOMARCHI_APP.session.get()) {
-            TEOMARCHI_APP.session.set({
-              name: "Jonathan YAV", role: "Architecte Étudiant",
-              grade: "M2", connectedAt: new Date().toISOString()
-            });
-            const lbl = document.getElementById("session-label");
-            if (lbl) lbl.textContent = "M2 connecté";
-            alert("Bienvenue dans Studio TEOMARCHI !");
-          } else {
-            alert("Votre compte Studio est déjà actif.");
-          }
-        }
-      })
-    );
+    /* Les clics sur [data-plan] sont gérés par le script Firebase (Script 9)
+       via un listener capture-phase — pas de doublon ici. */
   }
 
   /* ── Hooks MutationObserver ──────────────────────────────────── */
@@ -5091,7 +5073,8 @@
     };
 
     /* URL Stripe Payment Link — ex: "https://buy.stripe.com/test_xxxx" */
-    const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/VOTRE_LIEN";
+    const STRIPE_PAYMENT_LINK        = "https://buy.stripe.com/4gMaEQ7S72TD1YM8Sg1RC04";
+    const STRIPE_AGENCE_LINK         = "https://buy.stripe.com/4gM6oAegvfGp9re3xW1RC02";
 
     /* Modules nécessitant une connexion */
     const GATED = new Set(["outils"]);
@@ -5604,18 +5587,15 @@
       }
     }, true);
 
-    /* ── Stripe — intercepte "Choisir Studio" ───────────────────── */
+    /* ── Stripe — intercepte les boutons de plan ───────────────────── */
     document.addEventListener("click", e => {
-      const btn = e.target.closest("[data-plan='studio']");
+      const btn = e.target.closest("[data-plan='studio'], [data-plan='agence']");
       if (!btn) return;
       e.stopImmediatePropagation();
       if (_ready() && !_user) { _show(null); return; }
-      if (STRIPE_PAYMENT_LINK.includes("VOTRE_LIEN")) {
-        alert("Configure ton Stripe Payment Link dans Script 9 > STRIPE_PAYMENT_LINK.");
-        return;
-      }
-      const uid = _user?.uid || "";
-      window.open(STRIPE_PAYMENT_LINK + (uid ? "?client_reference_id=" + uid : ""), "_blank");
+      const uid  = _user?.uid || "";
+      const link = btn.dataset.plan === "agence" ? STRIPE_AGENCE_LINK : STRIPE_PAYMENT_LINK;
+      window.open(link + (uid ? "?client_reference_id=" + uid : ""), "_blank");
     }, true);
 
     /* ── Retour Stripe : recharge isPremium depuis Firestore ────────
