@@ -1042,7 +1042,7 @@
     /* ============================================================
        CUSTOM CURSOR
     ============================================================ */
-    @media (min-width: 1024px) {
+    @media (min-width: 768px) and (pointer: fine) {
       html, body { cursor: none; }
       a, button, input, select, textarea, [data-nav], [role="tab"] { cursor: none; }
     }
@@ -1980,8 +1980,8 @@
 
     /* ── Curseur custom ──────────────────────────────────────── */
     function initCursor () {
-      if (window.matchMedia("(max-width: 1023px)").matches) return;
-      if (window.matchMedia("(pointer: coarse)").matches)   return;
+      if (window.matchMedia("(max-width: 767px)").matches) return;
+      if (window.matchMedia("(pointer: coarse)").matches)  return;
 
       const dot     = document.getElementById("cursor-dot");
       const outline = document.getElementById("cursor-outline");
@@ -2035,7 +2035,7 @@
 
     /* ── Initialisation ───────────────────────────────────────── */
     function init () {
-      const run = (name, fn) => { try { fn(); } catch(e) { console.error("[TEOMARCHI] " + name + ":", e); } };
+      const run = (name, fn) => { try { fn(); } catch(e) { /* silencieux en prod */ } };
       run("applyTheme",   () => applyTheme(store.get(STORAGE.theme, "dark")));
       run("buildTabs",    buildTabs);
       run("buildMetrics", buildMetrics);
@@ -5525,7 +5525,7 @@
             .set({ sessionsResetAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
           await firebase.auth().signOut();
         } catch(err) {
-          alert("Erreur : " + err.message);
+          if (typeof pushNotification === "function") pushNotification("Erreur : " + err.message);
         }
       });
     }
