@@ -166,7 +166,6 @@
         <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-fiches"     data-nav="fiches"     aria-selected="false" aria-controls="module-fiches"><span>Fiches</span></button>
         <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-etudes"     data-nav="etudes"     aria-selected="false" aria-controls="module-etudes"><span>Études</span></button>
         <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-outils"     data-nav="outils"     aria-selected="false" aria-controls="module-outils"><span>Outils</span></button>
-        <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-atelier"    data-nav="atelier"    aria-selected="false" aria-controls="module-atelier"><span>Atelier</span></button>
         <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-journalier" data-nav="journalier" aria-selected="false" aria-controls="module-journalier"><span>Journalier</span></button>
         <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-showroom"   data-nav="showroom"   aria-selected="false" aria-controls="module-showroom"><span>Showroom</span></button>
         <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-feed"       data-nav="feed"       aria-selected="false" aria-controls="module-feed"><span>Feed</span></button>
@@ -200,7 +199,7 @@
 
     <!-- ============================================================
          ZONE DE VUE SPA
-         11 modules · identifiants prêts pour l'injection JS
+         Modules · identifiants prêts pour l'injection JS
     ============================================================ -->
     <div class="view" id="view" aria-live="polite">
 
@@ -480,47 +479,20 @@
         </div>
       </section>
 
-      <!-- ── MODULE 11 · ATELIER-JOURNAL ── -->
-      <section class="module" id="module-atelier"
-               role="tabpanel" aria-labelledby="tab-atelier" data-module="atelier">
-        <header class="section-head">
-          <div>
-            <p class="section-head__kicker">Atelier &amp; Journal</p>
-            <h2 class="section-head__title">Le cœur expert du projet</h2>
-          </div>
-          <p class="section-head__desc">
-            Chronos des phases, log de bord horodaté, check-list technique et prescription
-            directe des matériaux ou produits partenaires.
-          </p>
-        </header>
-        <!-- id="atelier-layout" · rempli par JS phase 2 -->
-        <div id="atelier-layout">
-          <div class="module-empty">
-            <svg class="module-empty__icon" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
-                 aria-hidden="true">
-              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-            </svg>
-            <p class="module-empty__title">Atelier — Journal</p>
-            <p class="module-empty__sub">Log horodaté, check-list, prescriptions matières — contenu en préparation</p>
-          </div>
-        </div>
-      </section>
-
       <!-- ── MODULE JOURNALIER ── -->
       <section class="module" id="module-journalier"
                role="tabpanel" aria-labelledby="tab-journalier" data-module="journalier">
         <header class="section-head">
           <div>
-            <p class="section-head__kicker">Journal de bord</p>
-            <h2 class="section-head__title">Chronologie du projet</h2>
+            <p class="section-head__kicker">Journalier de projet</p>
+            <h2 class="section-head__title">Le cœur expert du projet</h2>
           </div>
           <p class="section-head__desc">
-            Log horodaté des décisions, notes de chantier, observations et étapes
-            clés du projet en cours.
+            Types de projets, checklist, deadlines, calendrier et avancement en un seul
+            poste de pilotage.
           </p>
         </header>
+        <!-- id="journalier-layout" · rempli par JS -->
         <div id="journalier-layout">
           <div class="module-empty">
             <svg class="module-empty__icon" viewBox="0 0 24 24" fill="none"
@@ -533,7 +505,7 @@
               <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>
             </svg>
             <p class="module-empty__title">Journalier</p>
-            <p class="module-empty__sub">Journal de bord horodaté — contenu disponible via l'Atelier</p>
+            <p class="module-empty__sub">Chargement du centre Journalier</p>
           </div>
         </div>
       </section>

@@ -37,3 +37,20 @@ test("checkout clicks are delegated and resilient", () => {
   assert.match(js, /isCheckoutPending/);
   assert.match(js, /finally\s*{/);
 });
+
+test("client code does not expose private payment or platform secrets", () => {
+  const js = read("app.js");
+  const html = read("index.html");
+  const deploy = read(".github/workflows/deploy.yml");
+
+  [js, html, deploy].forEach(source => {
+    assert.doesNotMatch(source, /sk_live_[A-Za-z0-9]+/);
+    assert.doesNotMatch(source, /sk_test_[A-Za-z0-9]+/);
+    assert.doesNotMatch(source, /whsec_[A-Za-z0-9]+/);
+    assert.doesNotMatch(source, /ghp_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+/);
+    assert.doesNotMatch(source, /-----BEGIN PRIVATE KEY-----/);
+  });
+
+  assert.match(js, /TEOMARCHI_CONFIG\.stripe\.publishableKey/);
+  assert.match(js, /TEOMARCHI_CONFIG\.firebase/);
+});

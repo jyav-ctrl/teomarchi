@@ -8,6 +8,43 @@
   }
 })();
 
+const ENABLE_DEMO_DATA = false;
+
+/*
+  Configuration publique côté client.
+  Firebase apiKey côté client n'est pas un secret : la sécurité doit venir des
+  Firebase Authorized Domains, des Firestore Rules et des règles Auth.
+  ne jamais mettre sk_live, ne jamais mettre sk_test, service account, webhook secret, whsec,
+  token GitHub ou clé privée dans ce fichier. Stripe Checkout doit utiliser
+  des Price IDs publics ou, idéalement, une Cloud Function pour créer la session.
+*/
+window.TEOMARCHI_CONFIG = window.TEOMARCHI_CONFIG || {
+  firebase: {
+    apiKey:            "AIzaSyAa41Fvf6TWt-yV-KANju7IIpXz3EG5nx0",
+    authDomain:        "teomarchi-7eeae.firebaseapp.com",
+    projectId:         "teomarchi-7eeae",
+    storageBucket:     "teomarchi-7eeae.firebasestorage.app",
+    messagingSenderId: "923051128049",
+    appId:             "1:923051128049:web:c3efa3c59dde62cd2ae550",
+    measurementId:     "G-S9T43WPBK8"
+  },
+  stripe: {
+    publishableKey: "pk_live_51TUEOL3WxFY8ACg4Vy8sPX1sGHjMa6FW3vU5zWzaTFcNmb2dEG3wdFr3WLDaoptcuIobqe5GdJMyc3PbbdCWUOYc004byVd23R",
+    priceIds: {
+      studio: "id_de_ton_produit_stripe",
+      agence: "id_de_ton_produit_stripe_agence"
+    },
+    paymentLinks: {
+      studio: "https://buy.stripe.com/4gMaEQ7S72TD1YM8Sg1RC04",
+      agence: "https://buy.stripe.com/4gM6oAegvfGp9re3xW1RC02"
+    }
+  }
+};
+
+window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
+  document.dispatchEvent(new CustomEvent("teomarchi:open-login"));
+});
+
 (function () {
     "use strict";
 
@@ -25,7 +62,6 @@
       { id: "fiches",     label: "Fiches"     },
       { id: "etudes",     label: "Études"     },
       { id: "outils",     label: "Outils"     },
-      { id: "atelier",    label: "Atelier"    },
       { id: "journalier", label: "Journalier" },
       { id: "showroom",   label: "Showroom"   },
       { id: "feed",       label: "Feed"       },
@@ -43,7 +79,6 @@
       fiches:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg>`,
       etudes:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`,
       outils:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`,
-      atelier:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
       journalier: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>`,
       showroom:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1.5"/></svg>`,
       feed:       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`,
@@ -53,7 +88,7 @@
     };
 
     const METRICS = [
-      { value: "11", label: "Modules"        },
+      { value: "10", label: "Modules"        },
       { value: "6",  label: "Fiches matières"},
       { value: "5",  label: "Phases PRO"     },
       { value: "1",  label: "Bouclier légal" }
@@ -173,12 +208,7 @@
       if (store.get(STORAGE.session)) {
         store.remove(STORAGE.session);
       } else {
-        store.set(STORAGE.session, {
-          name:        "Jonathan YAV",
-          role:        "Architecte Étudiant",
-          grade:       "M2",
-          connectedAt: new Date().toISOString()
-        });
+        window.TEOMARCHI_OPEN_LOGIN?.();
       }
       syncSessionBtn();
     }
@@ -454,38 +484,381 @@
     }
   })();
 
-/* ── CSS responsive atelier (injecté une fois) ────────────────── */
-  (function injectAtelierCSS() {
-    if (document.getElementById("tm-atelier-css")) return;
+/* ── CSS responsive Journalier (injecté une fois) ─────────────── */
+  (function injectJournalierCSS() {
+    if (document.getElementById("tm-journalier-css")) return;
     const s = document.createElement("style");
-    s.id = "tm-atelier-css";
+    s.id = "tm-journalier-css";
     s.textContent = `
-      #atelier-layout { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:1.618rem; align-items:start; }
-      @media (max-width: 960px) {
-        #atelier-layout { grid-template-columns: 1fr !important; }
-        #atelier-right  { position: static !important; }
+      #journalier-layout,
+      .tm-journalier {
+        min-width: 0;
+        max-width: 100%;
+        overflow-x: hidden;
+      }
+      .tm-journalier {
+        display: grid;
+        gap: 1rem;
+        isolation: isolate;
+      }
+      .tm-journalier *,
+      .tm-journalier *::before,
+      .tm-journalier *::after { box-sizing: border-box; min-width: 0; }
+      .tm-journalier button,
+      .tm-journalier input,
+      .tm-journalier select,
+      .tm-journalier textarea {
+        pointer-events: auto;
+        touch-action: manipulation;
+      }
+      .tm-journalier-nav {
+        display: flex;
+        gap: .42rem;
+        overflow-x: auto;
+        padding: .2rem .05rem .35rem;
+        scrollbar-width: thin;
+      }
+      .tm-journalier-tab {
+        flex: 0 0 auto;
+        border: var(--border);
+        border-radius: var(--r-pill);
+        background: color-mix(in srgb, var(--surface-2) 54%, transparent);
+        color: var(--muted);
+        padding: .46rem .78rem;
+        font-size: .62rem;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: background .18s ease, color .18s ease, border-color .18s ease;
+      }
+      .tm-journalier-tab:hover,
+      .tm-journalier-tab.is-active {
+        color: var(--gold);
+        border-color: rgba(201,169,110,.36);
+        background: rgba(201,169,110,.1);
+      }
+      .tm-journalier-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(300px, .65fr);
+        gap: 1rem;
+        align-items: start;
+      }
+      .tm-journalier-stack { display: grid; gap: 1rem; }
+      .tm-journalier-kpis {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: .72rem;
+      }
+      .tm-journalier-kpi {
+        border: var(--border);
+        border-radius: var(--r-md);
+        padding: .9rem 1rem;
+        background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+      }
+      .tm-journalier-kpi strong {
+        display: block;
+        font-family: var(--serif);
+        font-size: clamp(1.6rem, 4vw, 2.6rem);
+        font-weight: 300;
+        line-height: 1;
+        color: var(--gold);
+      }
+      .tm-journalier-kpi span,
+      .tm-journalier-muted {
+        color: var(--muted);
+        font-size: .68rem;
+        line-height: 1.55;
+      }
+      .tm-journalier-panel {
+        display: grid;
+        gap: .86rem;
+      }
+      .tm-journalier-panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        gap: 1rem;
+        flex-wrap: wrap;
+        padding-bottom: .72rem;
+        border-bottom: var(--border);
+      }
+      .tm-journalier-eyebrow {
+        margin: 0 0 .18rem;
+        color: var(--gold);
+        font-size: .58rem;
+        letter-spacing: .17em;
+        text-transform: uppercase;
+      }
+      .tm-journalier-title {
+        margin: 0;
+        font-family: var(--serif);
+        font-size: clamp(1.35rem, 3.2vw, 2rem);
+        font-weight: 300;
+        line-height: 1;
+        color: var(--ink);
+      }
+      .tm-journalier-projects {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: .72rem;
+      }
+      .tm-journalier-project-card {
+        display: grid;
+        gap: .5rem;
+        text-align: left;
+        border: var(--border);
+        border-radius: var(--r-md);
+        background: color-mix(in srgb, var(--surface-2) 58%, transparent);
+        padding: .92rem;
+        color: var(--ink);
+        cursor: pointer;
+        transition: transform .18s ease, border-color .18s ease, background .18s ease;
+      }
+      .tm-journalier-project-card:hover,
+      .tm-journalier-project-card.is-active {
+        transform: translateY(-1px);
+        border-color: rgba(201,169,110,.42);
+        background: rgba(201,169,110,.07);
+      }
+      .tm-journalier-chip,
+      .tm-journalier-pill {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        gap: .28rem;
+        padding: .16rem .48rem;
+        border: var(--border);
+        border-radius: var(--r-pill);
+        color: var(--muted);
+        font-size: .58rem;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+      .tm-journalier-form,
+      .tm-journalier-task-form,
+      .tm-journalier-deadline-form {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .68rem;
+      }
+      .tm-journalier .field {
+        align-items: stretch;
+        flex-direction: column;
+        gap: .32rem;
+        min-height: 0;
+        padding: .62rem .72rem;
+        background: color-mix(in srgb, var(--surface-2) 62%, transparent);
+      }
+      .tm-journalier .field > span {
+        color: var(--muted);
+        font-size: .58rem;
+        letter-spacing: .12em;
+        line-height: 1;
+        text-transform: uppercase;
+      }
+      .tm-journalier .field input,
+      .tm-journalier .field select,
+      .tm-journalier .field textarea {
+        width: 100%;
+      }
+      .tm-journalier-form textarea {
+        width: 100%;
+        min-height: 82px;
+        resize: vertical;
+        border: var(--border);
+        border-radius: var(--r-sm);
+        background: var(--surface-2);
+        color: var(--ink);
+        padding: .7rem .8rem;
+        font: inherit;
+      }
+      .tm-journalier-form .is-wide,
+      .tm-journalier-task-form .is-wide,
+      .tm-journalier-deadline-form .is-wide { grid-column: 1 / -1; }
+      .tm-journalier-list,
+      .tm-journalier-deadline-list {
+        display: grid;
+        gap: .5rem;
+      }
+      .tm-journalier-task,
+      .tm-journalier-deadline {
+        display: grid;
+        gap: .42rem;
+        border: var(--border);
+        border-radius: var(--r-md);
+        background: color-mix(in srgb, var(--surface-2) 50%, transparent);
+        padding: .78rem .86rem;
+        transition: border-color .18s ease, background .18s ease;
+      }
+      .tm-journalier-task[draggable="true"] { cursor: grab; }
+      .tm-journalier-task:hover,
+      .tm-journalier-deadline:hover {
+        border-color: rgba(201,169,110,.28);
+        background: rgba(201,169,110,.045);
+      }
+      .tm-journalier-task-line {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: .62rem;
+        align-items: start;
+      }
+      .tm-journalier-task-line input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        margin-top: .16rem;
+        accent-color: var(--gold);
+      }
+      .tm-journalier-calendar {
+        display: grid;
+        gap: .45rem;
+      }
+      .tm-journalier-calendar-mode {
+        display: flex;
+        align-items: center;
+        gap: .38rem;
+        flex-wrap: wrap;
+      }
+      .tm-journalier-calendar-mode .tm-journalier-tab {
+        padding-inline: .6rem;
+      }
+      .tm-journalier-calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 3px;
+      }
+      .tm-journalier-day,
+      .tm-journalier-day-head {
+        min-height: 42px;
+        border-radius: 8px;
+        padding: .34rem .22rem;
+        text-align: center;
+      }
+      .tm-journalier-day-head {
+        min-height: auto;
+        color: var(--muted);
+        font-size: .54rem;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+      }
+      .tm-journalier-day {
+        width: 100%;
+        display: grid;
+        align-content: start;
+        gap: .24rem;
+        border: 0.5px solid transparent;
+        background: transparent;
+        color: var(--ink-2);
+        cursor: pointer;
+        text-align: left;
+        transition: background .16s ease, border-color .16s ease;
+      }
+      .tm-journalier-day > span:first-child {
+        font-family: var(--mono);
+        font-size: .68rem;
+        color: inherit;
+      }
+      .tm-journalier-day.is-muted {
+        visibility: hidden;
+        pointer-events: none;
+      }
+      .tm-journalier-day.is-today {
+        color: var(--gold);
+        background: var(--gold-dim);
+        border-color: rgba(201,169,110,.34);
+      }
+      .tm-journalier-day.has-items {
+        background: rgba(201,169,110,.055);
+        border-color: rgba(201,169,110,.22);
+      }
+      .tm-journalier-day.is-drop {
+        outline: 1px dashed rgba(201,169,110,.6);
+        outline-offset: -3px;
+      }
+      .tm-journalier-cal-item {
+        display: block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--gold);
+        font-size: .52rem;
+        line-height: 1.25;
+      }
+      .tm-journalier-empty {
+        border: 1px dashed rgba(201,169,110,.24);
+        border-radius: var(--r-md);
+        padding: 1.1rem;
+        background: rgba(201,169,110,.035);
+      }
+      .tm-journalier-empty p {
+        margin: .24rem 0 0;
+        color: var(--muted);
+        font-size: .74rem;
+      }
+      .tm-journalier-progress-track {
+        height: 3px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: rgba(245,245,241,.08);
+      }
+      .tm-journalier-progress-track span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--gold);
+        transition: width .24s ease;
+      }
+      .tm-journalier-subtasks {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .35rem;
+      }
+      .tm-journalier-subtasks span {
+        border: var(--border);
+        border-radius: var(--r-pill);
+        padding: .12rem .42rem;
+        color: var(--muted);
+        font-size: .58rem;
+      }
+      .tm-journalier-subtasks span.is-done {
+        color: var(--ok);
+        border-color: rgba(90,154,106,.34);
+      }
+      @media (max-width: 1100px) {
+        .tm-journalier-grid,
+        .tm-journalier-projects { grid-template-columns: 1fr; }
+        .tm-journalier-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 680px) {
+        .tm-journalier-kpis,
+        .tm-journalier-form,
+        .tm-journalier-task-form,
+        .tm-journalier-deadline-form { grid-template-columns: 1fr; }
+        .tm-journalier-task-line { grid-template-columns: auto minmax(0, 1fr); }
       }
     `;
     document.head.appendChild(s);
   })();
 
   /* ── Données statiques ─────────────────────────────────────────── */
-  const ATELIER_DEFAULT_CHECKLIST = [
-    { id: "plans-100", label: "Plans 1/100",          detail: "Niveaux, cotations, nord, surfaces et trame structurelle",        done: false },
-    { id: "coupes",    label: "Coupes",                detail: "Coupe habitée, sol, toiture, structure et épaisseur d'enveloppe", done: false },
-    { id: "facades",   label: "Façades",               detail: "Matérialité, percements, rythme, rapport au sol",                 done: false },
-    { id: "details",   label: "Carnet de détails",     detail: "Seuil, acrotère, menuiserie, isolation, assemblage",              done: false },
-    { id: "acv",       label: "Tableau ACV matériaux", detail: "R, lambda, CO₂, origine et justification du choix",              done: false },
-    { id: "jury",      label: "Récit de jury",         detail: "Parti, preuves techniques, risques et synthèse orale",           done: false }
+  const JOURNALIER_PROJECT_TYPES = [
+    { id: "personnel", label: "Projet Personnel", tag: "PERSO", color: "#C9A96E" },
+    { id: "cours",     label: "Projet Cours",     tag: "COURS", color: "#8FA6C9" },
+    { id: "travail",   label: "Projet Travail",   tag: "PRO",   color: "#8CBF9F" }
   ];
 
-  const ATELIER_PHASES = [
-    { code: "ESQ", nom: "Esquisse",               deadline: "2026-05-10T18:00:00+02:00" },
-    { code: "APS", nom: "Avant-Projet Sommaire",  deadline: "2026-05-17T18:00:00+02:00" },
-    { code: "APD", nom: "Avant-Projet Définitif", deadline: "2026-05-31T18:00:00+02:00" },
-    { code: "PC",  nom: "Permis de Construire",   deadline: "2026-06-21T12:00:00+02:00" },
-    { code: "PRO", nom: "Projet / DCE",           deadline: "2026-07-12T18:00:00+02:00" }
-  ];
+  const JOURNALIER_EMPTY_PROJECT = {
+    title: "",
+    color: "",
+    tag: "",
+    deadline: "",
+    notes: "",
+    status: "a-definir",
+    priority: "normal",
+    tasks: [],
+    deadlines: [],
+    updatedAt: null
+  };
 
   const _MONTHS_FR = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août",
                       "Septembre","Octobre","Novembre","Décembre"];
@@ -503,10 +876,114 @@
     const _cbs  = {};
     const _emit = k => (_cbs[k] || []).forEach(fn => fn(_ls.get(k)));
 
+    const _uid = prefix =>
+      prefix + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+
+    const _clampProgress = value => {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return 0;
+      return Math.max(0, Math.min(100, Math.round(n)));
+    };
+
+    const _makeSubtask = item => ({
+      id: item?.id || _uid("subtask"),
+      label: String(item?.label || "").trim(),
+      done: Boolean(item?.done)
+    });
+
+    const _makeTask = task => {
+      const subtasks = Array.isArray(task?.subtasks)
+        ? task.subtasks.map(_makeSubtask).filter(item => item.label)
+        : [];
+      const done = Boolean(task?.done);
+      const progress = subtasks.length
+        ? Math.round(subtasks.filter(item => item.done).length / subtasks.length * 100)
+        : done ? 100 : _clampProgress(task?.progress);
+
+      return {
+        id:        task?.id || _uid("task"),
+        label:     String(task?.label || "").trim(),
+        detail:    String(task?.detail || "").trim(),
+        done:      progress >= 100 || done,
+        priority:  task?.priority || "normal",
+        deadline:  task?.deadline || "",
+        subtasks,
+        progress,
+        createdAt: task?.createdAt || new Date().toISOString(),
+        custom:    task?.custom !== false
+      };
+    };
+
+    const _makeDeadline = item => ({
+      id:        item?.id || _uid("deadline"),
+      label:     String(item?.label || item?.nom || item?.code || "").trim(),
+      deadline:  item?.deadline || "",
+      note:      String(item?.note || item?.detail || "").trim(),
+      priority:  item?.priority || "normal",
+      createdAt: item?.createdAt || new Date().toISOString(),
+      custom:    item?.custom !== false
+    });
+
+    const _projectType = type =>
+      JOURNALIER_PROJECT_TYPES.some(t => t.id === type) ? type : "cours";
+
+    const _defaultProject = type => {
+      const meta = JOURNALIER_PROJECT_TYPES.find(t => t.id === type) || JOURNALIER_PROJECT_TYPES[1];
+      return {
+        ...JOURNALIER_EMPTY_PROJECT,
+        color: meta.color,
+        tag: meta.tag,
+        type
+      };
+    };
+
+    const _normalizeProject = (type, project = {}) => {
+      const fallback = _defaultProject(type);
+      const tasks = Array.isArray(project.tasks)
+        ? project.tasks.map(_makeTask).filter(task => task.label)
+        : [];
+      const deadlines = Array.isArray(project.deadlines)
+        ? project.deadlines.map(_makeDeadline).filter(item => item.label || item.deadline)
+        : [];
+
+      return {
+        title: String(project.title || "").trim(),
+        color: project.color || fallback.color,
+        tag: project.tag || fallback.tag,
+        deadline: project.deadline || "",
+        notes: String(project.notes || "").trim(),
+        status: project.status || fallback.status,
+        priority: project.priority || fallback.priority,
+        tasks,
+        deadlines,
+        updatedAt: project.updatedAt || null
+      };
+    };
+
+    const _normalizeJournalier = state => {
+      const activeProjectType = _projectType(state?.activeProjectType);
+      const projects = {};
+      JOURNALIER_PROJECT_TYPES.forEach(type => {
+        projects[type.id] = _normalizeProject(type.id, state?.projects?.[type.id]);
+      });
+      return { activeProjectType, projects };
+    };
+
+    const _readJournalier = () => _normalizeJournalier(_ls.get("journalier", null));
+
+    const _writeJournalier = state => {
+      const next = _normalizeJournalier(state);
+      const active = next.projects[next.activeProjectType];
+      if (active) active.updatedAt = new Date().toISOString();
+      _ls.set("journalier", next);
+      _emit("journalier");
+      return next;
+    };
+
     const _readJournal = () => {
       const s = _ls.get("journal", {});
       return {
-        checklist: (s.checklist?.length ? s.checklist : ATELIER_DEFAULT_CHECKLIST.map(i => ({ ...i }))),
+        checklist: Array.isArray(s.checklist) ? s.checklist : [],
         logs:      s.logs      || [],
         materials: s.materials || [],
         products:  s.products  || [],
@@ -533,6 +1010,96 @@
         get:   ()  => _ls.get("session"),
         set:   (v) => { _ls.set("session", v); _emit("session"); },
         clear: ()  => { _ls.del("session");    _emit("session"); }
+      },
+
+      journalier: {
+        get: _readJournalier,
+        set: _writeJournalier,
+
+        setActiveProjectType: type => {
+          const j = _readJournalier();
+          j.activeProjectType = _projectType(type);
+          return _writeJournalier(j);
+        },
+
+        updateProject: patch => {
+          const j = _readJournalier();
+          const project = j.projects[j.activeProjectType];
+          if (project) {
+            project.title = String(patch?.title ?? project.title ?? "").trim();
+            project.deadline = patch?.deadline ?? project.deadline ?? "";
+            project.notes = String(patch?.notes ?? project.notes ?? "").trim();
+            project.status = patch?.status || project.status || "a-definir";
+            project.priority = patch?.priority || project.priority || "normal";
+          }
+          return _writeJournalier(j);
+        },
+
+        updateTitle: title => {
+          const j = _readJournalier();
+          const project = j.projects[j.activeProjectType];
+          if (project) project.title = String(title || "").trim();
+          return _writeJournalier(j);
+        },
+
+        addTask: ({ label, detail = "", deadline = "", priority = "normal", subtasks = [] }) => {
+          if (!String(label || "").trim()) return null;
+          const j = _readJournalier();
+          const project = j.projects[j.activeProjectType];
+          if (!project) return null;
+          const task = _makeTask({ label, detail, deadline, priority, subtasks, custom: true });
+          project.tasks.push(task);
+          _writeJournalier(j);
+          return task.id;
+        },
+
+        toggleTask: id => {
+          const j = _readJournalier();
+          const project = j.projects[j.activeProjectType];
+          const task = project?.tasks.find(item => item.id === id);
+          if (!task) return false;
+          task.done = !task.done;
+          task.progress = task.done ? 100 : 0;
+          _writeJournalier(j);
+          return task.done;
+        },
+
+        updateTaskDeadline: (id, deadline) => {
+          const j = _readJournalier();
+          const project = j.projects[j.activeProjectType];
+          const task = project?.tasks.find(item => item.id === id);
+          if (!task) return false;
+          task.deadline = deadline || "";
+          _writeJournalier(j);
+          return true;
+        },
+
+        removeTask: id => {
+          const j = _readJournalier();
+          const project = j.projects[j.activeProjectType];
+          if (!project?.tasks.find(item => item.id === id)) return;
+          project.tasks = project.tasks.filter(item => item.id !== id);
+          _writeJournalier(j);
+        },
+
+        addDeadline: ({ label, deadline, note = "", priority = "normal" }) => {
+          if (!String(label || "").trim() || !deadline) return null;
+          const j = _readJournalier();
+          const project = j.projects[j.activeProjectType];
+          if (!project) return null;
+          const item = _makeDeadline({ label, deadline, note, priority, custom: true });
+          project.deadlines.push(item);
+          _writeJournalier(j);
+          return item.id;
+        },
+
+        removeDeadline: id => {
+          const j = _readJournalier();
+          const project = j.projects[j.activeProjectType];
+          if (!project?.deadlines.find(item => item.id === id)) return;
+          project.deadlines = project.deadlines.filter(item => item.id !== id);
+          _writeJournalier(j);
+        }
       },
 
       journal: {
@@ -578,9 +1145,126 @@
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
     );
 
+  const _deadlineAsDate = value => {
+    if (!value) return null;
+    const raw = String(value);
+    const date = new Date(raw.includes("T") ? raw : raw + "T12:00:00");
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+
+  const _formatDate = value => {
+    const date = _deadlineAsDate(value);
+    return date
+      ? date.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })
+      : "Sans date";
+  };
+
+  const _journalierState = () => TEOMARCHI_APP.journalier.get();
+
+  const _journalierMeta = type =>
+    JOURNALIER_PROJECT_TYPES.find(item => item.id === type) || JOURNALIER_PROJECT_TYPES[1];
+
+  const _journalierProject = () => {
+    const state = _journalierState();
+    return state.projects[state.activeProjectType] || { ...JOURNALIER_EMPTY_PROJECT };
+  };
+
+  const _journalierTypeLabel = type => _journalierMeta(type)?.label || "Projet";
+
+  const _progressValue = value => {
+    const n = Number(value);
+    return Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : 0;
+  };
+
+  const _dateToKey = date =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+  const _deadlineKey = value => {
+    const date = _deadlineAsDate(value);
+    return date ? _dateToKey(date) : "";
+  };
+
+  const _taskProgress = task => {
+    const subtasks = Array.isArray(task?.subtasks) ? task.subtasks : [];
+    if (subtasks.length) return Math.round(subtasks.filter(item => item.done).length / subtasks.length * 100);
+    return task?.done ? 100 : _progressValue(task?.progress);
+  };
+
+  const _projectProgress = project => {
+    const tasks = Array.isArray(project?.tasks) ? project.tasks : [];
+    if (!tasks.length) return 0;
+    return Math.round(tasks.reduce((sum, task) => sum + _taskProgress(task), 0) / tasks.length);
+  };
+
+  const _completionRate = project => {
+    const tasks = Array.isArray(project?.tasks) ? project.tasks : [];
+    if (!tasks.length) return 0;
+    return Math.round(tasks.filter(task => _taskProgress(task) >= 100).length / tasks.length * 100);
+  };
+
+  const _hasProjectContent = project =>
+    Boolean(project?.title || project?.deadline || project?.notes || project?.tasks?.length || project?.deadlines?.length);
+
+  const _priorityLabel = value => ({
+    normal: "Normal",
+    moyenne: "Moyenne",
+    haute: "Haute",
+    critique: "Critique"
+  }[value] || "Normal");
+
+  const _statusLabel = value => ({
+    "a-definir": "À définir",
+    actif: "Actif",
+    pause: "En pause",
+    termine: "Terminé"
+  }[value] || "À définir");
+
+  const _journalierDeadlines = (project, type = "") => {
+    const meta = _journalierMeta(type);
+    const projectDeadline = project?.deadline ? [{
+      id: "project-" + (type || "active"),
+      label: project.title || "Deadline globale",
+      code: meta?.tag || "PROJET",
+      deadline: project.deadline,
+      note: "Deadline du projet",
+      source: "project",
+      priority: project.priority || "normal"
+    }] : [];
+
+    const fromTasks = (project?.tasks || [])
+      .filter(task => task.deadline)
+      .map(task => ({
+        id: "task-" + task.id,
+        taskId: task.id,
+        label: task.label,
+        code: "TASK",
+        deadline: task.deadline,
+        note: task.detail || "Tâche planifiée",
+        source: "task",
+        priority: task.priority || "normal"
+      }));
+
+    const explicit = (project?.deadlines || []).map(item => ({
+      id: item.id,
+      label: item.label,
+      code: "DL",
+      deadline: item.deadline,
+      note: item.note,
+      custom: item.custom,
+      source: "deadline",
+      priority: item.priority || "normal"
+    }));
+
+    return [...projectDeadline, ...explicit, ...fromTasks]
+      .filter(item => item.label && _deadlineAsDate(item.deadline))
+      .sort((a, b) => _deadlineAsDate(a.deadline) - _deadlineAsDate(b.deadline));
+  };
+
   /* Calcule le délai humain et l'état sémantique d'une deadline */
   const _countdown = deadline => {
-    const diff = new Date(deadline).getTime() - Date.now();
+    const target = _deadlineAsDate(deadline);
+    if (!target) return { text: "Sans date", state: "none" };
+    const diff = target.getTime() - Date.now();
     const abs  = Math.abs(diff);
     const d    = Math.floor(abs / 86400000);
     const h    = Math.floor((abs % 86400000) / 3600000);
@@ -592,402 +1276,668 @@
 
   /* Détermine le statut d'une phase selon sa deadline */
   const _phaseStatus = deadline => {
-    const diff = new Date(deadline).getTime() - Date.now();
-    if (diff < -3600000)        return "Clôturé";
-    if (diff < 7 * 86400000)    return "En cours";
+    const target = _deadlineAsDate(deadline);
+    if (!target) return "À planifier";
+    const diff = target.getTime() - Date.now();
+    if (diff < -3600000)     return "Clôturé";
+    if (diff < 7 * 86400000) return "En cours";
     return "À venir";
+  };
+
+  const _renderProgressTrack = (pct, label = "Progression") => `
+    <div class="tm-journalier-progress-track" role="progressbar" aria-label="${_esc(label)}"
+         aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}">
+      <span style="width:${pct}%"></span>
+    </div>
+  `;
+
+  const _renderPanelHead = (eyebrow, title, action = "") => `
+    <div class="tm-journalier-panel-head">
+      <div>
+        <p class="tm-journalier-eyebrow">${_esc(eyebrow)}</p>
+        <h3 class="tm-journalier-title">${_esc(title)}</h3>
+      </div>
+      ${action}
+    </div>
+  `;
+
+  const _renderKpis = (state, project) => {
+    const today = _dateToKey(new Date());
+    const deadlines = _journalierDeadlines(project, state.activeProjectType);
+    const todayTasks = (project.tasks || []).filter(task => _deadlineKey(task.deadline) === today);
+    const upcoming = deadlines.filter(item => {
+      const d = _deadlineAsDate(item.deadline);
+      if (!d) return false;
+      const diff = d.getTime() - Date.now();
+      return diff >= -86400000 && diff <= 7 * 86400000;
+    });
+    const activeProjects = Object.values(state.projects || {}).filter(_hasProjectContent).length;
+    const progress = _projectProgress(project);
+
+    return `
+      <div class="tm-journalier-kpis">
+        <div class="tm-journalier-kpi">
+          <strong>${progress}%</strong>
+          <span>Avancement global</span>
+        </div>
+        <div class="tm-journalier-kpi">
+          <strong>${todayTasks.length}</strong>
+          <span>Tâche${todayTasks.length > 1 ? "s" : ""} du jour</span>
+        </div>
+        <div class="tm-journalier-kpi">
+          <strong>${upcoming.length}</strong>
+          <span>Deadline${upcoming.length > 1 ? "s" : ""} proche${upcoming.length > 1 ? "s" : ""}</span>
+        </div>
+        <div class="tm-journalier-kpi">
+          <strong>${activeProjects}</strong>
+          <span>Projet${activeProjects > 1 ? "s" : ""} actif${activeProjects > 1 ? "s" : ""}</span>
+        </div>
+      </div>
+    `;
+  };
+
+  const _renderProjectForm = (state, project) => `
+    <form id="journalier-project-form" class="tm-journalier-form" autocomplete="off">
+      <label class="field">
+        <span>Type de projet</span>
+        <select name="type" id="journalier-project-type">
+          ${JOURNALIER_PROJECT_TYPES.map(type => `
+            <option value="${_esc(type.id)}" ${type.id === state.activeProjectType ? "selected" : ""}>
+              ${_esc(type.label)}
+            </option>
+          `).join("")}
+        </select>
+      </label>
+      <label class="field">
+        <span>Nom du projet</span>
+        <input id="journalier-project-title" name="title" type="text" value="${_esc(project.title)}"
+               maxlength="90" placeholder="Nom du projet" />
+      </label>
+      <label class="field">
+        <span>Deadline globale</span>
+        <input name="deadline" type="date" value="${_esc(project.deadline)}" />
+      </label>
+      <label class="field">
+        <span>Statut</span>
+        <select name="status">
+          ${["a-definir","actif","pause","termine"].map(value => `
+            <option value="${value}" ${project.status === value ? "selected" : ""}>${_esc(_statusLabel(value))}</option>
+          `).join("")}
+        </select>
+      </label>
+      <label class="field">
+        <span>Priorité</span>
+        <select name="priority">
+          ${["normal","moyenne","haute","critique"].map(value => `
+            <option value="${value}" ${project.priority === value ? "selected" : ""}>${_esc(_priorityLabel(value))}</option>
+          `).join("")}
+        </select>
+      </label>
+      <label class="field is-wide">
+        <span>Notes</span>
+        <textarea name="notes" maxlength="600" placeholder="Notes de projet, contraintes, livrables...">${_esc(project.notes)}</textarea>
+      </label>
+      <button type="submit" class="text-btn text-btn--primary" data-journalier-action="save-project">Enregistrer</button>
+    </form>
+  `;
+
+  const _renderDashboard = (state, project) => {
+    const typeLabel = _journalierTypeLabel(state.activeProjectType);
+    const progress = _projectProgress(project);
+    const title = project.title || "Aucun titre défini";
+
+    return `
+      <section id="journalier-dashboard" class="card tm-journalier-panel">
+        ${_renderPanelHead("Dashboard", "Pilotage du projet")}
+        <div>
+          <p class="tm-journalier-muted" style="margin:0 0 .28rem">${_esc(typeLabel)}</p>
+          <h2 style="margin:0;font-family:var(--serif);font-size:clamp(2rem,5vw,3.4rem);font-weight:300;line-height:.96;color:var(--ink)">
+            ${_esc(title)}
+          </h2>
+        </div>
+        <div id="journalier-progress">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:1rem;margin-bottom:.55rem">
+            <span class="tm-journalier-muted">Progression consolidée</span>
+            <strong style="font-family:var(--serif);font-size:2.4rem;font-weight:300;line-height:1;color:var(--gold)">${progress}%</strong>
+          </div>
+          ${_renderProgressTrack(progress, "Progression globale du projet")}
+        </div>
+        ${!_hasProjectContent(project) ? `
+          <div class="tm-journalier-empty">
+            <strong>Vue vide</strong>
+            <p>Créez un projet, ajoutez une première tâche ou posez une deadline pour commencer le suivi.</p>
+          </div>
+        ` : ""}
+        ${_renderKpis(state, project)}
+        ${_renderProjectForm(state, project)}
+      </section>
+    `;
+  };
+
+  const _renderProjectCards = state => `
+    <div class="tm-journalier-projects">
+      ${JOURNALIER_PROJECT_TYPES.map(type => {
+        const project = state.projects[type.id] || {};
+        const progress = _projectProgress(project);
+        const count = (project.tasks || []).length + (project.deadlines || []).length + (project.deadline ? 1 : 0);
+        const active = type.id === state.activeProjectType;
+        return `
+          <button type="button"
+                  class="tm-journalier-project-card ${active ? "is-active" : ""}"
+                  data-journalier-project="${_esc(type.id)}"
+                  style="--project-color:${_esc(type.color)}">
+            <span class="tm-journalier-chip" style="border-color:${_esc(type.color)}55;color:${_esc(type.color)}">${_esc(type.tag)}</span>
+            <strong>${_esc(project.title || "Aucun projet créé")}</strong>
+            <span class="tm-journalier-muted">${_esc(type.label)} · ${count} élément${count > 1 ? "s" : ""}</span>
+            ${_renderProgressTrack(progress, "Progression " + type.label)}
+          </button>
+        `;
+      }).join("")}
+    </div>
+  `;
+
+  const _calendarItemsByDate = (project, type) => {
+    const map = {};
+    _journalierDeadlines(project, type).forEach(item => {
+      const key = _deadlineKey(item.deadline);
+      if (!key) return;
+      map[key] = map[key] || [];
+      map[key].push(item);
+    });
+    return map;
+  };
+
+  const _renderCalendarItem = item => `
+    <span class="tm-journalier-cal-item" title="${_esc(item.label)}">${_esc(item.label)}</span>
+  `;
+
+  let _calState = {
+    year: new Date().getFullYear(),
+    month: new Date().getMonth(),
+    view: "month"
+  };
+
+  const _renderCalendarCells = (project, type) => {
+    const { year, month, view } = _calState;
+    const today = new Date();
+    const todayKey = _dateToKey(today);
+    const itemsByDate = _calendarItemsByDate(project, type);
+
+    const makeCell = date => {
+      const key = _dateToKey(date);
+      const dayItems = itemsByDate[key] || [];
+      const isToday = key === todayKey;
+      return `
+        <button type="button"
+                class="tm-journalier-day ${isToday ? "is-today" : ""} ${dayItems.length ? "has-items" : ""}"
+                data-journalier-date="${key}"
+                aria-label="${_esc(`Planifier au ${_formatDate(key)}`)}">
+          <span>${date.getDate()}</span>
+          ${dayItems.slice(0, 2).map(_renderCalendarItem).join("")}
+          ${dayItems.length > 2 ? `<small>+${dayItems.length - 2}</small>` : ""}
+        </button>
+      `;
+    };
+
+    if (view === "week") {
+      const base = new Date(year, month, Math.min(today.getDate(), new Date(year, month + 1, 0).getDate()));
+      const day = base.getDay() || 7;
+      base.setDate(base.getDate() - day + 1);
+      const cells = Array.from({ length: 7 }, (_, i) => {
+        const date = new Date(base);
+        date.setDate(base.getDate() + i);
+        return makeCell(date);
+      });
+      return cells.join("");
+    }
+
+    const first = new Date(year, month, 1);
+    const total = new Date(year, month + 1, 0).getDate();
+    let offset = first.getDay() - 1;
+    if (offset < 0) offset = 6;
+    const cells = [];
+    for (let i = 0; i < offset; i++) cells.push(`<div class="tm-journalier-day is-muted" aria-hidden="true"></div>`);
+    for (let d = 1; d <= total; d++) cells.push(makeCell(new Date(year, month, d)));
+    return cells.join("");
+  };
+
+  const _renderCalendar = (state, project) => `
+    <section id="journalier-calendar" class="card tm-journalier-panel">
+      ${_renderPanelHead("Calendrier", `${_MONTHS_FR[_calState.month]} ${_calState.year}`, `
+        <div class="tm-journalier-calendar-mode">
+          <button type="button" class="icon-btn" data-journalier-action="prev-month" aria-label="Mois précédent">‹</button>
+          <button type="button" class="tm-journalier-tab ${_calState.view === "week" ? "is-active" : ""}"
+                  data-journalier-action="calendar-view" data-view="week">Semaine</button>
+          <button type="button" class="tm-journalier-tab ${_calState.view === "month" ? "is-active" : ""}"
+                  data-journalier-action="calendar-view" data-view="month">Mois</button>
+          <button type="button" class="icon-btn" data-journalier-action="next-month" aria-label="Mois suivant">›</button>
+        </div>
+      `)}
+      <div id="journalier-cal-grid" class="tm-journalier-calendar">
+        <div class="tm-journalier-calendar-grid" aria-label="Calendrier Journalier">
+          ${["L","M","M","J","V","S","D"].map(n => `<div class="tm-journalier-day-head">${n}</div>`).join("")}
+          ${_renderCalendarCells(project, state.activeProjectType)}
+        </div>
+        <p class="tm-journalier-muted" style="margin:0">Glissez une tâche depuis la checklist vers un jour pour lui affecter une date limite.</p>
+      </div>
+    </section>
+  `;
+
+  const _renderTaskList = project => {
+    const tasks = project.tasks || [];
+    if (!tasks.length) {
+      return `
+        <div class="tm-journalier-empty">
+          <strong>Aucune tâche</strong>
+          <p>Ajoutez une tâche pour construire la checklist et alimenter automatiquement le calendrier.</p>
+        </div>
+      `;
+    }
+
+    return tasks.map(item => {
+      const progress = _taskProgress(item);
+      const subtasks = Array.isArray(item.subtasks) ? item.subtasks : [];
+      return `
+        <article class="tm-journalier-task" draggable="true" data-task-drag data-task-id="${_esc(item.id)}">
+          <div class="tm-journalier-task-line">
+            <input type="checkbox" ${progress >= 100 ? "checked" : ""} data-task-toggle="${_esc(item.id)}"
+                   aria-label="Basculer la tâche ${_esc(item.label)}" />
+            <div>
+              <strong style="${progress >= 100 ? "text-decoration:line-through;opacity:.46" : ""}">${_esc(item.label)}</strong>
+              ${item.detail ? `<p class="tm-journalier-muted" style="margin:.16rem 0 0">${_esc(item.detail)}</p>` : ""}
+              <div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.46rem">
+                <span class="tm-journalier-pill">${_esc(_priorityLabel(item.priority))}</span>
+                ${item.deadline ? `<span class="tm-journalier-pill">${_esc(_formatDate(item.deadline))}</span>` : ""}
+                <span class="tm-journalier-pill">${progress}%</span>
+              </div>
+            </div>
+            <button type="button" class="icon-btn" data-journalier-action="remove-task" data-task-id="${_esc(item.id)}"
+                    aria-label="Supprimer cette tâche">×</button>
+          </div>
+          ${_renderProgressTrack(progress, "Progression de la tâche")}
+          ${subtasks.length ? `
+            <div class="tm-journalier-subtasks">
+              ${subtasks.map(subtask => `
+                <span class="${subtask.done ? "is-done" : ""}">${_esc(subtask.label)}</span>
+              `).join("")}
+            </div>
+          ` : ""}
+        </article>
+      `;
+    }).join("");
+  };
+
+  const _renderChecklist = project => `
+    <section id="journalier-checklist" class="card tm-journalier-panel">
+      ${_renderPanelHead("Checklist", "Tâches et sous-tâches")}
+      <form id="journalier-add-form" class="tm-journalier-task-form" autocomplete="off">
+        <label class="field">
+          <span>Tâche</span>
+          <input id="journalier-add-input" name="label" type="text" placeholder="Nouvelle tâche" maxlength="120" />
+        </label>
+        <label class="field">
+          <span>Priorité</span>
+          <select name="priority">
+            <option value="normal">Normal</option>
+            <option value="moyenne">Moyenne</option>
+            <option value="haute">Haute</option>
+            <option value="critique">Critique</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Date limite</span>
+          <input id="journalier-add-deadline" name="deadline" type="date" />
+        </label>
+        <label class="field is-wide">
+          <span>Détail</span>
+          <input id="journalier-add-detail" name="detail" type="text" placeholder="Détail court, livrable, contrainte..." maxlength="180" />
+        </label>
+        <label class="field is-wide">
+          <span>Sous-tâches</span>
+          <input name="subtasks" type="text" placeholder="Séparez les sous-tâches par des virgules" maxlength="240" />
+        </label>
+        <button type="submit" class="text-btn text-btn--primary" data-journalier-action="add-task">Ajouter la tâche</button>
+      </form>
+      <div id="journalier-todo-list" class="tm-journalier-list">${_renderTaskList(project)}</div>
+    </section>
+  `;
+
+  const _renderDeadlines = (state, project) => {
+    const deadlines = _journalierDeadlines(project, state.activeProjectType);
+    return `
+      <section id="journalier-deadlines" class="card tm-journalier-panel">
+        ${_renderPanelHead("Deadlines", "Échéances critiques")}
+        <form id="journalier-deadline-form" class="tm-journalier-deadline-form" autocomplete="off">
+          <label class="field">
+            <span>Libellé</span>
+            <input id="journalier-deadline-label" name="label" type="text" placeholder="Nouvelle deadline" maxlength="90" />
+          </label>
+          <label class="field">
+            <span>Date</span>
+            <input id="journalier-deadline-date" name="deadline" type="date" />
+          </label>
+          <label class="field is-wide">
+            <span>Note</span>
+            <input name="note" type="text" placeholder="Jalon, rendu, jury, validation..." maxlength="160" />
+          </label>
+          <button type="submit" class="text-btn text-btn--primary" data-journalier-action="add-deadline">Ajouter</button>
+        </form>
+        <div id="journalier-phases" class="tm-journalier-deadline-list">
+          ${deadlines.length ? deadlines.map(item => {
+            const cd = _countdown(item.deadline);
+            const status = _phaseStatus(item.deadline);
+            return `
+              <article class="tm-journalier-deadline">
+                <div style="display:flex;justify-content:space-between;gap:.7rem;align-items:start">
+                  <div>
+                    <span class="tm-journalier-chip">${_esc(item.code || "DL")}</span>
+                    <strong style="display:block;margin-top:.4rem;color:var(--ink)">${_esc(item.label)}</strong>
+                    <p class="tm-journalier-muted" style="margin:.2rem 0 0">${_esc(_formatDate(item.deadline))} · ${_esc(cd.text)}</p>
+                    ${item.note ? `<p class="tm-journalier-muted" style="margin:.2rem 0 0">${_esc(item.note)}</p>` : ""}
+                  </div>
+                  <div style="display:flex;gap:.35rem;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+                    <span class="tm-journalier-pill">${_esc(status)}</span>
+                    <span class="tm-journalier-pill">${_esc(_priorityLabel(item.priority))}</span>
+                    ${item.source === "deadline" ? `
+                      <button type="button" class="icon-btn" data-journalier-action="remove-deadline" data-deadline-id="${_esc(item.id)}"
+                              aria-label="Supprimer cette deadline">×</button>
+                    ` : ""}
+                  </div>
+                </div>
+              </article>
+            `;
+          }).join("") : `
+            <div class="tm-journalier-empty">
+              <strong>Aucune deadline</strong>
+              <p>Les échéances ajoutées ici apparaissent dans le calendrier.</p>
+            </div>
+          `}
+        </div>
+      </section>
+    `;
+  };
+
+  const _renderAnalytics = (state, project) => {
+    const progress = _projectProgress(project);
+    const completion = _completionRate(project);
+    const deadlines = _journalierDeadlines(project, state.activeProjectType);
+    const next = deadlines[0];
+    const taskCount = (project.tasks || []).length;
+    const doneCount = (project.tasks || []).filter(task => _taskProgress(task) >= 100).length;
+
+    return `
+      <section id="journalier-analytics" class="card tm-journalier-panel">
+        ${_renderPanelHead("Avancement", "Statistiques simples")}
+        <div class="tm-journalier-kpis">
+          <div class="tm-journalier-kpi"><strong>${progress}%</strong><span>Projet actif</span></div>
+          <div class="tm-journalier-kpi"><strong>${completion}%</strong><span>Tâches terminées</span></div>
+          <div class="tm-journalier-kpi"><strong>${doneCount}/${taskCount}</strong><span>Checklist</span></div>
+          <div class="tm-journalier-kpi"><strong>${next ? _esc(_formatDate(next.deadline)).slice(0, 6) : "0"}</strong><span>Prochaine échéance</span></div>
+        </div>
+        ${JOURNALIER_PROJECT_TYPES.map(type => {
+          const item = state.projects[type.id];
+          const pct = _projectProgress(item);
+          return `
+            <div>
+              <div style="display:flex;justify-content:space-between;gap:.8rem;margin-bottom:.35rem">
+                <span class="tm-journalier-muted">${_esc(type.label)}</span>
+                <span class="tm-journalier-muted">${pct}%</span>
+              </div>
+              ${_renderProgressTrack(pct, "Progression " + type.label)}
+            </div>
+          `;
+        }).join("")}
+      </section>
+    `;
   };
 
   /* ── Rendu : Barre de progression ──────────────────────────────── */
   function _refreshProgress() {
-    const el = document.getElementById("atelier-progress");
+    const el = document.getElementById("journalier-progress");
     if (!el) return;
-
-    const { checklist } = TEOMARCHI_APP.journal.get();
-    const total = checklist.length;
-    const done  = checklist.filter(c => c.done).length;
-    const pct   = total ? Math.round(done / total * 100) : 0;
-    const col   = pct === 100 ? "var(--ok)" : "var(--gold)";
-
+    const project = _journalierProject();
+    const pct = _projectProgress(project);
     el.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.5rem">
-        <p style="margin:0;text-transform:uppercase;letter-spacing:.17em;font-size:.58rem;font-weight:500;color:var(--muted)">Avancement technique</p>
-        <span style="font-family:var(--serif);font-size:2.6rem;font-weight:300;line-height:1;color:${col}">${pct}<sup style="font-size:1rem;vertical-align:super">%</sup></span>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:1rem;margin-bottom:.55rem">
+        <span class="tm-journalier-muted">Progression consolidée</span>
+        <strong style="font-family:var(--serif);font-size:2.4rem;font-weight:300;line-height:1;color:var(--gold)">${pct}%</strong>
       </div>
-      <div role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"
-           aria-label="Progression des livrables"
-           style="height:2px;border-radius:999px;background:rgba(245,245,241,.08)">
-        <div style="height:100%;width:${pct}%;border-radius:999px;background:${col};transition:width .44s cubic-bezier(.4,0,.2,1)"></div>
-      </div>
-      <p style="margin:.38rem 0 0;font-size:.68rem;color:var(--muted)">
-        ${done} / ${total} livrable${total > 1 ? "s" : ""} complété${done > 1 ? "s" : ""}
-      </p>
+      ${_renderProgressTrack(pct, "Progression globale du projet")}
     `;
   }
 
   /* ── Rendu : Todo List ──────────────────────────────────────────── */
   function _refreshTodo() {
-    const el = document.getElementById("atelier-todo-list");
+    const el = document.getElementById("journalier-todo-list");
     if (!el) return;
-
-    const { checklist } = TEOMARCHI_APP.journal.get();
-
-    if (!checklist.length) {
-      el.innerHTML = `<p style="color:var(--muted);font-size:.80rem;padding:1rem;text-align:center">Aucune tâche. Ajoutez-en une ci-dessus.</p>`;
-      return;
-    }
-
-    el.innerHTML = checklist.map(item => `
-      <label style="display:grid;grid-template-columns:18px 1fr auto;gap:.618rem;align-items:start;
-          padding:.68rem .78rem;border:var(--border);border-radius:10px;cursor:pointer;
-          background:color-mix(in srgb,var(--surface-2) 50%,transparent);
-          transition:background .16s ease">
-        <input type="checkbox" ${item.done ? "checked" : ""}
-          style="width:16px;height:16px;accent-color:var(--gold);margin-top:.14rem;flex-shrink:0;cursor:pointer"
-          data-check="${_esc(item.id)}" />
-        <span>
-          <strong style="display:block;font-size:.83rem;color:var(--ink);transition:opacity .2s,text-decoration .2s;
-            ${item.done ? "text-decoration:line-through;opacity:.42" : ""}">${_esc(item.label)}</strong>
-          ${item.detail
-            ? `<small style="font-size:.68rem;color:var(--muted);line-height:1.5">${_esc(item.detail)}</small>`
-            : ""}
-        </span>
-        ${item.custom
-          ? `<button type="button" data-remove="${_esc(item.id)}"
-               style="align-self:start;margin-top:.1rem;width:22px;height:22px;display:flex;
-                 align-items:center;justify-content:center;border:var(--border);border-radius:5px;
-                 color:var(--muted);font-size:1rem;cursor:pointer;background:none;flex-shrink:0;
-                 transition:color .15s,border-color .15s"
-               aria-label="Supprimer cette tâche">&times;</button>`
-          : "<span></span>"}
-      </label>
-    `).join("");
-
-    /* Bind checkboxes */
-    el.querySelectorAll("[data-check]").forEach(cb =>
-      cb.addEventListener("change", () => {
-        TEOMARCHI_APP.journal.toggleCheck(cb.dataset.check);
-        _refreshProgress();
-        _refreshTodo();
-      })
-    );
-
-    /* Bind boutons suppression (custom uniquement) */
-    el.querySelectorAll("[data-remove]").forEach(btn =>
-      btn.addEventListener("click", e => {
-        e.preventDefault();
-        TEOMARCHI_APP.journal.removeTask(btn.dataset.remove);
-        _refreshProgress();
-        _refreshTodo();
-      })
-    );
+    el.innerHTML = _renderTaskList(_journalierProject());
   }
 
   /* ── Rendu : Phase strip ────────────────────────────────────────── */
   function _refreshPhases() {
-    const el = document.getElementById("atelier-phases");
+    const el = document.getElementById("journalier-phases");
     if (!el) return;
-
-    el.innerHTML = ATELIER_PHASES.map(p => {
-      const status = _phaseStatus(p.deadline);
-      const cd     = _countdown(p.deadline);
-      const active = status === "En cours";
-      const done   = status === "Clôturé";
-
-      return `
-        <article style="padding:.68rem .85rem;border-radius:12px;display:grid;gap:.22rem;
-          ${active ? "background:var(--gold-glow);border:var(--border-gold)"
-          : done   ? "background:rgba(90,154,106,.06);border:0.5px solid rgba(90,154,106,.28)"
-                   : "background:color-mix(in srgb,var(--surface-2) 38%,transparent);border:var(--border)"}">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:.38rem">
-            <strong style="font-family:var(--mono);font-size:.66rem;letter-spacing:.14em;
-              color:${active ? "var(--gold)" : done ? "var(--ok)" : "var(--muted)"}">${_esc(p.code)}</strong>
-            <span style="font-size:.54rem;padding:.10rem .40rem;border-radius:999px;
-              font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;
-              ${active ? "background:var(--gold-dim);color:var(--gold);border:var(--border-gold)"
-              : done   ? "background:rgba(90,154,106,.12);color:var(--ok);border:0.5px solid rgba(90,154,106,.32)"
-                       : "color:var(--muted);border:var(--border)"}">
-              ${_esc(status)}
-            </span>
-          </div>
-          <p style="font-size:.78rem;color:var(--ink-2);margin:0">${_esc(p.nom)}</p>
-          <p style="font-size:.62rem;font-family:var(--mono);margin:0;
-            color:${cd.state === "past"  ? "var(--danger)"
-                  : cd.state === "today" ? "var(--gold)"
-                  : cd.state === "soon"  ? "var(--warn)"
-                                         : "var(--muted)"}">
-            ${_esc(cd.text)}
-          </p>
-        </article>
-      `;
-    }).join("");
+    const state = _journalierState();
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = _renderDeadlines(state, state.projects[state.activeProjectType] || {});
+    el.innerHTML = wrapper.querySelector("#journalier-phases")?.innerHTML || "";
   }
 
   /* ── Rendu : Calendrier ─────────────────────────────────────────── */
-  let _calState = { year: new Date().getFullYear(), month: new Date().getMonth() };
-
   function _refreshCalendar() {
-    const el = document.getElementById("atelier-cal-grid");
+    const el = document.getElementById("journalier-cal-grid");
     if (!el) return;
+    const state = _journalierState();
+    const project = state.projects[state.activeProjectType] || {};
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = _renderCalendar(state, project);
+    el.innerHTML = wrapper.querySelector("#journalier-cal-grid")?.innerHTML || "";
+  }
 
-    const { year, month } = _calState;
-    const today  = new Date();
-    const first  = new Date(year, month, 1);
-    const total  = new Date(year, month + 1, 0).getDate();
-    let offset   = first.getDay() - 1;
-    if (offset < 0) offset = 6; /* Lundi en premier */
+  const _collectSubtasks = value =>
+    String(value || "")
+      .split(",")
+      .map(label => ({ label: label.trim(), done: false }))
+      .filter(item => item.label);
 
-    /* Map des deadlines pour ce mois */
-    const dlMap = {};
-    ATELIER_PHASES.forEach(p => {
-      const d = new Date(p.deadline);
-      if (d.getFullYear() === year && d.getMonth() === month) dlMap[d.getDate()] = p;
+  function _bindJournalier(root) {
+    if (!root || root.dataset.journalierBound === "1") return;
+    root.dataset.journalierBound = "1";
+
+    root.addEventListener("submit", e => {
+      const form = e.target.closest("form");
+      if (!form || !root.contains(form)) return;
+      e.preventDefault();
+      const data = new FormData(form);
+
+      if (form.id === "journalier-project-form") {
+        const type = data.get("type") || "cours";
+        TEOMARCHI_APP.journalier.setActiveProjectType(type);
+        TEOMARCHI_APP.journalier.updateProject({
+          title: data.get("title") || "",
+          deadline: data.get("deadline") || "",
+          notes: data.get("notes") || "",
+          status: data.get("status") || "a-definir",
+          priority: data.get("priority") || "normal"
+        });
+        initJournalier();
+        return;
+      }
+
+      if (form.id === "journalier-add-form") {
+        const id = TEOMARCHI_APP.journalier.addTask({
+          label: data.get("label") || "",
+          detail: data.get("detail") || "",
+          deadline: data.get("deadline") || "",
+          priority: data.get("priority") || "normal",
+          subtasks: _collectSubtasks(data.get("subtasks"))
+        });
+        if (id) initJournalier();
+        return;
+      }
+
+      if (form.id === "journalier-deadline-form") {
+        const id = TEOMARCHI_APP.journalier.addDeadline({
+          label: data.get("label") || "",
+          deadline: data.get("deadline") || "",
+          note: data.get("note") || "",
+          priority: data.get("priority") || "normal"
+        });
+        if (id) initJournalier();
+      }
     });
 
-    const isToday = d =>
-      today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
-    const isPast  = d => new Date(year, month, d, 23, 59) < today;
+    root.addEventListener("change", e => {
+      const target = e.target;
+      const projectType = target?.closest?.("#journalier-project-type");
+      if (projectType) {
+        TEOMARCHI_APP.journalier.setActiveProjectType(projectType.value);
+        initJournalier();
+        return;
+      }
 
-    /* En-têtes des jours (semaine lundi-dimanche) */
-    const dayHeaders = ["L","M","M","J","V","S","D"].map(n =>
-      `<div style="text-align:center;font-size:.55rem;letter-spacing:.14em;text-transform:uppercase;
-                   color:var(--muted);padding:.22rem 0">${n}</div>`
-    ).join("");
-
-    /* Cellules */
-    const cells = [];
-    for (let i = 0; i < offset; i++) cells.push("<div></div>");
-
-    for (let d = 1; d <= total; d++) {
-      const ph = dlMap[d];
-      const td = isToday(d);
-      const ps = isPast(d) && !td;
-
-      cells.push(`
-        <div ${ph ? `title="${_esc(ph.code)} · ${_esc(ph.nom)}"` : ""}
-          style="display:flex;flex-direction:column;align-items:center;justify-content:center;
-            padding:.36rem .06rem;border-radius:7px;
-            background:${td ? "var(--gold-dim)" : ph ? "rgba(201,169,110,.04)" : "transparent"};
-            border:${td ? "var(--border-gold)" : ph ? "0.5px solid rgba(201,169,110,.20)" : "0.5px solid transparent"};
-            min-height:32px;${ph ? "cursor:default" : ""}">
-          <span style="font-size:.78rem;line-height:1.2;
-            font-weight:${td ? "500" : "300"};
-            color:${td ? "var(--gold)" : ps ? "var(--muted)" : "var(--ink-2)"}">
-            ${d}
-          </span>
-          <span style="font-size:.44rem;line-height:1;font-family:var(--mono);letter-spacing:.05em;
-            color:${ph ? "var(--gold)" : "transparent"};min-height:.55rem;display:block">
-            ${ph ? _esc(ph.code) : "·"}
-          </span>
-        </div>
-      `);
-    }
-
-    el.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.72rem">
-        <button type="button" class="icon-btn" id="cal-prev"
-                style="width:28px;height:28px" aria-label="Mois précédent">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-               stroke-linecap="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
-        </button>
-        <span style="font-family:var(--serif);font-size:1.06rem;font-weight:400;color:var(--ink)">
-          ${_MONTHS_FR[month]} ${year}
-        </span>
-        <button type="button" class="icon-btn" id="cal-next"
-                style="width:28px;height:28px" aria-label="Mois suivant">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-               stroke-linecap="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
-        </button>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">
-        ${dayHeaders}${cells.join("")}
-      </div>
-      <div style="display:flex;flex-wrap:wrap;gap:.78rem;margin-top:.72rem;
-                  padding-top:.618rem;border-top:var(--border)">
-        <span style="display:inline-flex;align-items:center;gap:.38rem;font-size:.60rem;color:var(--muted)">
-          <span style="width:12px;height:12px;border-radius:3px;flex-shrink:0;
-                       background:var(--gold-dim);border:var(--border-gold)"></span>
-          Aujourd'hui
-        </span>
-        <span style="display:inline-flex;align-items:center;gap:.38rem;font-size:.60rem;color:var(--muted)">
-          <span style="width:12px;height:12px;border-radius:3px;flex-shrink:0;
-                       background:rgba(201,169,110,.04);border:0.5px solid rgba(201,169,110,.22)"></span>
-          Échéance de rendu
-        </span>
-      </div>
-    `;
-
-    /* Navigation mois */
-    document.getElementById("cal-prev")?.addEventListener("click", () => {
-      if (--_calState.month < 0) { _calState.month = 11; _calState.year--; }
-      _refreshCalendar();
+      const checkbox = target?.closest?.("[data-task-toggle]");
+      if (checkbox) {
+        TEOMARCHI_APP.journalier.toggleTask(checkbox.dataset.taskToggle);
+        initJournalier();
+      }
     });
-    document.getElementById("cal-next")?.addEventListener("click", () => {
-      if (++_calState.month > 11) { _calState.month = 0; _calState.year++; }
-      _refreshCalendar();
+
+    root.addEventListener("click", e => {
+      const projectBtn = e.target.closest("[data-journalier-project]");
+      if (projectBtn && root.contains(projectBtn)) {
+        TEOMARCHI_APP.journalier.setActiveProjectType(projectBtn.dataset.journalierProject);
+        initJournalier();
+        return;
+      }
+
+      const btn = e.target.closest("[data-journalier-action]");
+      if (!btn || !root.contains(btn)) return;
+      const action = btn.dataset.journalierAction;
+
+      if (action === "jump") {
+        const target = document.getElementById(btn.dataset.target || "");
+        target?.scrollIntoView({ behavior: "smooth", block: "start" });
+        root.querySelectorAll('[data-journalier-action="jump"]').forEach(item => item.classList.toggle("is-active", item === btn));
+        return;
+      }
+
+      if (action === "remove-task") {
+        TEOMARCHI_APP.journalier.removeTask(btn.dataset.taskId);
+        initJournalier();
+        return;
+      }
+
+      if (action === "remove-deadline") {
+        TEOMARCHI_APP.journalier.removeDeadline(btn.dataset.deadlineId);
+        initJournalier();
+        return;
+      }
+
+      if (action === "prev-month") {
+        if (--_calState.month < 0) { _calState.month = 11; _calState.year--; }
+        initJournalier();
+        return;
+      }
+
+      if (action === "next-month") {
+        if (++_calState.month > 11) { _calState.month = 0; _calState.year++; }
+        initJournalier();
+        return;
+      }
+
+      if (action === "calendar-view") {
+        _calState.view = btn.dataset.view === "week" ? "week" : "month";
+        initJournalier();
+      }
+    });
+
+    root.addEventListener("dragstart", e => {
+      const card = e.target.closest("[data-task-drag]");
+      if (!card || !e.dataTransfer) return;
+      e.dataTransfer.setData("text/plain", card.dataset.taskId || "");
+      e.dataTransfer.effectAllowed = "move";
+    });
+
+    root.addEventListener("dragover", e => {
+      const day = e.target.closest("[data-journalier-date]");
+      if (!day) return;
+      e.preventDefault();
+      day.classList.add("is-drop");
+    });
+
+    root.addEventListener("dragleave", e => {
+      e.target.closest("[data-journalier-date]")?.classList.remove("is-drop");
+    });
+
+    root.addEventListener("drop", e => {
+      const day = e.target.closest("[data-journalier-date]");
+      if (!day || !e.dataTransfer) return;
+      e.preventDefault();
+      day.classList.remove("is-drop");
+      const taskId = e.dataTransfer.getData("text/plain");
+      if (taskId && TEOMARCHI_APP.journalier.updateTaskDeadline(taskId, day.dataset.journalierDate)) {
+        initJournalier();
+      }
     });
   }
 
-  /* ── initAtelier : Injection principale dans #atelier-layout ───── */
-  function initAtelier() {
-    const root = document.getElementById("atelier-layout");
+  /* ── initJournalier : Injection principale dans #journalier-layout ─ */
+  function initJournalier() {
+    const root = document.getElementById("journalier-layout");
     if (!root) return;
 
+    const state = _journalierState();
+    const project = state.projects[state.activeProjectType] || { ...JOURNALIER_EMPTY_PROJECT };
+
     root.innerHTML = `
-      <!-- Colonne gauche : progression + todo -->
-      <div id="atelier-left" style="display:grid;gap:1.618rem">
+      <div class="tm-journalier" aria-label="Centre de gestion Journalier">
+        <nav class="tm-journalier-nav" aria-label="Navigation Journalier">
+          ${[
+            ["journalier-dashboard", "Dashboard"],
+            ["journalier-calendar", "Calendrier"],
+            ["journalier-deadlines", "Deadlines"],
+            ["journalier-checklist", "Checklist"],
+            ["journalier-analytics", "Avancement"],
+            ["journalier-projects", "Catégories"]
+          ].map((item, index) => `
+            <button type="button" class="tm-journalier-tab ${index === 0 ? "is-active" : ""}"
+                    data-journalier-action="jump" data-target="${item[0]}">${item[1]}</button>
+          `).join("")}
+        </nav>
 
-        <article class="card">
-          <p style="margin:0 0 .38rem;text-transform:uppercase;letter-spacing:.17em;font-size:.58rem;font-weight:500;color:var(--gold)">Projet actif</p>
-          <h3 style="font-family:var(--serif);font-size:2rem;font-weight:300;line-height:1;color:var(--ink);margin:0 0 1rem">
-            Ville poreuse bas-carbone
-          </h3>
-          <div id="atelier-progress"></div>
-        </article>
+        ${_renderDashboard(state, project)}
 
-        <article class="card">
-          <div style="padding-bottom:.78rem;border-bottom:var(--border);margin-bottom:.78rem">
-            <p style="margin:0 0 .18rem;text-transform:uppercase;letter-spacing:.17em;font-size:.58rem;font-weight:500;color:var(--gold)">Check-list technique</p>
-            <h3 style="font-family:var(--serif);font-size:1.7rem;font-weight:300;line-height:1;color:var(--ink);margin:0">Livrables à rendre</h3>
+        <div class="tm-journalier-grid">
+          <div class="tm-journalier-stack">
+            ${_renderCalendar(state, project)}
+            ${_renderChecklist(project)}
           </div>
-          <form id="atelier-add-form"
-                style="display:grid;grid-template-columns:1fr auto;gap:.618rem;margin-bottom:.72rem">
-            <label class="field" style="min-height:38px">
-              <input id="atelier-add-input" type="text" placeholder="Nouvelle tâche personnalisée…"
-                     maxlength="120" autocomplete="off" />
-            </label>
-            <button type="submit" class="text-btn text-btn--primary" style="white-space:nowrap">
-              + Ajouter
-            </button>
-          </form>
-          <div id="atelier-todo-list"
-               style="display:grid;gap:.42rem;max-height:460px;overflow-y:auto;padding-right:.2rem">
-          </div>
-        </article>
-
-      </div>
-
-      <!-- Colonne droite : phases + calendrier + calculatrice échelle -->
-      <div id="atelier-right" style="display:grid;gap:1.618rem;position:sticky;top:88px">
-
-        <article class="card">
-          <p style="margin:0 0 .38rem;text-transform:uppercase;letter-spacing:.17em;font-size:.58rem;font-weight:500;color:var(--gold)">Chronos du projet</p>
-          <h3 style="font-family:var(--serif);font-size:1.7rem;font-weight:300;line-height:1;color:var(--ink);margin:0 0 .85rem">Phases ESQ → PRO</h3>
-          <div id="atelier-phases" style="display:grid;gap:.5rem"></div>
-        </article>
-
-        <article class="card">
-          <p style="margin:0 0 .72rem;text-transform:uppercase;letter-spacing:.17em;font-size:.58rem;font-weight:500;color:var(--gold)">Calendrier des échéances</p>
-          <div id="atelier-cal-grid"></div>
-        </article>
-
-        <article class="card" id="atelier-scale-card">
-          <p style="margin:0 0 .18rem;text-transform:uppercase;letter-spacing:.17em;font-size:.58rem;font-weight:500;color:var(--gold)">Calculatrice</p>
-          <h3 style="font-family:var(--serif);font-size:1.7rem;font-weight:300;line-height:1;color:var(--ink);margin:0 0 1rem">Échelle exacte</h3>
-          <div style="display:grid;gap:.72rem">
-            <label class="field">
-              <span style="font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.28rem">Mesure réelle</span>
-              <div style="display:grid;grid-template-columns:1fr auto;gap:.5rem">
-                <input id="sc-real" type="number" min="0.001" step="any" placeholder="ex : 5" style="width:100%" />
-                <select id="sc-unit" style="background:var(--surface-2);border:var(--border);color:var(--ink);border-radius:var(--r-sm);padding:.4rem .6rem;font-size:.82rem;cursor:pointer">
-                  <option value="1000">m</option>
-                  <option value="10">cm</option>
-                  <option value="1" selected>mm</option>
-                </select>
-              </div>
-            </label>
-            <label class="field">
-              <span style="font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.28rem">Mesure sur plan (mm)</span>
-              <input id="sc-plan" type="number" min="0.001" step="any" placeholder="ex : 50" style="width:100%" />
-            </label>
-            <button type="button" id="sc-btn" class="text-btn text-btn--primary" style="width:100%;justify-content:center">Calculer l'échelle</button>
-            <div id="sc-result" style="display:none;padding:.85rem;background:rgba(201,169,110,.07);border:0.5px solid rgba(201,169,110,.32);border-radius:var(--r-sm);text-align:center">
-              <p id="sc-main" style="font-family:var(--serif);font-size:2rem;font-weight:300;color:var(--gold);margin:0 0 .2rem"></p>
-              <p id="sc-nearest" style="font-size:.68rem;color:var(--muted);margin:0;letter-spacing:.08em"></p>
-            </div>
-            <p id="sc-error" style="display:none;font-size:.72rem;color:#e07070;text-align:center;margin:0"></p>
-          </div>
-        </article>
-
+          <aside class="tm-journalier-stack">
+            <section id="journalier-projects" class="card tm-journalier-panel">
+              ${_renderPanelHead("Catégories projets", "Personnel, cours, travail")}
+              ${_renderProjectCards(state)}
+            </section>
+            ${_renderDeadlines(state, project)}
+            ${_renderAnalytics(state, project)}
+          </aside>
+        </div>
       </div>
     `;
 
-    /* Sous-composants */
-    _refreshProgress();
-    _refreshTodo();
-    _refreshPhases();
-    _refreshCalendar();
-
-    /* Formulaire d'ajout de tâche */
-    document.getElementById("atelier-add-form")?.addEventListener("submit", e => {
-      e.preventDefault();
-      const input = document.getElementById("atelier-add-input");
-      if (TEOMARCHI_APP.journal.addTask(input.value)) {
-        input.value = "";
-        _refreshProgress();
-        _refreshTodo();
-      }
-    });
-
-    /* ── Calculatrice d'échelle ──────────────────────────────────── */
-    document.getElementById("sc-btn")?.addEventListener("click", () => {
-      const realRaw  = parseFloat(document.getElementById("sc-real").value);
-      const planRaw  = parseFloat(document.getElementById("sc-plan").value);
-      const unitMult = parseFloat(document.getElementById("sc-unit").value);
-      const errEl    = document.getElementById("sc-error");
-      const resEl    = document.getElementById("sc-result");
-
-      errEl.style.display = "none";
-      resEl.style.display = "none";
-
-      if (!realRaw || !planRaw || realRaw <= 0 || planRaw <= 0) {
-        errEl.textContent = "Entre deux valeurs positives.";
-        errEl.style.display = "block";
-        return;
-      }
-
-      const realMm  = realRaw * unitMult;
-      const denom   = Math.round(realMm / planRaw);
-
-      if (denom < 1) {
-        errEl.textContent = "La mesure sur plan est plus grande que la mesure réelle.";
-        errEl.style.display = "block";
-        return;
-      }
-
-      const STANDARDS = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
-      const nearest   = STANDARDS.reduce((a, b) =>
-        Math.abs(b - denom) < Math.abs(a - denom) ? b : a
-      );
-
-      document.getElementById("sc-main").textContent    = `1 : ${denom.toLocaleString("fr-FR")}`;
-      document.getElementById("sc-nearest").textContent =
-        nearest === denom
-          ? "Échelle standard exacte"
-          : `Échelle standard la plus proche : 1 : ${nearest.toLocaleString("fr-FR")}`;
-
-      resEl.style.display = "block";
-    });
-
-    /* Calcul au clavier (Entrée) */
-    ["sc-real", "sc-plan"].forEach(id =>
-      document.getElementById(id)?.addEventListener("keydown", e => {
-        if (e.key === "Enter") document.getElementById("sc-btn")?.click();
-      })
-    );
+    _bindJournalier(root);
   }
 
-  /* ── Hook : init/refresh quand #module-atelier devient actif ───── */
-  (function hookAtelierNav() {
-    const mod = document.getElementById("module-atelier");
+  /* ── Hook : init/refresh quand #module-journalier devient actif ── */
+  (function hookJournalier() {
+    const mod = document.getElementById("module-journalier");
     if (!mod) return;
 
     new MutationObserver(() => {
-      if (mod.classList.contains("is-active")) initAtelier();
+      if (mod.classList.contains("is-active")) initJournalier();
     }).observe(mod, { attributes: true, attributeFilter: ["class"] });
 
-    /* Cas où l'URL pointe déjà sur #atelier au chargement */
-    if (mod.classList.contains("is-active")) initAtelier();
+    if (mod.classList.contains("is-active")) initJournalier();
   })();
 
 /* ── CSS cartes grille (injecté une fois) ───────────────────── */
@@ -1061,82 +2011,46 @@
     document.head.appendChild(s);
   })();
 
-  /* ── DATA_PANTHEON — 5 architectes fondateurs ───────────────── */
+  /* ── DATA_PANTHEON — cartographie doctrine / matière / système ─ */
   const DATA_PANTHEON = [
-    {
-      titre:      "Le Corbusier",
-      sous_titre: "Plan libre, pilotis, toit-terrasse. La grammaire moderne codifiée en cinq points.",
-      tag:        "Modernisme",
-      image_url:  "",
-      _bg:        "linear-gradient(140deg,#0e0d09 0%,#291f0e 55%,#46340e 100%)"
-    },
-    {
-      titre:      "Zaha Hadid",
-      sous_titre: "Topologie fluide, sol continu et déformation de la trame orthogonale.",
-      tag:        "Paramétrique",
-      image_url:  "",
-      _bg:        "linear-gradient(140deg,#08090e 0%,#0f1622 55%,#182340 100%)"
-    },
-    {
-      titre:      "Tadao Ando",
-      sous_titre: "Béton brut poli, lumière rasante, vide comme matière première.",
-      tag:        "Brutalisme zen",
-      image_url:  "",
-      _bg:        "linear-gradient(140deg,#090909 0%,#161616 55%,#242424 100%)"
-    },
-    {
-      titre:      "Renzo Piano",
-      sous_titre: "Enveloppe transparente, structure visible, chantier comme spectacle urbain.",
-      tag:        "High-tech",
-      image_url:  "",
-      _bg:        "linear-gradient(140deg,#07090d 0%,#101926 55%,#1a2d40 100%)"
-    },
-    {
-      titre:      "Anne Lacaton",
-      sous_titre: "Réhabiliter, agrandir, ne jamais démolir. Économie de moyens, générosité d'espace.",
-      tag:        "Bas-carbone",
-      image_url:  "",
-      _bg:        "linear-gradient(140deg,#080c0a 0%,#122018 55%,#1c3228 100%)"
-    }
+    { id: "vitruve", nom: "Vitruve", epoque: "Antiquité / fondations", pays: "Rome", doctrine: "Firmitas, utilitas, venustas", systemeFavori: "Maçonnerie et ordres", matiereDominante: "Pierre", oeuvreRepere: "De architectura", apportTechnique: "Codifie proportions, matériaux et rôle du chantier.", leconProjet: "Relier usage, construction et représentation dès l'esquisse.", tags: ["traité", "proportion"] },
+    { id: "brunelleschi", nom: "Filippo Brunelleschi", epoque: "Renaissance", pays: "Italie", doctrine: "Géométrie constructive", systemeFavori: "Coupole double coque", matiereDominante: "Brique", oeuvreRepere: "Dôme de Florence", apportTechnique: "Maîtrise de la poussée sans cintre complet.", leconProjet: "La méthode de chantier peut devenir l'idée architecturale.", tags: ["coupole", "chantier"] },
+    { id: "palladio", nom: "Andrea Palladio", epoque: "Renaissance", pays: "Italie", doctrine: "Proportion typologique", systemeFavori: "Mur porteur ordonnancé", matiereDominante: "Pierre", oeuvreRepere: "Villa Rotonda", apportTechnique: "Transfère les ordres antiques vers le logement.", leconProjet: "Un plan clair stabilise programme, façade et structure.", tags: ["villa", "proportion"] },
+    { id: "viollet", nom: "Viollet-le-Duc", epoque: "XIXe siècle", pays: "France", doctrine: "Rationalisme structurel", systemeFavori: "Ossature exprimée", matiereDominante: "Pierre / métal", oeuvreRepere: "Dictionnaire raisonné", apportTechnique: "Lit le gothique comme système de forces.", leconProjet: "Exprimer la logique porteuse plutôt que masquer l'effort.", tags: ["gothique", "rationalisme"] },
+    { id: "gaudi", nom: "Antoni Gaudí", epoque: "XIXe siècle", pays: "Espagne", doctrine: "Forme funiculaire", systemeFavori: "Arcs caténaires", matiereDominante: "Pierre / céramique", oeuvreRepere: "Sagrada Família", apportTechnique: "Maquettes pendulaires pour optimiser les poussées.", leconProjet: "Tester la forme par le comportement physique.", tags: ["catenaires", "maquette"] },
+    { id: "wright", nom: "Frank Lloyd Wright", epoque: "Modernisme", pays: "États-Unis", doctrine: "Architecture organique", systemeFavori: "Porte-à-faux et plan ouvert", matiereDominante: "Bois / béton", oeuvreRepere: "Fallingwater", apportTechnique: "Fusion site, structure et mobilier intégré.", leconProjet: "Le détail doit prolonger le paysage et l'usage.", tags: ["organique", "site"] },
+    { id: "le-corbusier", nom: "Le Corbusier", epoque: "Modernisme", pays: "France / Suisse", doctrine: "Machine à habiter", systemeFavori: "Poteau-dalle", matiereDominante: "Béton", oeuvreRepere: "Villa Savoye", apportTechnique: "Plan libre, pilotis, façade libre.", leconProjet: "Séparer structure et cloison pour libérer le programme.", tags: ["plan libre", "béton"] },
+    { id: "mies", nom: "Mies van der Rohe", epoque: "Modernisme", pays: "Allemagne / États-Unis", doctrine: "Less is more", systemeFavori: "Ossature acier", matiereDominante: "Acier / verre", oeuvreRepere: "Farnsworth House", apportTechnique: "Précision du joint et universalité du plateau.", leconProjet: "Un détail mal résolu détruit une architecture minimale.", tags: ["acier", "verre"] },
+    { id: "aalto", nom: "Alvar Aalto", epoque: "Modernisme", pays: "Finlande", doctrine: "Humanisme climatique", systemeFavori: "Bois lamellé et brique", matiereDominante: "Bois", oeuvreRepere: "Bibliothèque de Viipuri", apportTechnique: "Acoustique, lumière et ergonomie intégrées.", leconProjet: "La technique doit rester sensible au corps.", tags: ["bois", "lumière"] },
+    { id: "kahn", nom: "Louis Kahn", epoque: "Brutalisme", pays: "États-Unis", doctrine: "Servant / servi", systemeFavori: "Maçonnerie monumentale", matiereDominante: "Béton / brique", oeuvreRepere: "Salk Institute", apportTechnique: "Hiérarchise structure, gaines et espaces nobles.", leconProjet: "Dessiner les services comme une architecture.", tags: ["béton", "services"] },
+    { id: "lina-bo-bardi", nom: "Lina Bo Bardi", epoque: "Brutalisme", pays: "Brésil", doctrine: "Culture populaire et structure", systemeFavori: "Béton suspendu", matiereDominante: "Béton", oeuvreRepere: "MASP", apportTechnique: "Grande portée urbaine libérant le sol public.", leconProjet: "La structure peut produire de l'espace civique.", tags: ["portée", "public"] },
+    { id: "niemeyer", nom: "Oscar Niemeyer", epoque: "Modernisme", pays: "Brésil", doctrine: "Plasticité du béton", systemeFavori: "Coque et pilotis", matiereDominante: "Béton", oeuvreRepere: "Brasília", apportTechnique: "Courbe libre rendue possible par le béton armé.", leconProjet: "La forme plastique doit rester lisible en coupe.", tags: ["courbe", "pilotis"] },
+    { id: "ando", nom: "Tadao Ando", epoque: "Contemporain", pays: "Japon", doctrine: "Silence, béton, lumière", systemeFavori: "Voile béton", matiereDominante: "Béton", oeuvreRepere: "Église de la Lumière", apportTechnique: "Parement, coffrage et lumière comme précision.", leconProjet: "La pauvreté matérielle exige une exécution parfaite.", tags: ["béton", "lumière"] },
+    { id: "piano", nom: "Renzo Piano", epoque: "High-tech", pays: "Italie", doctrine: "Légèreté constructive", systemeFavori: "Structure apparente", matiereDominante: "Acier / verre", oeuvreRepere: "Centre Pompidou", apportTechnique: "Externalise réseaux et structure pour libérer les plateaux.", leconProjet: "Rendre lisible ce qui porte, ventile et distribue.", tags: ["high-tech", "acier"] },
+    { id: "rogers", nom: "Richard Rogers", epoque: "High-tech", pays: "Royaume-Uni", doctrine: "Bâtiment comme infrastructure", systemeFavori: "Méga-structure", matiereDominante: "Acier", oeuvreRepere: "Lloyd's Building", apportTechnique: "Services techniques remplaçables en façade.", leconProjet: "Prévoir maintenance et évolutivité dès le parti.", tags: ["services", "réversibilité"] },
+    { id: "foster", nom: "Norman Foster", epoque: "High-tech", pays: "Royaume-Uni", doctrine: "Performance intégrée", systemeFavori: "Diagrid / enveloppe", matiereDominante: "Acier / verre", oeuvreRepere: "30 St Mary Axe", apportTechnique: "Structure et climat fusionnés en enveloppe.", leconProjet: "La géométrie peut réduire matière, vent et énergie.", tags: ["diagrid", "climat"] },
+    { id: "hadid", nom: "Zaha Hadid", epoque: "Déconstructivisme", pays: "Irak / Royaume-Uni", doctrine: "Champ fluide", systemeFavori: "Coques et trames continues", matiereDominante: "Béton / acier", oeuvreRepere: "Heydar Aliyev Center", apportTechnique: "Continuité topologique entre sol, mur et toiture.", leconProjet: "La complexité formelle exige une stratégie de fabrication.", tags: ["paramétrique", "coque"] },
+    { id: "koolhaas", nom: "Rem Koolhaas", epoque: "Déconstructivisme", pays: "Pays-Bas", doctrine: "Programme instable", systemeFavori: "Méga-plan et section", matiereDominante: "Béton / acier", oeuvreRepere: "Casa da Música", apportTechnique: "Organisation par collisions programmatiques.", leconProjet: "Tester le bâtiment en coupe autant qu'en plan.", tags: ["programme", "section"] },
+    { id: "lacaton-vassal", nom: "Lacaton & Vassal", epoque: "Contemporain bas-carbone", pays: "France", doctrine: "Ne jamais démolir", systemeFavori: "Extension légère", matiereDominante: "Acier / polycarbonate", oeuvreRepere: "Transformation Grand Parc", apportTechnique: "Ajout bioclimatique et économie de matière.", leconProjet: "Le meilleur carbone est souvent celui qu'on ne dépense pas.", tags: ["réhabilitation", "bas-carbone"] },
+    { id: "kuma", nom: "Kengo Kuma", epoque: "Contemporain bas-carbone", pays: "Japon", doctrine: "Dissolution matérielle", systemeFavori: "Trames bois répétées", matiereDominante: "Bois", oeuvreRepere: "Asakusa Culture Center", apportTechnique: "Assemblage, texture et faible masse visuelle.", leconProjet: "La répétition légère peut fabriquer une présence forte.", tags: ["bois", "trame"] },
+    { id: "kere", nom: "Francis Kéré", epoque: "Contemporain bas-carbone", pays: "Burkina Faso / Allemagne", doctrine: "Climat social", systemeFavori: "Ventilation passive", matiereDominante: "Terre / métal", oeuvreRepere: "École de Gando", apportTechnique: "Double toiture ventilée et matériaux locaux.", leconProjet: "La performance vient souvent de la coupe climatique.", tags: ["terre", "ventilation"] },
+    { id: "grafton", nom: "Yvonne Farrell / Shelley McNamara", epoque: "Contemporain", pays: "Irlande", doctrine: "Section civique", systemeFavori: "Masse percée", matiereDominante: "Béton / pierre", oeuvreRepere: "UTEC Lima", apportTechnique: "Épaisseur structurelle adaptée au climat.", leconProjet: "Une coupe poreuse peut faire ville et climat.", tags: ["section", "inertie"] }
   ];
 
-  /* ── DATA_ATLAS — 5 projets majeurs référencés ──────────────── */
+  /* ── DATA_ATLAS — géographie des systèmes constructifs ─────── */
   const DATA_ATLAS = [
-    {
-      titre:      "Centre Pompidou",
-      sous_titre: "Paris · 1977 · Piano & Rogers — exosquelette acier, plateaux libres, services extériorisés.",
-      tag:        "Structure apparente",
-      image_url:  "",
-      _bg:        "linear-gradient(140deg,#08090e 0%,#12142a 55%,#1c2048 100%)"
-    },
-    {
-      titre:      "Villa Savoye",
-      sous_titre: "Poissy · 1931 · Le Corbusier — les cinq points, pilotis, promenade architecturale.",
-      tag:        "Référence moderne",
-      image_url:  "",
-      _bg:        "linear-gradient(140deg,#0b0b08 0%,#1e1e0e 55%,#323218 100%)"
-    },
-    {
-      titre:      "Guggenheim Bilbao",
-      sous_titre: "Bilbao · 1997 · Gehry — titane, forme sculpturale et revitalisation urbaine.",
-      tag:        "Déconstructivisme",
-      image_url:  "",
-      _bg:        "linear-gradient(140deg,#0e0906 0%,#281808 55%,#3c2210 100%)"
-    },
-    {
-      titre:      "Teshima Art Museum",
-      sous_titre: "Japon · 2010 · Nishizawa — coque béton, eau naturelle, lumière zénithale.",
-      tag:        "Minimalisme",
-      image_url:  "",
-      _bg:        "linear-gradient(140deg,#070c0c 0%,#101e1e 55%,#183030 100%)"
-    },
-    {
-      titre:      "Casa da Música",
-      sous_titre: "Porto · 2005 · Koolhaas/OMA — polyèdre irrégulier, programme hybride, section unique.",
-      tag:        "Programme",
-      image_url:  "",
-      _bg:        "linear-gradient(140deg,#0c0708 0%,#201014 55%,#34181e 100%)"
-    }
+    { id: "sahara-terre", titre: "Architecture vernaculaire saharienne", pays: "Algérie / Mali", ville: "Mzab, Djenné", periode: "Vernaculaire", climat: "Aride chaud", systemeConstructif: "Murs porteurs en terre crue", matiere: "Terre", portee: "Faible à moyenne", inertie: "Très forte", technique: "Masse, patios, ruelles étroites, protection solaire.", lecon: "Utiliser inertie et ombre avant la climatisation active.", tags: ["patio", "terre", "inertie"] },
+    { id: "japon-bois", titre: "Japon traditionnel", pays: "Japon", ville: "Kyoto / Nara", periode: "Préindustriel", climat: "Tempéré humide", systemeConstructif: "Poteaux-poutres assemblés à sec", matiere: "Bois", portee: "Modérée", inertie: "Faible", technique: "Trame, débords de toiture, panneaux mobiles.", lecon: "Concevoir une structure réparable, démontable et adaptable.", tags: ["bois", "assemblage", "trame"] },
+    { id: "rome-beton", titre: "Rome antique", pays: "Italie", ville: "Rome", periode: "Antiquité", climat: "Méditerranéen", systemeConstructif: "Voûtes, arcs et béton romain", matiere: "Béton / pierre", portee: "Grande", inertie: "Forte", technique: "Opus caementicium, arcs de décharge, coupoles.", lecon: "Le franchissement transforme l'espace public et les flux.", tags: ["voûte", "arc", "béton"] },
+    { id: "gothique-france", titre: "Gothique français", pays: "France", ville: "Chartres / Amiens", periode: "Moyen Âge", climat: "Tempéré", systemeConstructif: "Nervures, arcs-boutants, mur évidé", matiere: "Pierre", portee: "Grande hauteur", inertie: "Forte", technique: "Concentration des charges et transfert des poussées.", lecon: "Dessiner les efforts permet d'ouvrir l'enveloppe.", tags: ["poussée", "pierre", "lumière"] },
+    { id: "mediterranee-pierre", titre: "Méditerranée vernaculaire", pays: "Grèce / Maroc / Espagne", ville: "Cyclades, médinas", periode: "Vernaculaire", climat: "Chaud sec", systemeConstructif: "Mur épais et patio", matiere: "Pierre / chaux", portee: "Faible", inertie: "Très forte", technique: "Blanchiment, ombrage, ventilation traversante.", lecon: "La compacité et l'épaisseur pilotent le confort d'été.", tags: ["ombre", "patio", "pierre"] },
+    { id: "alpes-mixte", titre: "Architecture alpine", pays: "Suisse / France / Autriche", ville: "Alpes", periode: "Vernaculaire", climat: "Froid neigeux", systemeConstructif: "Soubassement pierre, superstructure bois", matiere: "Bois / pierre", portee: "Modérée", inertie: "Mixte", technique: "Toitures pentues, stockage thermique, protection neige.", lecon: "Adapter la coupe au sol, à la pente et aux charges climatiques.", tags: ["neige", "pente", "bois"] },
+    { id: "scandinavie-massif", titre: "Scandinavie bois massif", pays: "Norvège / Suède / Finlande", ville: "Régions nordiques", periode: "Préindustriel à contemporain", climat: "Froid humide", systemeConstructif: "Empilement bois / CLT contemporain", matiere: "Bois", portee: "Modérée à grande", inertie: "Moyenne", technique: "Enveloppe épaisse, préfabrication, continuité isolante.", lecon: "La performance vient de la simplicité de l'enveloppe.", tags: ["bois", "froid", "préfabrication"] },
+    { id: "bresil-modernisme", titre: "Modernisme brésilien", pays: "Brésil", ville: "Rio / Brasília", periode: "Modernisme", climat: "Tropical", systemeConstructif: "Pilotis, brise-soleil, béton plastique", matiere: "Béton", portee: "Moyenne à grande", inertie: "Forte", technique: "Sol libre, ombre profonde, ventilation naturelle.", lecon: "Un modernisme efficace commence par le climat.", tags: ["béton", "pilotis", "brise-soleil"] },
+    { id: "high-tech-europe", titre: "High-tech européen", pays: "France / Royaume-Uni", ville: "Paris / Londres", periode: "XXe siècle", climat: "Tempéré", systemeConstructif: "Exosquelette acier et services apparents", matiere: "Acier / verre", portee: "Grande", inertie: "Faible", technique: "Plateaux libres, maintenance visible, préfabrication sèche.", lecon: "Rendre le bâtiment modifiable prolonge sa durée utile.", tags: ["acier", "verre", "réversibilité"] },
+    { id: "bambou-tropical", titre: "Structures tropicales en bambou", pays: "Indonésie / Colombie", ville: "Bali / Andes", periode: "Contemporain", climat: "Tropical humide", systemeConstructif: "Treillis et arcs en fibres végétales", matiere: "Bambou", portee: "Moyenne", inertie: "Faible", technique: "Courbure, ligatures, ventilation permanente.", lecon: "Un matériau léger demande une stratégie d'assemblage claire.", tags: ["bambou", "biosourcé", "ventilation"] },
+    { id: "clt-bas-carbone", titre: "Bas-carbone contemporain", pays: "Europe", ville: "Vienne / Paris / Oslo", periode: "Contemporain", climat: "Tempéré", systemeConstructif: "CLT, poteau-poutre bois, noyaux hybrides", matiere: "Bois", portee: "Moyenne", inertie: "Moyenne", technique: "Préfabrication, réversibilité, assemblages secs.", lecon: "Réduire carbone et chantier exige une trame répétable.", tags: ["CLT", "bas-carbone", "sec"] },
+    { id: "terre-contemporaine", titre: "Terre contemporaine stabilisée", pays: "Suisse / France / Afrique", ville: "Lyon, Zurich, Gando", periode: "Contemporain", climat: "Variable", systemeConstructif: "BTC, pisé, murs épais", matiere: "Terre", portee: "Faible", inertie: "Très forte", technique: "Préfabrication de blocs, protection à l'eau, chaînages.", lecon: "Le bas-carbone impose de redessiner détails et protections.", tags: ["terre", "inertie", "eau"] }
   ];
 
   /* ── Placeholder SVG architectural (léger, générique) ───────── */
@@ -1186,8 +2100,389 @@
     `).join("");
   }
 
-  /* ── DATA_FEED — 6 publications communauté ─────────────────── */
-  const DATA_FEED = [
+  (function injectTechnicalCSS() {
+    if (document.getElementById("tm-tech-css")) return;
+    const s = document.createElement("style");
+    s.id = "tm-tech-css";
+    s.textContent = `
+      .tm-tech { display:grid; gap:1rem; min-width:0; }
+      .tm-tech-controls {
+        display:grid;
+        grid-template-columns:minmax(220px,1.2fr) repeat(4,minmax(150px,.7fr));
+        gap:.72rem;
+        align-items:stretch;
+      }
+      .tm-tech .field {
+        min-height:0;
+        align-items:stretch;
+        flex-direction:column;
+        gap:.28rem;
+        padding:.62rem .72rem;
+        background:color-mix(in srgb,var(--surface-2) 62%,transparent);
+      }
+      .tm-tech .field span {
+        color:var(--muted);
+        font-size:.56rem;
+        letter-spacing:.12em;
+        line-height:1;
+        text-transform:uppercase;
+      }
+      .tm-tech .field input,
+      .tm-tech .field select { width:100%; }
+      .tm-tech-layout {
+        display:grid;
+        grid-template-columns:minmax(0,1fr) minmax(280px,.38fr);
+        gap:1rem;
+        align-items:start;
+      }
+      .tm-tech-grid {
+        display:grid;
+        grid-template-columns:repeat(auto-fit,minmax(232px,1fr));
+        gap:1rem;
+      }
+      .tm-tech-card {
+        display:grid;
+        grid-template-rows:112px 1fr;
+        border:var(--border);
+        border-radius:var(--r-lg);
+        background:var(--surface);
+        overflow:hidden;
+        cursor:pointer;
+        transition:border-color .18s ease, transform .18s ease, background .18s ease;
+      }
+      .tm-tech-card:hover,
+      .tm-tech-card.is-active {
+        border-color:rgba(201,169,110,.42);
+        background:rgba(201,169,110,.045);
+        transform:translateY(-1px);
+      }
+      .tm-tech-sketch {
+        display:grid;
+        place-items:center;
+        background:linear-gradient(140deg,#080807 0%,#11110e 58%,#1b1710 100%);
+        border-bottom:var(--border);
+      }
+      .tm-tech-sketch svg { width:100%; height:100%; }
+      .tm-tech-card-body { display:grid; gap:.5rem; padding:1rem; }
+      .tm-tech-card h3,
+      .tm-tech-detail h3 {
+        margin:0;
+        font-family:var(--serif);
+        font-weight:300;
+        line-height:1.04;
+        color:var(--ink);
+      }
+      .tm-tech-card h3 { font-size:1.38rem; }
+      .tm-tech-detail h3 { font-size:2rem; }
+      .tm-tech-card p,
+      .tm-tech-muted {
+        margin:0;
+        color:var(--muted);
+        font-size:.72rem;
+        line-height:1.55;
+      }
+      .tm-tech-tag,
+      .tm-tech-badges span {
+        display:inline-flex;
+        width:max-content;
+        border:var(--border-gold);
+        border-radius:var(--r-pill);
+        color:var(--gold);
+        background:var(--gold-glow);
+        text-transform:uppercase;
+      }
+      .tm-tech-tag {
+        padding:.14rem .5rem;
+        font-size:.56rem;
+        letter-spacing:.11em;
+      }
+      .tm-tech-badges { display:flex; flex-wrap:wrap; gap:.28rem; }
+      .tm-tech-badges span {
+        padding:.1rem .38rem;
+        border-color:rgba(201,169,110,.18);
+        color:#9A8D72;
+        font-size:.52rem;
+        letter-spacing:.07em;
+      }
+      .tm-tech-detail,
+      .tm-tech-compare {
+        position:sticky;
+        top:88px;
+        display:grid;
+        gap:.85rem;
+        border:var(--border);
+        border-radius:var(--r-lg);
+        background:var(--surface);
+        padding:1.1rem;
+      }
+      .tm-tech-compare { position:static; }
+      .tm-tech-kicker {
+        margin:0;
+        color:var(--gold);
+        font-size:.58rem;
+        letter-spacing:.17em;
+        text-transform:uppercase;
+      }
+      .tm-tech-rows { display:grid; gap:.46rem; }
+      .tm-tech-row {
+        display:grid;
+        gap:.16rem;
+        padding-bottom:.46rem;
+        border-bottom:var(--border);
+      }
+      .tm-tech-row span {
+        color:var(--muted);
+        font-size:.56rem;
+        letter-spacing:.12em;
+        text-transform:uppercase;
+      }
+      .tm-tech-row strong {
+        color:var(--ink-2);
+        font-size:.78rem;
+        font-weight:400;
+        line-height:1.45;
+      }
+      .tm-tech-lesson {
+        margin:0;
+        padding:.85rem;
+        border:var(--border-gold);
+        border-radius:var(--r-md);
+        background:var(--gold-glow);
+        color:var(--ink);
+        font-size:.82rem;
+        line-height:1.55;
+      }
+      .tm-tech-compare-grid {
+        display:grid;
+        grid-template-columns:repeat(4,minmax(0,1fr));
+        gap:.5rem;
+      }
+      .tm-tech-compare-grid div {
+        border:var(--border);
+        border-radius:var(--r-md);
+        padding:.68rem;
+      }
+      .tm-tech-compare-grid span {
+        display:block;
+        margin-bottom:.32rem;
+        color:var(--gold);
+        font-size:.55rem;
+        letter-spacing:.12em;
+        text-transform:uppercase;
+      }
+      .tm-tech-compare-grid p {
+        margin:.18rem 0;
+        color:var(--muted);
+        font-size:.68rem;
+        line-height:1.35;
+      }
+      .tm-tech-empty {
+        border:1px dashed rgba(201,169,110,.24);
+        border-radius:var(--r-lg);
+        padding:1.2rem;
+        background:rgba(201,169,110,.035);
+      }
+      .tm-tech-empty p { color:var(--muted); margin:.25rem 0 0; }
+      @media (max-width: 1100px) {
+        .tm-tech-controls,
+        .tm-tech-layout,
+        .tm-tech-compare-grid { grid-template-columns:1fr; }
+        .tm-tech-detail { position:static; }
+      }
+    `;
+    document.head.appendChild(s);
+  })();
+
+  /* ── Renderer générique léger pour modules techniques ───────── */
+  const _techState = {};
+
+  const _techNorm = value =>
+    String(value ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  const _uniqueValues = (data, key) =>
+    [...new Set(data.map(item => item[key]).filter(Boolean))]
+      .sort((a, b) => String(a).localeCompare(String(b), "fr"));
+
+  const _techItemText = item =>
+    _techNorm(Object.values(item).flat().join(" "));
+
+  const _techDetailRows = (item, fields) => fields.map(field => `
+    <div class="tm-tech-row">
+      <span>${_esc(field.label)}</span>
+      <strong>${_esc(item[field.key] || "—")}</strong>
+    </div>
+  `).join("");
+
+  function renderTechnicalCards(container, data, options) {
+    if (!container) return;
+
+    const id = options.id;
+    const state = _techState[id] ||= { query: "", filters: {}, selectedId: data[0]?.id || null, compare: [] };
+    const filters = options.filters || [];
+    const fields = options.fields || [];
+    const titleKey = options.titleKey || "titre";
+    const subtitleKeys = options.subtitleKeys || [];
+
+    const filtered = data.filter(item => {
+      const filterMatch = filters.every(filter => {
+        const selected = state.filters[filter.key] || "";
+        return !selected || item[filter.key] === selected;
+      });
+      const searchMatch = !state.query || _techItemText(item).includes(_techNorm(state.query));
+      return filterMatch && searchMatch;
+    });
+
+    if (!filtered.some(item => item.id === state.selectedId)) {
+      state.selectedId = filtered[0]?.id || data[0]?.id || null;
+    }
+    const selected = data.find(item => item.id === state.selectedId) || filtered[0] || data[0];
+
+    const compareItems = (state.compare || [])
+      .map(itemId => data.find(item => item.id === itemId))
+      .filter(Boolean);
+
+    container.dataset.techModule = id;
+    container.innerHTML = `
+      <div class="tm-tech" data-tech-shell="${_esc(id)}">
+        <div class="tm-tech-controls">
+          <label class="field tm-tech-search">
+            <input type="search" data-tech-search placeholder="${_esc(options.searchPlaceholder || "Rechercher...")}"
+                   value="${_esc(state.query)}" autocomplete="off" />
+          </label>
+          ${filters.map(filter => `
+            <label class="field tm-tech-filter">
+              <span>${_esc(filter.label)}</span>
+              <select data-tech-filter="${_esc(filter.key)}">
+                <option value="">Tous</option>
+                ${_uniqueValues(data, filter.key).map(value => `
+                  <option value="${_esc(value)}" ${state.filters[filter.key] === value ? "selected" : ""}>
+                    ${_esc(value)}
+                  </option>
+                `).join("")}
+              </select>
+            </label>
+          `).join("")}
+        </div>
+
+        ${options.compare ? `
+          <div class="tm-tech-compare">
+            <div>
+              <p class="tm-tech-kicker">Comparaison</p>
+              <strong>${compareItems.length ? compareItems.map(item => _esc(item[titleKey])).join(" / ") : "Sélectionnez deux périodes"}</strong>
+            </div>
+            ${compareItems.length === 2 ? `
+              <div class="tm-tech-compare-grid">
+                ${["materiau", "portee", "outil", "systeme"].map(key => `
+                  <div>
+                    <span>${_esc(key)}</span>
+                    <p>${_esc(compareItems[0][key] || "—")}</p>
+                    <p>${_esc(compareItems[1][key] || "—")}</p>
+                  </div>
+                `).join("")}
+              </div>
+            ` : `<p class="tm-tech-muted">Utilisez “Comparer” sur deux cartes pour lire les écarts matière, portée, outils et structure.</p>`}
+          </div>
+        ` : ""}
+
+        <div class="tm-tech-layout">
+          <div class="tm-tech-grid">
+            ${filtered.length ? filtered.map((item, i) => {
+              const active = item.id === selected?.id;
+              const compared = state.compare?.includes(item.id);
+              return `
+                <article class="tm-tech-card ${active ? "is-active" : ""}" data-tech-card="${_esc(item.id)}" tabindex="0">
+                  <div class="tm-tech-sketch">${_svgSketch(i)}</div>
+                  <div class="tm-tech-card-body">
+                    <span class="tm-tech-tag">${_esc(options.tag(item))}</span>
+                    <h3>${_esc(item[titleKey])}</h3>
+                    <p>${_esc(subtitleKeys.map(key => item[key]).filter(Boolean).join(" · "))}</p>
+                    <div class="tm-tech-badges">
+                      ${(item.tags || []).slice(0, 4).map(tag => `<span>${_esc(tag)}</span>`).join("")}
+                    </div>
+                    ${options.compare ? `
+                      <button type="button" class="text-btn ${compared ? "text-btn--primary" : ""}"
+                              data-chronos-compare="${_esc(item.id)}">${compared ? "Comparé" : "Comparer"}</button>
+                    ` : ""}
+                  </div>
+                </article>
+              `;
+            }).join("") : `
+              <div class="tm-tech-empty">
+                <strong>Aucun résultat</strong>
+                <p>Modifiez la recherche ou les filtres.</p>
+              </div>
+            `}
+          </div>
+
+          <aside class="tm-tech-detail" data-tech-detail>
+            ${selected ? `
+              <p class="tm-tech-kicker">${_esc(options.detailKicker(selected))}</p>
+              <h3>${_esc(selected[titleKey])}</h3>
+              <div class="tm-tech-rows">${_techDetailRows(selected, fields)}</div>
+              <p class="tm-tech-lesson">${_esc(options.lesson(selected))}</p>
+            ` : `
+              <div class="tm-tech-empty">
+                <strong>${_esc(options.emptyTitle || "Aucune donnée")}</strong>
+                <p>${_esc(options.emptyText || "Ce module ne contient pas encore d'entrée.")}</p>
+              </div>
+            `}
+          </aside>
+        </div>
+      </div>
+    `;
+  }
+
+  function _bindTechnicalModule(root, data, options) {
+    if (!root || root.dataset.techBound === options.id) return;
+    root.dataset.techBound = options.id;
+
+    root.addEventListener("input", e => {
+      const input = e.target.closest("[data-tech-search]");
+      if (!input) return;
+      const state = _techState[options.id] ||= { filters: {}, compare: [] };
+      state.query = input.value || "";
+      renderTechnicalCards(root, data, options);
+    });
+
+    root.addEventListener("change", e => {
+      const select = e.target.closest("[data-tech-filter]");
+      if (!select) return;
+      const state = _techState[options.id] ||= { filters: {}, compare: [] };
+      state.filters[select.dataset.techFilter] = select.value;
+      renderTechnicalCards(root, data, options);
+    });
+
+    root.addEventListener("click", e => {
+      const compareBtn = e.target.closest("[data-chronos-compare]");
+      if (compareBtn) {
+        e.stopPropagation();
+        const state = _techState[options.id] ||= { filters: {}, compare: [] };
+        const targetId = compareBtn.dataset.chronosCompare;
+        state.compare = state.compare || [];
+        state.compare = state.compare.includes(targetId)
+          ? state.compare.filter(id => id !== targetId)
+          : [...state.compare.slice(-1), targetId];
+        renderTechnicalCards(root, data, options);
+        return;
+      }
+
+      const card = e.target.closest("[data-tech-card]");
+      if (!card) return;
+      const state = _techState[options.id] ||= { filters: {}, compare: [] };
+      state.selectedId = card.dataset.techCard;
+      renderTechnicalCards(root, data, options);
+    });
+
+    root.addEventListener("keydown", e => {
+      const card = e.target.closest("[data-tech-card]");
+      if (!card || (e.key !== "Enter" && e.key !== " ")) return;
+      e.preventDefault();
+      card.click();
+    });
+  }
+
+  /* ── DATA_FEED — démo désactivée par défaut ────────────────── */
+  const DATA_FEED = ENABLE_DEMO_DATA ? [
     {
       titre:      "Rendu concours Bordeaux",
       sous_titre: "Livraison du projet d'équipement culturel soumis au concours ANRU de Bordeaux Métropole. Façade bois-béton, toiture végétalisée et programme de 3 200 m².",
@@ -1254,7 +2549,7 @@
       role:       "Fondateur · TEOMARCHI",
       slug:       "jonathan-yav"
     }
-  ];
+  ] : [];
 
   /* ── DATA_FICHES — 6 fiches encyclopédie constructive ──────── */
   const DATA_FICHES = [
@@ -1302,65 +2597,136 @@
     }
   ];
 
-  /* ── DATA_CHRONOS — 6 périodes de la frise historique ──────── */
+  /* ── DATA_CHRONOS — frise matière-époque technique ─────────── */
   const DATA_CHRONOS = [
-    {
-      titre:      "Ordres grecs",
-      sous_titre: "Dorique, ionique, corinthien : codification des proportions et de l'ornement structurel. L'entasis du Parthénon corrige l'illusion optique. La règle géométrique précède le calcul de résistance des matériaux.",
-      tag:        "ANTIQUITÉ",
-      image_url:  "",
-      _bg:        "linear-gradient(140deg,#100e0a 0%,#261e12 55%,#3a2e1a 100%)"
-    },
-    {
-      titre:      "Architecture gothique",
-      sous_titre: "L'arc brisé et la croisée d'ogives libèrent le mur de sa fonction portante. L'arc-boutant transfère les poussées vers l'extérieur et permet l'ouverture des verrières. La pierre se réduit à une nervure tendue.",
-      tag:        "GOTHIQUE",
-      image_url:  "",
-      _bg:        "linear-gradient(140deg,#080c10 0%,#0e1428 55%,#141e3e 100%)"
-    },
-    {
-      titre:      "Renaissance italienne",
-      sous_titre: "Retour aux ordres antiques, maîtrise de la perspective et codification de la coupole. Brunelleschi introduit la géométrie projective sur le chantier. La proportion gouverne la façade autant que la section.",
-      tag:        "RENAISSANCE",
-      image_url:  "",
-      _bg:        "linear-gradient(140deg,#0e0c08 0%,#221c0e 55%,#382e18 100%)"
-    },
-    {
-      titre:      "Arts & Crafts · Art Nouveau",
-      sous_titre: "Réaction à l'industrialisation : retour à l'artisanat et à l'ornement organique. La fonte permet les grandes portées du Crystal Palace. Morris, Guimard et Gaudí poussent le matériau jusqu'à sa limite formelle.",
-      tag:        "XIXe SIÈCLE",
-      image_url:  "",
-      _bg:        "linear-gradient(140deg,#080a08 0%,#141814 55%,#202a20 100%)"
-    },
-    {
-      titre:      "Bauhaus & Mouvement Moderne",
-      sous_titre: "Standardisation, série et suppression de l'ornement. Le plan libre naît du squelette poteau-poutre en béton armé. Le Corbusier, Gropius et Mies van der Rohe définissent un vocabulaire architectural universel.",
-      tag:        "MODERNISME",
-      image_url:  "",
-      _bg:        "linear-gradient(140deg,#0a0a0a 0%,#181818 55%,#262626 100%)"
-    },
-    {
-      titre:      "Architecture contemporaine",
-      sous_titre: "Révolution numérique, BIM et fabrication assistée par ordinateur. L'ACV et le carbone intégré deviennent critères de conception. La réversibilité et le biosourcé s'imposent face au neuf énergivore.",
-      tag:        "CONTEMPORAIN",
-      image_url:  "",
-      _bg:        "linear-gradient(140deg,#080c12 0%,#0e1830 55%,#14264a 100%)"
-    }
+    { id: "megalithique", periode: "Mégalithique", dates: "-4500 / -2000", materiau: "Pierre", systeme: "Empilement massif", portee: "Très faible", inertie: "Très forte", outil: "Levier, traîneau, main-d'œuvre", rupture: "Mise en place de masses monumentales.", consequenceSpatiale: "Espace défini par poids, seuil et alignement.", exemples: "Stonehenge, Carnac", tags: ["masse", "seuil"] },
+    { id: "grec", periode: "Antiquité grecque", dates: "-700 / -146", materiau: "Pierre", systeme: "Trilithe et ordres", portee: "Faible", inertie: "Forte", outil: "Taille de pierre, levage", rupture: "Codification proportionnelle du portique.", consequenceSpatiale: "Péristyle, frontalité, rythme porteur.", exemples: "Parthénon, Paestum", tags: ["ordre", "trilithe"] },
+    { id: "rome", periode: "Rome antique", dates: "-146 / 476", materiau: "Béton", systeme: "Arc, voûte, coupole", portee: "Grande", inertie: "Forte", outil: "Cintres, coffrages, pouzzolane", rupture: "Béton romain et franchissements continus.", consequenceSpatiale: "Thermes, basiliques, espaces couverts monumentaux.", exemples: "Panthéon, thermes de Caracalla", tags: ["voûte", "béton"] },
+    { id: "roman", periode: "Roman", dates: "950 / 1150", materiau: "Pierre", systeme: "Mur épais et voûte en berceau", portee: "Moyenne", inertie: "Très forte", outil: "Taille, cintre bois", rupture: "Stabilisation du couvrement maçonné.", consequenceSpatiale: "Nefs sombres, murs porteurs, contreforts.", exemples: "Sainte-Foy de Conques", tags: ["mur", "voûte"] },
+    { id: "gothique", periode: "Gothique", dates: "1140 / 1500", materiau: "Pierre", systeme: "Ogive et arc-boutant", portee: "Grande hauteur", inertie: "Forte", outil: "Gabarits, échafaudages", rupture: "Dissociation mur / structure porteuse.", consequenceSpatiale: "Verrières, verticalité, lumière structurelle.", exemples: "Amiens, Chartres", tags: ["poussée", "lumière"] },
+    { id: "renaissance", periode: "Renaissance", dates: "1400 / 1650", materiau: "Pierre", systeme: "Coupole, ordre, mur porteur", portee: "Moyenne à grande", inertie: "Forte", outil: "Géométrie, dessin perspectif", rupture: "Chantier gouverné par représentation et calcul géométrique.", consequenceSpatiale: "Centralité, façade proportionnée, dôme urbain.", exemples: "Florence, Villa Rotonda", tags: ["géométrie", "coupole"] },
+    { id: "industriel", periode: "Révolution industrielle", dates: "1750 / 1900", materiau: "Acier", systeme: "Fonte, fer, charpente métallique", portee: "Très grande", inertie: "Faible", outil: "Usine, rivetage, préfabrication", rupture: "Production standardisée des pièces.", consequenceSpatiale: "Halles, gares, serres, grands plateaux.", exemples: "Crystal Palace, Galerie des Machines", tags: ["acier", "préfabrication"] },
+    { id: "art-nouveau", periode: "Art nouveau", dates: "1890 / 1914", materiau: "Acier", systeme: "Métal ornemental et maçonnerie", portee: "Moyenne", inertie: "Mixte", outil: "Fonte moulée, artisanat industriel", rupture: "Structure et ornement se rapprochent.", consequenceSpatiale: "Lignes continues, façades habitées, verrières.", exemples: "Horta, Guimard, Gaudí", tags: ["ornement", "métal"] },
+    { id: "moderne", periode: "Mouvement moderne", dates: "1920 / 1960", materiau: "Béton", systeme: "Poteau-poutre, plan libre", portee: "Moyenne", inertie: "Forte", outil: "Béton armé, standardisation", rupture: "Structure indépendante de la façade.", consequenceSpatiale: "Plateau libre, fenêtre en longueur, toit-terrasse.", exemples: "Villa Savoye, Bauhaus", tags: ["plan libre", "béton"] },
+    { id: "brutalisme", periode: "Brutalisme", dates: "1950 / 1980", materiau: "Béton", systeme: "Voile, mégastructure", portee: "Grande", inertie: "Très forte", outil: "Banche, préfabrication lourde", rupture: "Expression directe du coffrage et des services.", consequenceSpatiale: "Masse habitée, rues intérieures, monumentalité.", exemples: "Salk Institute, Barbican", tags: ["banche", "masse"] },
+    { id: "high-tech", periode: "High-tech", dates: "1970 / 2000", materiau: "Acier", systeme: "Exosquelette et façade légère", portee: "Très grande", inertie: "Faible", outil: "Dessin industriel, composants", rupture: "Services et structure deviennent visibles.", consequenceSpatiale: "Plateaux libres, maintenance et flexibilité.", exemples: "Pompidou, Lloyd's", tags: ["services", "acier"] },
+    { id: "parametrique", periode: "Paramétrique", dates: "1995 / 2020", materiau: "Verre", systeme: "Coques, gridshells, trames numériques", portee: "Variable", inertie: "Faible à moyenne", outil: "BIM, CNC, scripts", rupture: "Géométrie calculée et fabrication numérique.", consequenceSpatiale: "Continuités sol-mur-toiture, enveloppes complexes.", exemples: "Heydar Aliyev Center, Metropol Parasol", tags: ["numérique", "coque"] },
+    { id: "bas-carbone", periode: "Bas-carbone contemporain", dates: "2010 / aujourd'hui", materiau: "Biosourcé", systeme: "CLT, terre, réemploi, assemblage sec", portee: "Moyenne", inertie: "Variable", outil: "ACV, préfabrication, démontabilité", rupture: "Le carbone devient contrainte de conception.", consequenceSpatiale: "Trames répétables, réversibilité, hybridation matière.", exemples: "Grand Parc, Gando, immeubles CLT", tags: ["biosourcé", "réemploi"] }
   ];
 
-  /* ── Hooks MutationObserver — tous les modules grille ───────── */
+  const _atlasOptions = {
+    id: "atlas",
+    titleKey: "titre",
+    subtitleKeys: ["pays", "ville", "periode"],
+    searchPlaceholder: "Rechercher lieu, matière, climat...",
+    filters: [
+      { key: "matiere", label: "Matière" },
+      { key: "climat", label: "Climat" },
+      { key: "periode", label: "Période" },
+      { key: "systemeConstructif", label: "Système" }
+    ],
+    fields: [
+      { key: "pays", label: "Pays" },
+      { key: "ville", label: "Ville / région" },
+      { key: "climat", label: "Climat" },
+      { key: "systemeConstructif", label: "Système constructif" },
+      { key: "matiere", label: "Matière dominante" },
+      { key: "portee", label: "Portée" },
+      { key: "inertie", label: "Inertie" },
+      { key: "technique", label: "Contrainte technique" }
+    ],
+    tag: item => item.matiere,
+    detailKicker: item => item.climat,
+    lesson: item => item.lecon,
+    emptyTitle: "Aucun système",
+    emptyText: "Aucun système constructif ne correspond aux filtres."
+  };
+
+  const _chronosOptions = {
+    id: "chronos",
+    titleKey: "periode",
+    subtitleKeys: ["dates", "materiau", "systeme"],
+    searchPlaceholder: "Rechercher période, matériau, rupture...",
+    compare: true,
+    filters: [{ key: "materiau", label: "Matériau" }],
+    fields: [
+      { key: "dates", label: "Dates" },
+      { key: "materiau", label: "Matériau dominant" },
+      { key: "systeme", label: "Système structurel" },
+      { key: "portee", label: "Portée possible" },
+      { key: "inertie", label: "Inertie" },
+      { key: "outil", label: "Outil de chantier" },
+      { key: "rupture", label: "Rupture technique" },
+      { key: "consequenceSpatiale", label: "Conséquence spatiale" },
+      { key: "exemples", label: "Exemples" }
+    ],
+    tag: item => item.materiau,
+    detailKicker: item => item.dates,
+    lesson: item => item.consequenceSpatiale,
+    emptyTitle: "Aucune période",
+    emptyText: "Aucune période ne correspond aux filtres."
+  };
+
+  const _pantheonOptions = {
+    id: "pantheon",
+    titleKey: "nom",
+    subtitleKeys: ["epoque", "pays", "doctrine"],
+    searchPlaceholder: "Rechercher architecte, pays, doctrine...",
+    filters: [
+      { key: "epoque", label: "Époque" },
+      { key: "matiereDominante", label: "Matière" },
+      { key: "doctrine", label: "Doctrine" }
+    ],
+    fields: [
+      { key: "epoque", label: "Époque" },
+      { key: "pays", label: "Pays" },
+      { key: "doctrine", label: "Doctrine" },
+      { key: "systemeFavori", label: "Système favori" },
+      { key: "matiereDominante", label: "Matière dominante" },
+      { key: "oeuvreRepere", label: "Œuvre repère" },
+      { key: "apportTechnique", label: "Apport technique" }
+    ],
+    tag: item => item.matiereDominante,
+    detailKicker: item => item.epoque,
+    lesson: item => item.leconProjet,
+    emptyTitle: "Aucun architecte",
+    emptyText: "Aucun architecte ne correspond aux filtres."
+  };
+
+  function initAtlas() {
+    const root = document.getElementById("atlas-grid");
+    if (!root) return;
+    renderTechnicalCards(root, DATA_ATLAS, _atlasOptions);
+    _bindTechnicalModule(root, DATA_ATLAS, _atlasOptions);
+  }
+
+  function initChronos() {
+    const root = document.getElementById("chronos-layout");
+    if (!root) return;
+    renderTechnicalCards(root, DATA_CHRONOS, _chronosOptions);
+    _bindTechnicalModule(root, DATA_CHRONOS, _chronosOptions);
+  }
+
+  function initPantheon() {
+    const root = document.getElementById("pantheon-grid");
+    if (!root) return;
+    renderTechnicalCards(root, DATA_PANTHEON, _pantheonOptions);
+    _bindTechnicalModule(root, DATA_PANTHEON, _pantheonOptions);
+  }
+
+  /* ── Hooks MutationObserver — modules data-driven ──────────── */
   (function hookGridModules() {
     [
-      { mod: "module-pantheon", grid: "pantheon-grid",  data: DATA_PANTHEON },
-      { mod: "module-atlas",    grid: "atlas-grid",     data: DATA_ATLAS    },
-      { mod: "module-fiches",   grid: "fiches-grid",    data: DATA_FICHES   },
-      { mod: "module-chronos",  grid: "chronos-layout", data: DATA_CHRONOS  }
-    ].forEach(({ mod, grid, data }) => {
+      { mod: "module-pantheon", render: initPantheon },
+      { mod: "module-atlas",    render: initAtlas },
+      { mod: "module-fiches",   render: () => renderGrid("fiches-grid", DATA_FICHES) },
+      { mod: "module-chronos",  render: initChronos }
+    ].forEach(({ mod, render }) => {
       const el = document.getElementById(mod);
       if (!el) return;
-      const render = () => { if (el.classList.contains("is-active")) renderGrid(grid, data); };
-      new MutationObserver(render).observe(el, { attributes: true, attributeFilter: ["class"] });
-      render();
+      const run = () => { if (el.classList.contains("is-active")) render(); };
+      new MutationObserver(run).observe(el, { attributes: true, attributeFilter: ["class"] });
+      run();
     });
   })();
 
@@ -1486,6 +2852,21 @@
         line-height: 1.55;
         margin: 0;
       }
+      .tm-normes-tags { display:flex; flex-wrap:wrap; gap:.26rem; margin-top:.1rem; }
+      .tm-normes-tag {
+        padding:.12rem .38rem;
+        border:0.5px solid rgba(201,169,110,.18);
+        border-radius:999px;
+        color:#9A8D72;
+        font-size:.54rem;
+        letter-spacing:.07em;
+        text-transform:uppercase;
+      }
+      .tm-outils-stack { display:grid; gap:1.2rem; }
+      .tm-tools-scale-grid { display:grid; grid-template-columns:1fr 1fr auto; gap:.72rem; align-items:end; }
+      @media (max-width: 800px) {
+        .tm-tools-scale-grid { grid-template-columns:1fr; }
+      }
       @media (max-width: 800px) {
         .tm-normes-split { grid-template-columns: 1fr; }
         .tm-normes-cats  { flex-direction: row; flex-wrap: wrap; align-content: start; }
@@ -1494,45 +2875,131 @@
     document.head.appendChild(s);
   })();
 
-  /* ── DATA_NORMES — 3 catégories × 6 normes ──────────────────── */
+  /* ── DATA_NORMES — dimensions par pièce ─────────────────────── */
   const DATA_NORMES = [
     {
-      id:     "mobilier",
-      label:  "Mobilier",
-      kicker: "Standards de l'habitat",
+      id: "salon",
+      label: "Salon",
+      kicker: "Mobilier et recul de confort",
       items: [
-        { nom: "Table à manger",     val: "75 cm",      dir: "v", note: "Hauteur plan standard. 80 cm pour cuisine debout ou îlot de travail." },
-        { nom: "Chaise — assise",    val: "45 cm",      dir: "v", note: "Hauteur d'assise standard. Dossier entre 80 et 95 cm selon usage." },
-        { nom: "Bureau",             val: "72–75 cm",   dir: "v", note: "Plan de travail assis. Profondeur utile recommandée : 60 à 80 cm." },
-        { nom: "Lit simple",         val: "90 × 190",   dir: "h", note: "Dimensions courantes. Dégagement latéral conseillé : 60 cm min." },
-        { nom: "Lit double",         val: "160 × 200",  dir: "h", note: "Passage conseillé : 70 cm de chaque côté pour accessibilité nocturne." },
-        { nom: "Armoire — profondeur", val: "P 60 cm",  dir: "h", note: "Profondeur utile pour cintres. Hauteur courante : 200 à 220 cm." }
+        { nom: "Canapé 2 places", valeur: "160-180 x 90 cm", dir: "h", note: "Assise compacte pour petit séjour.", tags: ["assise", "mobilier"] },
+        { nom: "Canapé 3 places", valeur: "210-240 x 95 cm", dir: "h", note: "Prévoir un passage libre en périphérie.", tags: ["assise", "mobilier"] },
+        { nom: "Table basse", valeur: "90-120 x 50-70 cm", dir: "h", note: "Laisser 35 à 45 cm entre canapé et table.", tags: ["table"] },
+        { nom: "Meuble TV", valeur: "P 35-45 cm", dir: "h", note: "Hauteur basse recommandée : 40 à 55 cm.", tags: ["tv", "rangement"] },
+        { nom: "Distance canapé / TV", valeur: "2,0-3,5 m", dir: "h", note: "À ajuster selon diagonale de l'écran.", tags: ["recul", "tv"] },
+        { nom: "Passage autour du mobilier", valeur: "70-90 cm", dir: "h", note: "90 cm si circulation principale.", tags: ["circulation"] }
       ]
     },
     {
-      id:     "circulation",
-      label:  "Circulation",
-      kicker: "Passages et accessibilité PMR",
+      id: "chambre",
+      label: "Chambre",
+      kicker: "Couchage et rangement",
       items: [
-        { nom: "Couloir standard",    val: "90 cm",        dir: "h", note: "Minimum pratique pour deux personnes. 120 cm recommandé PMR." },
-        { nom: "Porte standard",      val: "83 cm",        dir: "h", note: "Passage utile : 73 cm. Gond 90°, dégagement 1 m² côté serrure." },
-        { nom: "Porte PMR",           val: "90 cm",        dir: "h", note: "Passage utile : 80 cm minimum. Obligatoire ERP et logements accessibles." },
-        { nom: "Escalier Blondel",    val: "G + 2H = 63",  dir: "v", note: "Giron 28–32 cm, hauteur 17–18 cm par marche. Pente ≤ 37°." },
-        { nom: "Rotation fauteuil",   val: "Ø 150 cm",     dir: "h", note: "Aire de giration libre de tout obstacle. Obligatoire RT ERP." },
-        { nom: "Ascenseur — cabine",  val: "110 × 140",    dir: "h", note: "Cabine minimale PMR. Porte utile : L = 80 cm, commandes H = 90–130 cm." }
+        { nom: "Lit simple 90 x 190", valeur: "90 x 190 cm", dir: "h", note: "Dégagement latéral conseillé : 60 cm.", tags: ["lit"] },
+        { nom: "Lit double 140 x 190", valeur: "140 x 190 cm", dir: "h", note: "Solution standard compacte.", tags: ["lit"] },
+        { nom: "Lit queen 160 x 200", valeur: "160 x 200 cm", dir: "h", note: "Confort avec 70 cm libres de chaque côté.", tags: ["lit"] },
+        { nom: "Table de nuit", valeur: "40-50 x 35-45 cm", dir: "h", note: "Aligner avec hauteur du matelas.", tags: ["mobilier"] },
+        { nom: "Armoire profondeur 60 cm", valeur: "P 60 cm", dir: "h", note: "Profondeur utile pour cintres.", tags: ["rangement"] },
+        { nom: "Circulation autour du lit", valeur: "60-75 cm", dir: "h", note: "75 cm pour confort quotidien.", tags: ["circulation"] }
       ]
     },
     {
-      id:     "structure",
-      label:  "Structure",
-      kicker: "Portées, épaisseurs et pentes",
+      id: "cuisine",
+      label: "Cuisine",
+      kicker: "Plans, dégagements et triangle",
       items: [
-        { nom: "Dalle béton — portée",    val: "5–7 m",    dir: "h", note: "Portée courante bi-appui. Au-delà : pré-contrainte ou nervures recommandées." },
-        { nom: "Dalle béton — épaisseur", val: "L ÷ 25",   dir: "v", note: "Règle empirique : portée en cm divisée par 25. Minimum absolu : 12 cm." },
-        { nom: "Entraxe poteaux",         val: "4,5–9 m",  dir: "h", note: "Trame structurelle courante. Combinaison portée × travée selon programme." },
-        { nom: "Mur porteur béton",       val: "min. 20 cm", dir: "h", note: "Épaisseur minimale béton armé. Maçonnerie porteuse : 25 cm minimum." },
-        { nom: "Pente toiture tuile",     val: "35–45 %",  dir: "v", note: "Pente minimale tuile canal : 35 %. Ardoise : 30 %. Zinc : 25 % min." },
-        { nom: "Hauteur sous plafond",    val: "250 cm",   dir: "v", note: "Minimum légal logement (CCH art. R. 111-2). Confort : 260 à 280 cm." }
+        { nom: "Plan de travail hauteur 90 cm", valeur: "H 90 cm", dir: "v", note: "Hauteur courante pour préparation debout.", tags: ["plan"] },
+        { nom: "Profondeur plan 60 cm", valeur: "P 60 cm", dir: "h", note: "Base standard électroménager et meuble bas.", tags: ["plan"] },
+        { nom: "Îlot central", valeur: "90 x 180 cm min.", dir: "h", note: "Ajouter 90 cm de circulation autour.", tags: ["ilot"] },
+        { nom: "Dégagement devant meuble", valeur: "90-120 cm", dir: "h", note: "120 cm si deux personnes travaillent.", tags: ["circulation"] },
+        { nom: "Hauteur meuble haut", valeur: "H 140-150 cm bas", dir: "v", note: "Sous meuble haut à adapter à l'utilisateur.", tags: ["rangement"] },
+        { nom: "Triangle d'activité", valeur: "4-7 m cumulés", dir: "h", note: "Évier, cuisson, froid : éviter les parcours excessifs.", tags: ["ergonomie"] }
+      ]
+    },
+    {
+      id: "salle-bain",
+      label: "Salle de bain",
+      kicker: "Eau, recul et équipements",
+      items: [
+        { nom: "Douche standard", valeur: "80 x 120 cm", dir: "h", note: "80 x 80 cm reste minimal.", tags: ["douche"] },
+        { nom: "Douche confortable", valeur: "90 x 140 cm", dir: "h", note: "Confort de mouvement et entretien.", tags: ["douche"] },
+        { nom: "Baignoire", valeur: "70 x 170 cm", dir: "h", note: "Prévoir accès robinetterie et tablier.", tags: ["bain"] },
+        { nom: "Lavabo", valeur: "L 60 cm", dir: "h", note: "Pose courante à 85-90 cm de haut.", tags: ["vasque"] },
+        { nom: "Meuble vasque", valeur: "P 45-55 cm", dir: "h", note: "Largeur confortable : 80 à 120 cm.", tags: ["rangement"] },
+        { nom: "Dégagement devant lavabo", valeur: "70-90 cm", dir: "h", note: "90 cm recommandé devant meuble tiroir.", tags: ["circulation"] }
+      ]
+    },
+    {
+      id: "wc",
+      label: "WC",
+      kicker: "Cabinet et dégagements",
+      items: [
+        { nom: "WC standard", valeur: "80 x 120 cm", dir: "h", note: "Minimum courant hors contraintes PMR.", tags: ["sanitaire"] },
+        { nom: "WC PMR", valeur: "150 x 150 cm", dir: "h", note: "Aire de rotation libre et transfert latéral.", tags: ["pmr"] },
+        { nom: "Dégagement latéral", valeur: "80 cm", dir: "h", note: "Utile pour transfert PMR.", tags: ["pmr"] },
+        { nom: "Lave-main", valeur: "P 22-30 cm", dir: "h", note: "Solution compacte en angle ou murale.", tags: ["eau"] },
+        { nom: "Porte ouvrant extérieur recommandée", valeur: "L 83-90 cm", dir: "h", note: "Réduit les conflits d'usage en pièce étroite.", tags: ["porte"] }
+      ]
+    },
+    {
+      id: "bureau",
+      label: "Bureau",
+      kicker: "Poste de travail",
+      items: [
+        { nom: "Bureau 120 x 60", valeur: "120 x 60 cm", dir: "h", note: "Format minimal efficace pour laptop + carnet.", tags: ["travail"] },
+        { nom: "Chaise", valeur: "45 x 45 cm", dir: "h", note: "Assise standard, dossier variable.", tags: ["assise"] },
+        { nom: "Recul chaise", valeur: "80-100 cm", dir: "h", note: "Prévoir le mouvement de sortie.", tags: ["circulation"] },
+        { nom: "Hauteur écran", valeur: "Axe yeux", dir: "v", note: "Sommet écran proche du niveau des yeux.", tags: ["ergonomie"] },
+        { nom: "Rangement", valeur: "P 35-45 cm", dir: "h", note: "Bibliothèque ou caisson de bureau.", tags: ["rangement"] }
+      ]
+    },
+    {
+      id: "garage",
+      label: "Garage",
+      kicker: "Stationnement et stockage",
+      items: [
+        { nom: "Place voiture standard", valeur: "2,50 x 5,00 m", dir: "h", note: "Minimum courant pour stationnement.", tags: ["voiture"] },
+        { nom: "Place voiture confortable", valeur: "3,00 x 5,50 m", dir: "h", note: "Ouverture de portières plus simple.", tags: ["voiture"] },
+        { nom: "Largeur porte garage", valeur: "2,40-3,00 m", dir: "h", note: "3 m recommandé pour usage confortable.", tags: ["porte"] },
+        { nom: "Rangement vélo", valeur: "60 x 180 cm", dir: "h", note: "Ajouter zone de manœuvre.", tags: ["vélo"] },
+        { nom: "Circulation latérale", valeur: "70-90 cm", dir: "h", note: "Nécessaire entre véhicule et mur.", tags: ["circulation"] }
+      ]
+    },
+    {
+      id: "jardin-terrasse",
+      label: "Jardin / Terrasse",
+      kicker: "Mobilier extérieur",
+      items: [
+        { nom: "Table extérieure", valeur: "160 x 90 cm", dir: "h", note: "6 places compactes.", tags: ["table"] },
+        { nom: "Chaise extérieure", valeur: "55 x 60 cm", dir: "h", note: "Prévoir recul arrière.", tags: ["assise"] },
+        { nom: "Passage terrasse", valeur: "90-120 cm", dir: "h", note: "120 cm si accès principal.", tags: ["circulation"] },
+        { nom: "Jardinière", valeur: "P 40-60 cm", dir: "h", note: "Prévoir drainage et entretien.", tags: ["végétal"] },
+        { nom: "Barbecue / zone technique", valeur: "120 x 80 cm", dir: "h", note: "Éloigner des ouvrants et matériaux sensibles.", tags: ["technique"] }
+      ]
+    },
+    {
+      id: "circulations",
+      label: "Circulations",
+      kicker: "Passages et franchissements",
+      items: [
+        { nom: "Couloir standard", valeur: "90 cm", dir: "h", note: "Minimum pratique logement.", tags: ["passage"] },
+        { nom: "Passage confortable", valeur: "120 cm", dir: "h", note: "Permet croisement et portage.", tags: ["passage"] },
+        { nom: "Porte standard", valeur: "83 cm", dir: "h", note: "Passage utile environ 73 cm.", tags: ["porte"] },
+        { nom: "Escalier Blondel", valeur: "G + 2H = 63", dir: "v", note: "Giron 28-32 cm, hauteur 17-18 cm.", tags: ["escalier"] },
+        { nom: "Aire de retournement", valeur: "Ø 150 cm", dir: "h", note: "Référence PMR pour rotation complète.", tags: ["pmr"] }
+      ]
+    },
+    {
+      id: "pmr",
+      label: "Accessibilité PMR",
+      kicker: "Gabarits accessibles",
+      items: [
+        { nom: "Rotation fauteuil Ø150 cm", valeur: "Ø 150 cm", dir: "h", note: "Aire libre de tout obstacle.", tags: ["fauteuil"] },
+        { nom: "Porte 90 cm", valeur: "L 90 cm", dir: "h", note: "Passage utile compatible accessibilité.", tags: ["porte"] },
+        { nom: "Douche accessible", valeur: "120 x 90 cm min.", dir: "h", note: "Receveur sans ressaut recommandé.", tags: ["douche"] },
+        { nom: "WC accessible", valeur: "150 x 150 cm", dir: "h", note: "Rotation + transfert latéral.", tags: ["wc"] },
+        { nom: "Pente rampe", valeur: "5 % courant", dir: "v", note: "Pentes plus fortes seulement sur faibles longueurs.", tags: ["rampe"] },
+        { nom: "Hauteur interrupteurs", valeur: "90-130 cm", dir: "v", note: "Zone d'atteinte confortable.", tags: ["électricité"] }
       ]
     }
   ];
@@ -1556,23 +3023,118 @@
          <polygon points="88,14 79,11 79,17" fill="#C9A96E"/>
        </svg>`;
 
+  const _filterNormes = (cat, query = "") => {
+    const needle = String(query || "").trim().toLowerCase();
+    if (!needle) return cat.items;
+    return cat.items.filter(item =>
+      [item.nom, item.valeur, item.note, ...(item.tags || [])]
+        .join(" ")
+        .toLowerCase()
+        .includes(needle)
+    );
+  };
+
   /* ── Rendu panneau droit ─────────────────────────────────────── */
-  const _renderNormesPanel = cat => `
+  const _renderNormesPanel = (cat, query = "") => {
+    const items = _filterNormes(cat, query);
+    return `
     <div class="tm-normes-header">
       <p style="margin:0 0 .22rem;text-transform:uppercase;letter-spacing:.17em;font-size:.58rem;font-weight:500;color:var(--gold)">${cat.kicker}</p>
       <h3 style="font-family:var(--serif);font-size:2rem;font-weight:300;line-height:1;color:var(--ink);margin:0">${cat.label}</h3>
+      ${query ? `<p style="margin:.42rem 0 0;color:var(--muted);font-size:.72rem">${items.length} résultat${items.length > 1 ? "s" : ""} pour "${_esc(query)}"</p>` : ""}
     </div>
     <div class="tm-normes-grid">
-      ${cat.items.map(item => `
+      ${items.length ? items.map(item => `
         <article class="tm-normes-item">
           ${_svgCote(item.dir)}
-          <p class="tm-normes-dim">${item.val}</p>
-          <p class="tm-normes-nom">${item.nom}</p>
-          <p class="tm-normes-note">${item.note}</p>
+          <p class="tm-normes-dim">${_esc(item.valeur)}</p>
+          <p class="tm-normes-nom">${_esc(item.nom)}</p>
+          <p class="tm-normes-note">${_esc(item.note)}</p>
+          ${item.tags?.length
+            ? `<div class="tm-normes-tags">${item.tags.map(tag => `<span class="tm-normes-tag">${_esc(tag)}</span>`).join("")}</div>`
+            : ""}
         </article>
-      `).join("")}
+      `).join("") : `<article class="tm-normes-item"><p class="tm-normes-note">Aucune dimension ne correspond à cette recherche dans cette catégorie.</p></article>`}
     </div>
   `;
+  };
+
+  const _renderScaleCalculator = () => `
+    <article class="card" id="tools-scale-card">
+      <p style="margin:0 0 .18rem;text-transform:uppercase;letter-spacing:.17em;font-size:.58rem;font-weight:500;color:var(--gold)">Convention d'échelle</p>
+      <h3 style="font-family:var(--serif);font-size:1.7rem;font-weight:300;line-height:1;color:var(--ink);margin:0 0 1rem">Échelle exacte</h3>
+      <div class="tm-tools-scale-grid">
+        <label class="field">
+          <span style="font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.28rem">Mesure réelle</span>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:.5rem">
+            <input id="tools-scale-real" type="number" min="0.001" step="any" placeholder="ex : 5" style="width:100%" />
+            <select id="tools-scale-unit" style="background:var(--surface-2);border:var(--border);color:var(--ink);border-radius:var(--r-sm);padding:.4rem .6rem;font-size:.82rem;cursor:pointer">
+              <option value="1000">m</option>
+              <option value="10">cm</option>
+              <option value="1" selected>mm</option>
+            </select>
+          </div>
+        </label>
+        <label class="field">
+          <span style="font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.28rem">Mesure sur plan en mm</span>
+          <input id="tools-scale-plan" type="number" min="0.001" step="any" placeholder="ex : 50" style="width:100%" />
+        </label>
+        <button type="button" id="tools-scale-btn" class="text-btn text-btn--primary" style="white-space:nowrap">Calculer l'échelle</button>
+      </div>
+      <div id="tools-scale-result" style="display:none;margin-top:.85rem;padding:.85rem;background:rgba(201,169,110,.07);border:0.5px solid rgba(201,169,110,.32);border-radius:var(--r-sm);text-align:center">
+        <p id="tools-scale-main" style="font-family:var(--serif);font-size:2rem;font-weight:300;color:var(--gold);margin:0 0 .2rem"></p>
+        <p id="tools-scale-nearest" style="font-size:.68rem;color:var(--muted);margin:0;letter-spacing:.08em"></p>
+      </div>
+      <p id="tools-scale-error" style="display:none;font-size:.72rem;color:#e07070;text-align:center;margin:.72rem 0 0"></p>
+    </article>
+  `;
+
+  function _calculateScale(root) {
+    const realEl = root.querySelector("#tools-scale-real");
+    const unitEl = root.querySelector("#tools-scale-unit");
+    const planEl = root.querySelector("#tools-scale-plan");
+    const errEl = root.querySelector("#tools-scale-error");
+    const resEl = root.querySelector("#tools-scale-result");
+    const mainEl = root.querySelector("#tools-scale-main");
+    const nearestEl = root.querySelector("#tools-scale-nearest");
+
+    if (!realEl || !unitEl || !planEl || !errEl || !resEl || !mainEl || !nearestEl) return;
+
+    const realRaw = parseFloat(realEl.value);
+    const planRaw = parseFloat(planEl.value);
+    const unitMult = parseFloat(unitEl.value);
+
+    errEl.style.display = "none";
+    resEl.style.display = "none";
+
+    if (!realRaw || !planRaw || realRaw <= 0 || planRaw <= 0) {
+      errEl.textContent = "Entre deux valeurs positives.";
+      errEl.style.display = "block";
+      return;
+    }
+
+    const realMm = realRaw * unitMult;
+    const denom = Math.round(realMm / planRaw);
+
+    if (denom < 1) {
+      errEl.textContent = "La mesure sur plan est plus grande que la mesure réelle.";
+      errEl.style.display = "block";
+      return;
+    }
+
+    const standards = [1, 2, 5, 10, 20, 25, 33, 50, 75, 100, 125, 200, 250, 500, 1000, 2000, 5000];
+    const nearest = standards.reduce((a, b) =>
+      Math.abs(b - denom) < Math.abs(a - denom) ? b : a
+    );
+
+    mainEl.textContent = `1 : ${denom.toLocaleString("fr-FR")}`;
+    nearestEl.textContent =
+      nearest === denom
+        ? "Échelle standard exacte"
+        : `Échelle standard la plus proche : 1 : ${nearest.toLocaleString("fr-FR")}`;
+
+    resEl.style.display = "block";
+  }
 
   /* ── initOutils : injection dans #outils-layout ─────────────── */
   let _normesActiveId = null; /* préservé entre les visites */
@@ -1585,32 +3147,50 @@
     const active = DATA_NORMES.find(c => c.id === _normesActiveId) || DATA_NORMES[0];
 
     root.innerHTML = `
-      <div class="tm-normes-split">
+      <div class="tm-outils-stack">
+        <article class="card">
+          <div style="display:flex;justify-content:space-between;gap:1rem;align-items:end;flex-wrap:wrap;margin-bottom:1rem">
+            <div>
+              <p style="margin:0 0 .18rem;text-transform:uppercase;letter-spacing:.17em;font-size:.58rem;font-weight:500;color:var(--gold)">Normes par pièce</p>
+              <h3 style="font-family:var(--serif);font-size:2rem;font-weight:300;line-height:1;color:var(--ink);margin:0">Dimensions de mobilier</h3>
+            </div>
+            <label class="field" style="min-width:min(100%,260px)">
+              <input id="tools-normes-search" type="search" placeholder="Rechercher une dimension..." autocomplete="off" />
+            </label>
+          </div>
+          <div class="tm-normes-split">
+            <nav class="tm-normes-cats" aria-label="Catégories de normes">
+              <span class="tm-normes-cats-title">Pièces</span>
+              ${DATA_NORMES.map(cat => `
+                <button type="button"
+                        class="tm-normes-cat-btn ${cat.id === active.id ? "is-active" : ""}"
+                        data-normes-cat="${cat.id}"
+                        aria-pressed="${cat.id === active.id}">
+                  <span class="tm-normes-dot" aria-hidden="true"></span>
+                  <span class="tm-normes-cat-text">
+                    <span class="tm-normes-cat-label">${cat.label}</span>
+                    <span class="tm-normes-cat-count">${cat.items.length} dimensions</span>
+                  </span>
+                </button>
+              `).join("")}
+            </nav>
 
-        <nav class="tm-normes-cats" aria-label="Catégories de normes">
-          <span class="tm-normes-cats-title">Catégories</span>
-          ${DATA_NORMES.map(cat => `
-            <button type="button"
-                    class="tm-normes-cat-btn ${cat.id === active.id ? "is-active" : ""}"
-                    data-normes-cat="${cat.id}"
-                    aria-pressed="${cat.id === active.id}">
-              <span class="tm-normes-dot" aria-hidden="true"></span>
-              <span class="tm-normes-cat-text">
-                <span class="tm-normes-cat-label">${cat.label}</span>
-                <span class="tm-normes-cat-count">${cat.items.length} normes</span>
-              </span>
-            </button>
-          `).join("")}
-        </nav>
-
-        <div class="tm-normes-panel" id="tm-normes-panel">
-          ${_renderNormesPanel(active)}
-        </div>
-
+            <div class="tm-normes-panel" id="tm-normes-panel">
+              ${_renderNormesPanel(active)}
+            </div>
+          </div>
+        </article>
+        ${_renderScaleCalculator()}
       </div>
     `;
 
-    /* Interactions catégories */
+    const renderActivePanel = () => {
+      const cat = DATA_NORMES.find(c => c.id === _normesActiveId) || DATA_NORMES[0];
+      const query = root.querySelector("#tools-normes-search")?.value || "";
+      const panel = root.querySelector("#tm-normes-panel");
+      if (panel) panel.innerHTML = _renderNormesPanel(cat, query);
+    };
+
     root.querySelectorAll("[data-normes-cat]").forEach(btn =>
       btn.addEventListener("click", () => {
         const cat = DATA_NORMES.find(c => c.id === btn.dataset.normesCat);
@@ -1623,8 +3203,15 @@
           b.setAttribute("aria-pressed", on);
         });
 
-        const panel = document.getElementById("tm-normes-panel");
-        if (panel) panel.innerHTML = _renderNormesPanel(cat);
+        renderActivePanel();
+      })
+    );
+
+    root.querySelector("#tools-normes-search")?.addEventListener("input", renderActivePanel);
+    root.querySelector("#tools-scale-btn")?.addEventListener("click", () => _calculateScale(root));
+    ["tools-scale-real", "tools-scale-plan"].forEach(id =>
+      root.querySelector("#" + id)?.addEventListener("keydown", e => {
+        if (e.key === "Enter") _calculateScale(root);
       })
     );
   }
@@ -1811,13 +3398,24 @@
     document.head.appendChild(s);
   })();
 
-  /* ── Données : stats profil ──────────────────────────────────── */
-  const _PROFIL_STATS = [
-    { val: "3",  lbl: "Projets actifs"      },
-    { val: "47", lbl: "Documents consultés" },
-    { val: "8",  lbl: "Modules débloqués"   },
-    { val: "1",  lbl: "Studio en ligne"     }
-  ];
+  /* ── Profil : stats calculées, jamais de faux projets ───────── */
+  const _profileStats = () => {
+    const journalier = (typeof TEOMARCHI_APP !== "undefined")
+      ? TEOMARCHI_APP.journalier.get()
+      : null;
+    const projects = Object.values(journalier?.projects || {});
+    const activeProjects = projects.filter(project =>
+      project.title || project.deadline || project.tasks?.length || project.deadlines?.length
+    ).length;
+    const tasks = projects.flatMap(project => project.tasks || []);
+    const done = tasks.filter(task => task.done || task.progress >= 100).length;
+    return [
+      { val: String(activeProjects), lbl: "Projets actifs" },
+      { val: String(tasks.length),   lbl: "Tâches créées" },
+      { val: String(done),           lbl: "Tâches terminées" },
+      { val: "0",                    lbl: "Rendus publiés" }
+    ];
+  };
 
   const _PROFIL_ROLES = [
     { val: "L1",  lbl: "Licence 1"                 },
@@ -1838,17 +3436,21 @@
     function _render() {
       const sess     = (typeof TEOMARCHI_APP !== "undefined") ? TEOMARCHI_APP.session.get() : null;
       const name     = sess ? _esc(sess.name)  : "Utilisateur invité";
-      const roleText = sess ? _esc(sess.role)  : "Non connecté";
+      const roleText = sess ? _esc(sess.email || sess.role)  : "Non connecté";
       const grade    = sess ? _esc(sess.grade) : "—";
       const initials = sess
         ? sess.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
         : "T";
+      const avatar = sess?.photoURL
+        ? `<img src="${_esc(sess.photoURL)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+        : initials;
+      const stats = _profileStats();
 
       root.innerHTML = `
         <div style="display:grid;gap:1.618rem">
 
           <div class="tm-profil-hero">
-            <div class="tm-profil-avatar" aria-hidden="true">${initials}</div>
+            <div class="tm-profil-avatar" aria-hidden="true">${avatar}</div>
             <div>
               <p style="margin:0 0 .22rem;text-transform:uppercase;letter-spacing:.17em;
                         font-size:.58rem;font-weight:500;color:var(--gold)">Profil utilisateur</p>
@@ -1862,7 +3464,7 @@
           </div>
 
           <div class="tm-profil-stats">
-            ${_PROFIL_STATS.map(s => `
+            ${stats.map(s => `
               <div class="tm-profil-stat">
                 <span class="tm-profil-stat__val">${s.val}</span>
                 <span class="tm-profil-stat__lbl">${s.lbl}</span>
@@ -1932,10 +3534,7 @@
           if (TEOMARCHI_APP.session.get()) {
             TEOMARCHI_APP.session.clear();
           } else {
-            TEOMARCHI_APP.session.set({
-              name: "Jonathan YAV", role: "Architecte Étudiant",
-              grade: "M2", connectedAt: new Date().toISOString()
-            });
+            window.TEOMARCHI_OPEN_LOGIN?.();
           }
         }
         const sess2 = (typeof TEOMARCHI_APP !== "undefined") ? TEOMARCHI_APP.session.get() : null;
@@ -2275,8 +3874,8 @@
     document.head.appendChild(s);
   })();
 
-  /* ── Données : contacts et messages ────────────────────────── */
-  const DATA_CONTACTS = [
+  /* ── Données : contacts et messages démo désactivés par défaut ─ */
+  const DATA_CONTACTS = ENABLE_DEMO_DATA ? [
     {
       id: "be", initials: "BE", name: "Bureau d'Études", role: "Ingénierie structure",
       online: true, preview: "OK pour la semelle filante.",
@@ -2321,7 +3920,7 @@
       ]
     },
     {
-      id: "atelier", initials: "AP", name: "Atelier Principal", role: "Direction de projet",
+      id: "studio-principal", initials: "AP", name: "Atelier Principal", role: "Direction de projet",
       online: false, preview: "Réunion de synthèse vendredi 14h.",
       messages: [
         { me: false, text: "Les plans APS sont validés avec réserves sur la hauteur sous plafond R+2 (H libre < 2,50 m).", time: "Lundi" },
@@ -2329,10 +3928,10 @@
         { me: false, text: "Réunion de synthèse vendredi 14h.", time: "Lundi" }
       ]
     }
-  ];
+  ] : [];
 
   /* ── État inter-visites ─────────────────────────────────────── */
-  let _msgActiveId = "be";
+  let _msgActiveId = DATA_CONTACTS[0]?.id || null;
 
   /* ── initMessagerie : injection dans #messaging-layout ─────── */
   function initMessagerie() {
@@ -2345,6 +3944,28 @@
       return;
     }
     root.dataset.loaded = "msg";
+
+    if (!DATA_CONTACTS.length) {
+      root.innerHTML = `
+        <div class="card" style="display:grid;place-items:center;min-height:360px;text-align:center;padding:2.6rem 1rem">
+          <div>
+            <svg style="width:54px;height:54px;stroke:rgba(201,169,110,.42);margin:0 auto 1.2rem;display:block"
+                 viewBox="0 0 24 24" fill="none" stroke-width="1.1"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 4h16v12H7l-3 3V4z"/>
+              <path d="M8 9h8M8 12h5"/>
+            </svg>
+            <p style="font-family:var(--serif);font-size:2rem;font-weight:300;color:var(--ink);margin:0 0 .45rem">
+              Aucune conversation
+            </p>
+            <p style="font-size:.78rem;color:var(--muted);max-width:380px;line-height:1.6;margin:0 auto">
+              Les échanges apparaîtront ici quand une vraie messagerie sera connectée au compte.
+            </p>
+          </div>
+        </div>
+      `;
+      return;
+    }
 
     /* ── Helpers de rendu ── */
     function _contactHTML(c) {
@@ -2916,11 +4537,14 @@
 
   /* ── Vérification et consolidation de la persistance ─────────── */
   function _verifyPersistence() {
-    /* Journal : s'assure qu'un état initial existe */
+    /* Journalier : s'assure qu'un état initial robuste existe */
     if (typeof TEOMARCHI_APP !== "undefined") {
+      const jp = TEOMARCHI_APP.journalier.get();
+      TEOMARCHI_APP.journalier.set(jp);
+
+      /* Ancienne persistance conservée pour les modules qui lisent encore journal. */
       const j = TEOMARCHI_APP.journal.get();
       if (!j.updatedAt) {
-        /* Première visite : sauvegarde l'état par défaut */
         TEOMARCHI_APP.journal.set(j);
       }
     }
@@ -2929,8 +4553,10 @@
     window.addEventListener("beforeunload", () => {
       if (typeof TEOMARCHI_APP === "undefined") return;
       const j = TEOMARCHI_APP.journal.get();
+      const jp = TEOMARCHI_APP.journalier.get();
       try {
         localStorage.setItem("teomarchi.journal", JSON.stringify(j));
+        localStorage.setItem("teomarchi.journalier", JSON.stringify(jp));
         const sess = TEOMARCHI_APP.session.get();
         if (sess) localStorage.setItem("teomarchi.session", JSON.stringify(sess));
         const theme = document.documentElement.getAttribute("data-theme") || "dark";
@@ -3396,34 +5022,18 @@
   })();
 
   /* ── Toast de bienvenue au démarrage ─────────────────────────── */
-  setTimeout(() => pushNotification("TEOMARCHI — 11 modules actifs"), 1400);
+  setTimeout(() => pushNotification("TEOMARCHI — 10 modules actifs"), 1400);
 
 (function initTeomarchiAuth() {
 
-    /* ══ CONFIGURATION — à remplir ══════════════════════════════ */
-    const FIREBASE_CONFIG = {
-      apiKey:            "AIzaSyAa41Fvf6TWt-yV-KANju7IIpXz3EG5nx0",
-      authDomain:        "teomarchi-7eeae.firebaseapp.com",
-      projectId:         "teomarchi-7eeae",
-      storageBucket:     "teomarchi-7eeae.firebasestorage.app",
-      messagingSenderId: "923051128049",
-      appId:             "1:923051128049:web:c3efa3c59dde62cd2ae550",
-      measurementId:     "G-S9T43WPBK8"
-    };
+    const FIREBASE_CONFIG = window.TEOMARCHI_CONFIG.firebase;
+    const STRIPE_PUBLIC_KEY = window.TEOMARCHI_CONFIG.stripe.publishableKey;
+    const STRIPE_PRICE_IDS = window.TEOMARCHI_CONFIG.stripe.priceIds;
+    const STRIPE_PAYMENT_LINK = window.TEOMARCHI_CONFIG.stripe.paymentLinks.studio;
+    const STRIPE_AGENCE_LINK  = window.TEOMARCHI_CONFIG.stripe.paymentLinks.agence;
 
-    /* Stripe Checkout — remplace les Price IDs par ceux de ton Dashboard Stripe. */
-    const STRIPE_PUBLIC_KEY = "pk_live_51TUEOL3WxFY8ACg4Vy8sPX1sGHjMa6FW3vU5zWzaTFcNmb2dEG3wdFr3WLDaoptcuIobqe5GdJMyc3PbbdCWUOYc004byVd23R";
-    const STRIPE_PRICE_IDS = {
-      studio: "id_de_ton_produit_stripe",
-      agence: "id_de_ton_produit_stripe_agence"
-    };
-
-    /* Ancien fallback Payment Link, conservé au cas où Stripe.js est indisponible. */
-    const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/4gMaEQ7S72TD1YM8Sg1RC04";
-    const STRIPE_AGENCE_LINK  = "https://buy.stripe.com/4gM6oAegvfGp9re3xW1RC02";
-
-    /* Modules nécessitant une connexion */
-    const GATED = new Set(["outils"]);
+    /* Modules nécessitant une connexion. Outils reste consultable librement. */
+    const GATED = new Set([]);
 
     /* ── État ───────────────────────────────────────────────────── */
     let _auth        = null;
@@ -3557,7 +5167,7 @@
           <div class="tm-auth-fields">
             <div class="tm-auth-lbl" id="tm-an" style="display:none">
               <span>Nom complet</span>
-              <input type="text" id="tm-ai-name" placeholder="Jonathan YAV" autocomplete="name"/>
+              <input type="text" id="tm-ai-name" placeholder="Nom complet" autocomplete="name"/>
             </div>
             <div class="tm-auth-lbl">
               <span>E-mail</span>
@@ -3620,6 +5230,8 @@
       document.body.style.overflow = "hidden";
       setTimeout(() => document.getElementById("tm-ai-email")?.focus(), 80);
     }
+
+    document.addEventListener("teomarchi:open-login", () => _show(null));
 
     function _hide() {
       document.querySelector("#login-modal")?.classList.remove("is-open");
@@ -3816,6 +5428,9 @@
       if (typeof TEOMARCHI_APP !== "undefined") {
         if (user) TEOMARCHI_APP.session.set({
           name:        user.displayName || user.email.split("@")[0],
+          displayName: user.displayName || "",
+          email:       user.email || "",
+          photoURL:    user.photoURL || "",
           role:        isAdmin ? "Fondateur · Admin" : (_isPremium ? "Membre Premium" : "Utilisateur TEOMARCHI"),
           grade:       isAdmin ? "★★" : (_isPremium ? "★" : "M"),
           connectedAt: new Date().toISOString()
