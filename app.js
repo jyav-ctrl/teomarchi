@@ -42,13 +42,115 @@ window.TEOMARCHI_CONFIG = window.TEOMARCHI_CONFIG || {
   }
 };
 
-const TEOMARCHI_ROLES = Object.freeze(["user", "premium", "agency", "moderator", "admin"]);
+const TEOMARCHI_ROLES = Object.freeze(["free", "studio", "agency", "moderator", "admin"]);
 const USER_STATUS = Object.freeze(["active", "suspended", "deleted"]);
+const PLAN_ACCESS = Object.freeze({
+  free: Object.freeze([
+    "read:atlas",
+    "read:chronos",
+    "read:pantheon",
+    "read:outils-basic",
+    "read:ecologie"
+  ]),
+  studio: Object.freeze([
+    "read:atlas",
+    "read:chronos",
+    "read:pantheon",
+    "read:outils-basic",
+    "read:ecologie",
+    "tools:advanced",
+    "journalier:full",
+    "ai:full",
+    "cloud:save",
+    "feed:advanced"
+  ]),
+  agency: Object.freeze([
+    "read:atlas",
+    "read:chronos",
+    "read:pantheon",
+    "read:outils-basic",
+    "read:ecologie",
+    "tools:advanced",
+    "journalier:full",
+    "ai:full",
+    "cloud:save",
+    "feed:advanced",
+    "showroom:publish",
+    "sponsor:publish",
+    "projects:multi",
+    "analytics:agency",
+    "visibility:agency"
+  ]),
+  moderator: Object.freeze(["moderation:read", "moderation:write"]),
+  admin: Object.freeze(["*"]) // admin bypass : contourne les limitations et accès à tous les modules.
+});
+const PLAN_LABELS = Object.freeze({
+  free: "Free",
+  studio: "Studio",
+  agency: "Agency",
+  moderator: "Modérateur",
+  admin: "Admin"
+});
 window.TEOMARCHI_SECURITY_MODEL = Object.freeze({
   roles: TEOMARCHI_ROLES,
   status: USER_STATUS,
+  plans: PLAN_ACCESS,
   note: "Sécurité critique à appliquer via Firestore Rules ou Cloud Functions, jamais uniquement côté front."
 });
+
+function getUserPlan(source = window.TEOMARCHI_AUTH_STATE) {
+  const user = source?.user || source;
+  const email = String(user?.email || source?.email || "").toLowerCase();
+  if (email === "teomarchi@teomarchi.com" || source?.isAdmin || source?.role === "admin") return "admin";
+  const raw = String(source?.plan || source?.role || source?.subscriptionRole || "").toLowerCase();
+  if (raw === "agence") return "agency";
+  if (TEOMARCHI_ROLES.includes(raw)) return raw;
+  if (source?.isPremium === true) return "studio";
+  return "free";
+}
+
+function canAccessFeature(feature, source = window.TEOMARCHI_AUTH_STATE) {
+  const plan = getUserPlan(source);
+  const access = PLAN_ACCESS[plan] || PLAN_ACCESS.free;
+  return access.includes("*") || access.includes(feature);
+}
+
+function renderUpgradeGate(feature, targetPlan = "studio") {
+  const plan = targetPlan === "agency" ? "agency" : "studio";
+  return `
+    <div class="tm-upgrade-gate" data-upgrade-plan="${plan}" data-upgrade-feature="${String(feature || "")}">
+      <p class="eyebrow">Accès ${PLAN_LABELS[plan]}</p>
+      <h3>Fonction réservée aux abonnés ${PLAN_LABELS[plan]}.</h3>
+      <p>Votre plan actuel permet la consultation. Passez à ${PLAN_LABELS[plan]} pour activer cette fonction.</p>
+      <button class="text-btn text-btn--primary" type="button" data-checkout-plan="${plan === "agency" ? "agence" : "studio"}">
+        Passer à ${PLAN_LABELS[plan]}
+      </button>
+    </div>
+  `;
+}
+
+const ACQUISITION_PLAYBOOK = Object.freeze([
+  {
+    channel: "LinkedIn",
+    cadence: "2 publications par semaine",
+    action: "Extraits techniques Atlas/Panthéon et visuels premium."
+  },
+  {
+    channel: "Reddit / Discord",
+    cadence: "Veille hebdomadaire",
+    action: "architecture_students, architecture, serveurs d'écoles et retours étudiants."
+  },
+  {
+    channel: "Partenariats écoles",
+    cadence: "Prises de contact ciblées",
+    action: "La Cambre, ENSAV, ENSA Paris et ateliers francophones."
+  },
+  {
+    channel: "Instagram/TikTok",
+    cadence: "Formats courts",
+    action: "Croquis, systèmes constructifs, avant/après et esthétique TEOMARCHI."
+  }
+]);
 
 window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
   document.dispatchEvent(new CustomEvent("teomarchi:open-login"));
@@ -290,9 +392,9 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
               <h3>Créateurs & étudiants</h3>
               <p><span class="landing-price">29€</span> / mois</p>
               <ul>
-                <li>Publication showroom préparée</li>
-                <li>Visibilité portfolio et Feed</li>
-                <li>Outils techniques premium</li>
+                <li>Outils avancés et IA TEOMARCHI</li>
+                <li>Journalier complet et sauvegarde cloud</li>
+                <li>Feed avancé pour suivre les projets</li>
               </ul>
               <button type="button" class="text-btn text-btn--primary" data-checkout-plan="studio">Choisir Studio</button>
             </article>
@@ -301,9 +403,9 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
               <h3>Studios & partenaires</h3>
               <p><span class="landing-price">89€</span> / mois</p>
               <ul>
-                <li>Présence prioritaire dans le Showroom</li>
-                <li>Pages agence et contenus sponsorisés</li>
-                <li>Préparation multi-projets et équipes</li>
+                <li>Publication Showroom et sponsor</li>
+                <li>Multi-projets et analytics agence</li>
+                <li>Visibilité prioritaire pour studios</li>
               </ul>
               <button type="button" class="text-btn text-btn--primary" data-checkout-plan="agence">Choisir Agence</button>
             </article>
@@ -1691,6 +1793,8 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       const active = next.projects[next.activeProjectType];
       if (active) active.updatedAt = new Date().toISOString();
       _ls.set("journalier", next);
+      setSaveStatus("Sauvegarde locale effectuée", "local");
+      saveJournalierCloud(next);
       _emit("journalier");
       return next;
     };
@@ -2109,6 +2213,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
           <h2 style="margin:0;font-family:var(--serif);font-size:clamp(2rem,5vw,3.4rem);font-weight:300;line-height:.96;color:var(--ink)">
             ${_esc(title)}
           </h2>
+          <p id="journalier-save-status" class="tm-save-status" data-save-state="idle">Mode local prêt — Sauvegarde cloud si Firestore disponible</p>
         </div>
         <div id="journalier-progress" class="tm-journalier-progress-central">
           <div style="display:flex;justify-content:space-between;align-items:baseline;gap:1rem;margin-bottom:.55rem">
@@ -5399,6 +5504,108 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     else console.log(message);
   }
 
+  let _journalierCloudTimer = null;
+
+  function setSaveStatus(message, state = "idle") {
+    const el = document.getElementById("journalier-save-status");
+    if (!el) return;
+    el.textContent = message;
+    el.dataset.saveState = state;
+  }
+
+  function saveJournalierCloud(state) {
+    const user = getFirebaseUser();
+    const db = getFirestoreDb();
+    if (!user || !db) {
+      setSaveStatus("Mode local — Firestore indisponible ou utilisateur non connecté", "local");
+      return Promise.resolve(false);
+    }
+
+    if (_journalierCloudTimer) clearTimeout(_journalierCloudTimer);
+    setSaveStatus("Sauvegarde cloud en attente…", "saving");
+
+    return new Promise(resolve => {
+      _journalierCloudTimer = setTimeout(async () => {
+        try {
+          await db.collection("users").doc(user.uid).collection("journalier").doc("state").set({
+            ...state,
+            updatedAt: serverTimestamp()
+          }, { merge: true });
+          setSaveStatus("Sauvegarde cloud effectuée", "saved");
+          resolve(true);
+        } catch (err) {
+          console.warn("Journalier Firestore indisponible :", err);
+          setSaveStatus("Mode local — Firestore indisponible", "local");
+          resolve(false);
+        }
+      }, 450);
+    });
+  }
+
+  function closeLogoutConfirm() {
+    const modal = document.getElementById("logout-confirm-modal");
+    if (!modal) return;
+    modal.classList.remove("is-open");
+    modal.setAttribute("aria-hidden", "true");
+  }
+
+  function openLogoutConfirm() {
+    let modal = document.getElementById("logout-confirm-modal");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "logout-confirm-modal";
+      modal.className = "modal-overlay";
+      modal.setAttribute("aria-hidden", "true");
+      modal.innerHTML = `
+        <div class="modal tm-logout-modal" role="dialog" aria-modal="true" aria-labelledby="logout-confirm-title">
+          <p class="eyebrow">Session</p>
+          <h2 class="modal__title" id="logout-confirm-title">Êtes-vous sûr de vouloir vous déconnecter ?</h2>
+          <p class="muted">Votre session Firebase sera fermée. Les données locales restent conservées sur cet appareil.</p>
+          <div class="tm-logout-actions">
+            <button class="text-btn" type="button" data-logout-cancel>Annuler</button>
+            <button class="text-btn text-btn--primary" type="button" data-logout-confirm>Déconnexion</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+    modal.classList.add("is-open");
+    modal.setAttribute("aria-hidden", "false");
+  }
+
+  async function confirmLogout() {
+    try {
+      const auth = (typeof firebase !== "undefined" && typeof firebase.auth === "function")
+        ? firebase.auth()
+        : null;
+      if (auth?.currentUser) await auth.signOut();
+      if (typeof TEOMARCHI_APP !== "undefined") TEOMARCHI_APP.session.clear();
+      notifyUser("Déconnecté.");
+    } catch (err) {
+      console.error("Erreur déconnexion :", err);
+      notifyUser("Déconnexion impossible pour le moment.");
+    } finally {
+      closeLogoutConfirm();
+    }
+  }
+
+  document.addEventListener("click", e => {
+    const cancel = e.target.closest("[data-logout-cancel]");
+    const confirm = e.target.closest("[data-logout-confirm]");
+    if (!cancel && !confirm) return;
+    e.preventDefault();
+    if (cancel) closeLogoutConfirm();
+    if (confirm) confirmLogout();
+  });
+
+  document.addEventListener("click", e => {
+    const btn = e.target.closest("#session-btn, #profil-session-btn");
+    if (!btn || !getFirebaseUser()) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    openLogoutConfirm();
+  }, true);
+
   function formatFirestoreDate(value) {
     try {
       const date = value?.toDate ? value.toDate() : (value ? new Date(value) : null);
@@ -5706,7 +5913,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       specialties: Array.isArray(data.specialties) ? data.specialties.join(", ") : (data.specialties || ""),
       avatarUrl: data.avatarUrl || user.photoURL || "",
       portfolioUrl: data.portfolioUrl || "",
-      role: data.role || (isTeomarchiAdmin(user) ? "admin" : "user"),
+      role: data.role || (isTeomarchiAdmin(user) ? "admin" : "free"),
       status: data.status || "active"
     };
   }
@@ -5781,6 +5988,11 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
             <input id="profile-avatarUrl" name="avatarUrl" type="url" value="${_esc(p.avatarUrl)}" placeholder="https://...">
           </div>
           <div class="tm-profile-field">
+            <label for="profile-avatar-file">Importer une photo</label>
+            <div class="tm-profile-avatar-preview" data-profile-avatar-preview>${avatar}</div>
+            <input id="profile-avatar-file" name="avatarFile" type="file" accept="image/png,image/jpeg,image/webp">
+          </div>
+          <div class="tm-profile-field">
             <label for="profile-portfolioUrl">Portfolio</label>
             <input id="profile-portfolioUrl" name="portfolioUrl" type="url" value="${_esc(p.portfolioUrl)}" placeholder="https://...">
           </div>
@@ -5792,6 +6004,42 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     `;
   }
 
+  async function uploadProfileAvatar(file, user) {
+    if (!file || !user) return "";
+    if (!String(file.type || "").startsWith("image/")) {
+      notifyUser("Format image invalide.");
+      return "";
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      notifyUser("Image trop lourde : 2 Mo maximum.");
+      return "";
+    }
+
+    try {
+      if (typeof firebase !== "undefined" && typeof firebase.storage === "function") {
+        const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+        const ref = firebase.storage().ref().child(`users/${user.uid}/profile/avatar-${Date.now()}.${ext}`);
+        await ref.put(file);
+        const url = await ref.getDownloadURL();
+        notifyUser("Avatar mis à jour.");
+        return url;
+      }
+    } catch (err) {
+      console.warn("Upload Firebase Storage indisponible :", err);
+      notifyUser("Firebase Storage indisponible, aperçu local utilisé.");
+    }
+
+    return new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        notifyUser("Avatar mis à jour en aperçu local.");
+        resolve(String(reader.result || ""));
+      };
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(file);
+    });
+  }
+
   async function saveProfile(form) {
     const user = getFirebaseUser();
     const db = getFirestoreDb();
@@ -5799,12 +6047,14 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       openLoginPrompt();
       return;
     }
-    if (!db || !form) {
-      notifyUser("Firestore indisponible pour le moment.");
+    if (!form) {
       return;
     }
 
     const data = new FormData(form);
+    const avatarFile = form.querySelector("#profile-avatar-file")?.files?.[0] || null;
+    const uploadedAvatar = avatarFile ? await uploadProfileAvatar(avatarFile, user) : "";
+    const role = getUserPlan(window.TEOMARCHI_AUTH_STATE);
     const profile = {
       displayName: String(data.get("displayName") || compactUserName(user)).trim().slice(0, 80),
       bio: String(data.get("bio") || "").trim().slice(0, 240),
@@ -5813,20 +6063,24 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       city: String(data.get("city") || "").trim().slice(0, 80),
       specialties: String(data.get("specialties") || "")
         .split(",").map(item => item.trim()).filter(Boolean).slice(0, 12),
-      avatarUrl: String(data.get("avatarUrl") || "").trim().slice(0, 500),
+      avatarUrl: String(uploadedAvatar || data.get("avatarUrl") || "").trim().slice(0, 1500),
       portfolioUrl: String(data.get("portfolioUrl") || "").trim().slice(0, 500),
-      role: isTeomarchiAdmin(user) ? "admin" : "user",
-      status: "active",
       email: user.email || "",
       photoURL: user.photoURL || "",
       updatedAt: serverTimestamp()
     };
 
+    if (!db) {
+      try { localStorage.setItem(`teomarchi.profile.${user.uid}`, JSON.stringify(profile)); } catch {}
+      notifyUser("Profil sauvegardé en mode local.");
+      return;
+    }
+
     const ref = db.collection("users").doc(user.uid);
     const snap = await ref.get();
     await ref.set({
       ...profile,
-      ...(snap.exists ? {} : { createdAt: serverTimestamp() })
+      ...(snap.exists ? {} : { role, status: "active", createdAt: serverTimestamp() })
     }, { merge: true });
     notifyUser("Profil sauvegardé.");
   }
@@ -5851,6 +6105,23 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         } finally {
           if (btn) btn.disabled = false;
         }
+      });
+      root.addEventListener("change", e => {
+        const input = e.target.closest("#profile-avatar-file");
+        if (!input?.files?.[0]) return;
+        const file = input.files[0];
+        if (!String(file.type || "").startsWith("image/")) {
+          notifyUser("Format image invalide.");
+          input.value = "";
+          return;
+        }
+        const preview = root.querySelector("[data-profile-avatar-preview]");
+        if (!preview) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          preview.innerHTML = `<img src="${_esc(String(reader.result || ""))}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+        };
+        reader.readAsDataURL(file);
       });
     }
 
@@ -5896,14 +6167,14 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       desc: "L'essentiel pour démarrer un projet et explorer la plateforme.",
       cta: "Commencer",
       features: [
-        { ok: true,  text: "Atlas mondial (lecture seule)"   },
-        { ok: true,  text: "Panthéon — 5 architectes"        },
-        { ok: true,  text: "Normes & villes de base"         },
-        { ok: true,  text: "Chronos — frise lecture"         },
-        { ok: false, text: "Journal de bord illimité"        },
-        { ok: false, text: "Modules Outils &amp; Normes"     },
-        { ok: false, text: "Showroom partenaires"            },
-        { ok: false, text: "Export PDF des livrables"        }
+        { ok: true,  text: "Lecture Atlas, Chronos, Panthéon" },
+        { ok: true,  text: "Normes & villes de base"          },
+        { ok: true,  text: "Écologie pédagogique"             },
+        { ok: false, text: "Sauvegarde cloud"                 },
+        { ok: false, text: "IA TEOMARCHI complète"            },
+        { ok: false, text: "Journalier complet"               },
+        { ok: false, text: "Publication Showroom"             },
+        { ok: false, text: "Analytics agence"                 }
       ]
     },
     {
@@ -5911,14 +6182,14 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       desc: "La suite complète pour l'étudiant en atelier ou l'architecte solo.",
       cta: "Choisir Studio",
       features: [
-        { ok: true, text: "Tout le plan Gratuit"                },
-        { ok: true, text: "Journal de bord illimité + logs"     },
-        { ok: true, text: "Outils — normothèque complète"       },
-        { ok: true, text: "Showroom partenaires prescriptibles" },
-        { ok: true, text: "Calendrier des phases ESQ → PRO"     },
-        { ok: true, text: "Export PDF des livrables"            },
-        { ok: true, text: "Profil public portfolio"             },
-        { ok: false, text: "Multi-projets simultanés (Agence)"  }
+        { ok: true, text: "Tout le plan Free"                 },
+        { ok: true, text: "Outils avancés"                    },
+        { ok: true, text: "Journalier complet"                },
+        { ok: true, text: "IA TEOMARCHI"                      },
+        { ok: true, text: "Sauvegarde cloud"                  },
+        { ok: true, text: "Feed avancé"                       },
+        { ok: false, text: "Publication sponsor Showroom"     },
+        { ok: false, text: "Analytics agence"                 }
       ]
     },
     {
@@ -5927,13 +6198,13 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       cta: "Contacter l'équipe",
       features: [
         { ok: true, text: "Tout le plan Studio"              },
-        { ok: true, text: "Multi-projets simultanés"         },
-        { ok: true, text: "Messagerie collaborative intégrée"},
-        { ok: true, text: "Gestion d'équipe &amp; droits"    },
-        { ok: true, text: "Tableau de bord agence"           },
-        { ok: true, text: "Archivage sécurisé 5 ans"         },
-        { ok: true, text: "Support prioritaire dédié"        },
-        { ok: true, text: "Formations &amp; ateliers on-site"}
+        { ok: true, text: "Publication Showroom"             },
+        { ok: true, text: "Publication sponsor"              },
+        { ok: true, text: "Multi-projets"                    },
+        { ok: true, text: "Analytics agence"                 },
+        { ok: true, text: "Visibilité agence"                },
+        { ok: true, text: "Support prioritaire"              },
+        { ok: true, text: "Espace partenaires"               }
       ]
     }
   ];
@@ -6126,9 +6397,13 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       openLoginPrompt();
       return;
     }
-    if (!window.TEOMARCHI_AUTH_STATE?.isPremium && !isTeomarchiAdmin(user)) {
-      document.getElementById("showroom-premium")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      notifyUser("Publication Showroom réservée aux comptes premium.");
+    if (!canAccessFeature("showroom:publish", window.TEOMARCHI_AUTH_STATE)) {
+      const premium = document.getElementById("showroom-premium");
+      premium?.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (premium && !premium.querySelector("[data-upgrade-feature='showroom:publish']")) {
+        premium.insertAdjacentHTML("beforeend", renderUpgradeGate("showroom:publish", "agency"));
+      }
+      notifyUser("Publication Showroom réservée au plan Agency.");
       return;
     }
     notifyUser("Espace publication Showroom prêt pour la prochaine phase.");
@@ -7906,6 +8181,18 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
           <div id="admin-reported-posts"><p class="tm-feed-empty">Chargement…</p></div>
         </section>
         <section class="tm-adm-section">
+          <h3>Acquisition organique</h3>
+          <div class="tm-acquisition-grid">
+            ${ACQUISITION_PLAYBOOK.map(item => `
+              <article class="tm-acquisition-card">
+                <p class="eyebrow">${escapeHTML(item.channel)}</p>
+                <strong>${escapeHTML(item.cadence)}</strong>
+                <span>${escapeHTML(item.action)}</span>
+              </article>
+            `).join("")}
+          </div>
+        </section>
+        <section class="tm-adm-section">
           <h3>Signalements</h3>
           <div id="admin-reports"><p class="tm-feed-empty">Chargement…</p></div>
         </section>
@@ -8101,6 +8388,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     let _auth        = null;
     let _user        = null;
     let _isPremium   = false;
+    let _userPlan    = "free";
     let _returnMod   = null;
     let _activeTab   = "login";
 
@@ -8476,11 +8764,24 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     /* ── Vérifier isPremium depuis Firestore ────────────────────── */
     async function _checkPremium(user) {
       _isPremium = false;
+      _userPlan = "free";
       if (!user) return;
+      if (user.email === ADMIN_EMAIL) {
+        _userPlan = "admin";
+        _isPremium = true;
+        return;
+      }
       try {
         const doc = await firebase.firestore()
           .collection("users").doc(user.uid).get();
-        _isPremium = doc.exists && doc.data().isPremium === true;
+        const data = doc.exists ? doc.data() : {};
+        _userPlan = getUserPlan({
+          user,
+          role: data.role,
+          plan: data.plan,
+          isPremium: data.isPremium === true || data.premium === true
+        });
+        _isPremium = ["studio", "agency", "moderator", "admin"].includes(_userPlan);
       } catch (_) { /* offline ou règles — pas bloquant */ }
     }
 
@@ -8495,7 +8796,11 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       const adminTab     = document.getElementById("tab-admin");
       const adminDashBtn = document.getElementById("btn-admin-dash");
       const isAdmin      = user?.email === ADMIN_EMAIL;
-      window.TEOMARCHI_AUTH_STATE = { user: user || null, isAdmin, isPremium: _isPremium };
+      const plan         = isAdmin ? "admin" : (_userPlan || "free");
+      document.body.classList.toggle("is-authenticated", !!user);
+      document.body.classList.toggle("is-admin", !!isAdmin);
+      document.body.dataset.userPlan = user ? plan : "free";
+      window.TEOMARCHI_AUTH_STATE = { user: user || null, isAdmin, isPremium: _isPremium, plan, role: plan };
       document.dispatchEvent(new CustomEvent("teomarchi:auth-changed", {
         detail: window.TEOMARCHI_AUTH_STATE
       }));
@@ -8511,7 +8816,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
           displayName: user.displayName || "",
           email:       user.email || "",
           photoURL:    user.photoURL || "",
-          role:        isAdmin ? "Fondateur · Admin" : (_isPremium ? "Membre Premium" : "Utilisateur TEOMARCHI"),
+          role:        isAdmin ? "Admin" : PLAN_LABELS[plan] || "Free",
           grade:       isAdmin ? "★★" : (_isPremium ? "★" : "M"),
           connectedAt: new Date().toISOString()
         });

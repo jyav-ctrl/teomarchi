@@ -892,3 +892,78 @@ test("mobile layout has explicit anti-overflow and panel safeguards", () => {
   assert.match(js, /\.tm-ai-panel[\s\S]*pointer-events:\s*none/);
   assert.match(js, /\.tm-ai-panel\.is-open[\s\S]*pointer-events:\s*auto/);
 });
+
+test("SaaS roles, plans and upgrade gates are product-ready", () => {
+  const js = read("app.js");
+  const rules = read("firestore.rules");
+
+  ["free", "studio", "agency", "moderator", "admin"].forEach(token => {
+    assert.match(js + rules, new RegExp(token));
+  });
+
+  assert.match(js, /const\s+PLAN_ACCESS\s*=/);
+  assert.match(js, /function\s+getUserPlan\s*\(/);
+  assert.match(js, /function\s+canAccessFeature\s*\(/);
+  assert.match(js, /function\s+renderUpgradeGate\s*\(/);
+  assert.match(js, /data-upgrade-plan/);
+  assert.match(js, /admin[\s\S]{0,160}(bypass|contourne|accès à tous les modules)/i);
+  assert.doesNotMatch(js, /TEOMARCHI_ROLES\s*=\s*Object\.freeze\(\["user",\s*"premium"/);
+});
+
+test("auth UX hides signup when connected and confirms logout", () => {
+  const js = read("app.js");
+  const css = read("style.css");
+
+  assert.match(js, /function\s+openLogoutConfirm\s*\(/);
+  assert.match(js, /function\s+confirmLogout\s*\(/);
+  assert.match(js, /Êtes-vous sûr de vouloir vous déconnecter/);
+  assert.match(js, /data-logout-confirm/);
+  assert.match(js, /data-logout-cancel/);
+  assert.match(js, /document\.body\.classList\.toggle\("is-authenticated",\s*!!user\)/);
+  assert.match(css, /body\.is-authenticated[\s\S]*\[data-open-login\][\s\S]*display:\s*none/);
+});
+
+test("profile supports avatar upload with preview and Firebase Storage fallback", () => {
+  const html = read("index.html");
+  const js = read("app.js");
+
+  assert.match(html, /firebase-storage-compat\.js/);
+  assert.match(js, /function\s+uploadProfileAvatar\s*\(/);
+  assert.match(js, /id="profile-avatar-file"/);
+  assert.match(js, /data-profile-avatar-preview/);
+  assert.match(js, /firebase\.storage\(\)/);
+  assert.match(js, /Avatar mis à jour|Photo de profil sauvegardée/);
+});
+
+test("legal copy and landing shell do not expose raw placeholders or empty preparation labels", () => {
+  const html = read("index.html");
+
+  assert.doesNotMatch(html, /\[(VOTRE|ADRESSE|NUM[ÉE]RO|SIRET|EI \/ SASU|NOM DE L'H[ÉE]BERGEUR|URL DE L'H[ÉE]BERGEUR)/i);
+  assert.doesNotMatch(html, /contenu en préparation/i);
+  assert.doesNotMatch(html, /Produits partenaires prescriptibles — contenu en préparation/i);
+});
+
+test("journalier persistence is prepared for Firestore with local fallback and visible save status", () => {
+  const js = read("app.js");
+
+  assert.match(js, /function\s+saveJournalierCloud\s*\(/);
+  assert.match(js, /function\s+setSaveStatus\s*\(/);
+  assert.match(js, /id="journalier-save-status"/);
+  assert.match(js, /collection\("users"\)\.doc\(user\.uid\)\.collection\("journalier"\)/);
+  assert.match(js, /Mode local|Sauvegarde cloud|Firestore indisponible/);
+});
+
+test("admin exposes a simple organic acquisition playbook", () => {
+  const js = read("app.js");
+
+  assert.match(js, /ACQUISITION_PLAYBOOK/);
+  [
+    "LinkedIn",
+    "Reddit / Discord",
+    "Partenariats écoles",
+    "Instagram/TikTok",
+    "La Cambre",
+    "ENSAV",
+    "ENSA Paris"
+  ].forEach(token => assert.match(js, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))));
+});

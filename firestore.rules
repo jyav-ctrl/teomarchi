@@ -11,7 +11,7 @@ service cloud.firestore {
       return signedIn()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
         ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
-        : "user";
+        : "free";
     }
 
     function isAdmin() {
@@ -24,7 +24,7 @@ service cloud.firestore {
     }
 
     function validRole(role) {
-      return role in ["user", "premium", "agency", "moderator", "admin"];
+      return role in ["free", "studio", "agency", "moderator", "admin"];
     }
 
     function validStatus(status) {
@@ -46,7 +46,7 @@ service cloud.firestore {
         && validRole(request.resource.data.role)
         && validStatus(request.resource.data.status)
         && (
-          request.resource.data.role == "user" ||
+          request.resource.data.role == "free" ||
           (request.auth.token.email == "teomarchi@teomarchi.com" && request.resource.data.role == "admin")
         );
       allow update: if signedIn() && (
@@ -57,6 +57,10 @@ service cloud.firestore {
         isAdmin()
       );
       allow delete: if isAdmin();
+
+      match /journalier/{docId} {
+        allow read, write: if signedIn() && (request.auth.uid == userId || isAdmin());
+      }
     }
 
     match /posts/{postId} {

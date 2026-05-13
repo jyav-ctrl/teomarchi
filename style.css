@@ -123,6 +123,89 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+body.is-authenticated [data-open-login] {
+  display: none !important;
+}
+
+.tm-save-status {
+  margin: 0.7rem 0 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tm-save-status[data-save-state="saved"] { color: var(--ok); }
+.tm-save-status[data-save-state="saving"] { color: var(--gold); }
+.tm-save-status[data-save-state="local"] { color: var(--warn); }
+
+.tm-profile-avatar-preview {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: var(--border-gold);
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--gold);
+  font-family: var(--serif);
+  font-size: 1.45rem;
+  margin: 0 0 0.7rem;
+}
+
+.tm-logout-actions,
+.tm-acquisition-grid {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.tm-acquisition-card {
+  flex: 1 1 190px;
+  display: grid;
+  gap: 0.38rem;
+  padding: 1rem;
+  border: var(--border);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--surface-2) 66%, transparent);
+}
+
+.tm-acquisition-card strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.tm-acquisition-card span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.tm-upgrade-gate {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: var(--border-gold);
+  border-radius: var(--r-md);
+  background: radial-gradient(ellipse at 0% 0%, var(--gold-glow), transparent 60%), var(--surface);
+}
+
+.tm-upgrade-gate h3 {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.55rem;
+  font-weight: 300;
+}
+
+.tm-upgrade-gate p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
 /* Grille de fond subtile */
 body::before {
   content: "";
