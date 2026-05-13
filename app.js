@@ -16,7 +16,8 @@ const ENABLE_DEMO_DATA = false;
   Firebase Authorized Domains, des Firestore Rules et des règles Auth.
   ne jamais mettre sk_live, ne jamais mettre sk_test, service account, webhook secret, whsec,
   token GitHub ou clé privée dans ce fichier. Stripe Checkout doit utiliser
-  des Price IDs publics ou, idéalement, une Cloud Function pour créer la session.
+  des Payment Links publics côté client, ou une Cloud Function pour créer
+  une session Checkout si des Price IDs sont réintroduits plus tard.
 */
 window.TEOMARCHI_CONFIG = window.TEOMARCHI_CONFIG || {
   firebase: {
@@ -31,15 +32,23 @@ window.TEOMARCHI_CONFIG = window.TEOMARCHI_CONFIG || {
   stripe: {
     publishableKey: "pk_live_51TUEOL3WxFY8ACg4Vy8sPX1sGHjMa6FW3vU5zWzaTFcNmb2dEG3wdFr3WLDaoptcuIobqe5GdJMyc3PbbdCWUOYc004byVd23R",
     priceIds: {
-      studio: "id_de_ton_produit_stripe",
-      agence: "id_de_ton_produit_stripe_agence"
+      studio: "",
+      agence: ""
     },
     paymentLinks: {
-      studio: "https://buy.stripe.com/4gMaEQ7S72TD1YM8Sg1RC04",
-      agence: "https://buy.stripe.com/4gM6oAegvfGp9re3xW1RC02"
+      studio: "https://buy.stripe.com/3cIbIUegv65P7j6d8w1RC06",
+      agence: "https://buy.stripe.com/5kQ28ka0f3XHeLy7Oc1RC05"
     }
   }
 };
+
+const TEOMARCHI_ROLES = Object.freeze(["user", "premium", "agency", "moderator", "admin"]);
+const USER_STATUS = Object.freeze(["active", "suspended", "deleted"]);
+window.TEOMARCHI_SECURITY_MODEL = Object.freeze({
+  roles: TEOMARCHI_ROLES,
+  status: USER_STATUS,
+  note: "Sécurité critique à appliquer via Firestore Rules ou Cloud Functions, jamais uniquement côté front."
+});
 
 window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
   document.dispatchEvent(new CustomEvent("teomarchi:open-login"));
@@ -56,14 +65,17 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
 
     const MODULES = [
       /* ── Modules dans la sidebar ── */
+      { id: "accueil",    label: "Accueil"    },
       { id: "atlas",      label: "Atlas"      },
       { id: "chronos",    label: "Chronos"    },
       { id: "pantheon",   label: "Panthéon"   },
-      { id: "fiches",     label: "Fiches"     },
+      { id: "fiches",     label: "Normes"     },
       { id: "etudes",     label: "Études"     },
       { id: "outils",     label: "Outils"     },
+      { id: "ecologie",   label: "Écologie"   },
       { id: "journalier", label: "Journalier" },
       { id: "showroom",   label: "Showroom"   },
+      { id: "contact",    label: "Contact"    },
       { id: "feed",       label: "Feed"       },
       /* ── Modules accédés via la navbar (hors sidebar) ── */
       { id: "profil",     label: "Profil",     noSidebar: true },
@@ -73,14 +85,17 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
 
     /* Icônes SVG par module */
     const MODULE_ICONS = {
+      accueil:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10.5V20h14v-9.5"/><path d="M9 20v-6h6v6"/></svg>`,
       atlas:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c-2.5 3-4 5.5-4 9s1.5 6 4 9M12 3c2.5 3 4 5.5 4 9s-1.5 6-4 9"/></svg>`,
       chronos:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>`,
       pantheon:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18M5 20V10M19 20V10M9 20V10M15 20V10M12 4l8 6H4l8-6z"/></svg>`,
-      fiches:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg>`,
+      fiches:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s6-5.2 6-11a6 6 0 1 0-12 0c0 5.8 6 11 6 11z"/><circle cx="12" cy="10" r="2.2"/><path d="M4 21h16"/></svg>`,
       etudes:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`,
       outils:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`,
+      ecologie:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22c4.5-3.5 7-7.5 7-12.5A6.5 6.5 0 0 0 12 3a6.5 6.5 0 0 0-7 6.5C5 14.5 7.5 18.5 12 22z"/><path d="M9 11c2.8-.2 4.8-1.6 6-4"/><path d="M12 22V10"/></svg>`,
       journalier: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>`,
       showroom:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1.5"/></svg>`,
+      contact:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/><path d="M8 20h8"/></svg>`,
       feed:       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`,
       profil:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>`,
       messagerie: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,12 2,6"/></svg>`,
@@ -88,8 +103,8 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     };
 
     const METRICS = [
-      { value: "10", label: "Modules"        },
-      { value: "6",  label: "Fiches matières"},
+      { value: "12", label: "Modules"        },
+      { value: "30", label: "Villes normées" },
       { value: "5",  label: "Phases PRO"     },
       { value: "1",  label: "Bouclier légal" }
     ];
@@ -115,8 +130,55 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       String(str ?? "").toLowerCase()
         .normalize("NFD").replace(/[̀-ͯ]/g, "");
 
+    const escapeHTML = value => String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
     /* ── État ─────────────────────────────────────────────────── */
     let currentModule = "atlas";
+    let aiBooted = false;
+
+    const SPONSOR_DECK_SECTIONS = [
+      {
+        title: "TEOMARCHI en une phrase",
+        body: "Une infrastructure numérique architecturale pour apprendre, concevoir, comparer et publier avec plus de méthode."
+      },
+      {
+        title: "Vision",
+        body: "Rendre l’architecture plus accessible, plus technique et plus humaine, avec une plateforme sobre, évolutive et utile aux ateliers."
+      },
+      {
+        title: "Modules",
+        body: "Atlas, Chronos, Panthéon, Outils, Normes & Villes, Écologie, Journalier, Feed et Showroom."
+      },
+      {
+        title: "Audience",
+        body: "Étudiants, écoles, agences, architectes d’intérieur, designers, marques matériaux, mobilier, BIM et habitat."
+      },
+      {
+        title: "Offres sponsor",
+        body: "sponsoring showroom, sponsoring module, soutien développement, licences logicielles, matériel, collaborations écoles/agences."
+      },
+      {
+        title: "Contact",
+        body: "Contact direct pour proposer un partenariat, devenir sponsor ou échanger avec Jonathan Yav."
+      }
+    ];
+
+    const AI_NAME_CANDIDATES = ["Aster", "Axia", "Lithia"];
+    const AI_DEFAULT_NAME = "Lithia";
+    const AI_LIMIT_MESSAGE = "L’IA TEOMARCHI fournit une aide pédagogique. Les choix techniques doivent être vérifiés selon les normes locales, le contexte du projet et les professionnels compétents.";
+    const AI_PRIVACY_NOTE = "Confidentialité : ne pas entrer d’informations confidentielles, de données personnelles sensibles, de secrets de projet ou de documents privés.";
+    const AI_QUICK_PROMPTS = [
+      "Quel matériau pour un climat humide ?",
+      "Comment améliorer l’inertie thermique ?",
+      "Quelle toiture pour la Belgique ?",
+      "Quel système constructif bas-carbone ?",
+      "Aide-moi à organiser mon projet."
+    ];
 
     /* ── Thème ────────────────────────────────────────────────── */
     function applyTheme (theme) {
@@ -168,14 +230,593 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       ).join("");
     }
 
+    function initLandingSections () {
+      const root = $("#landing-sections");
+      if (!root || root.dataset.loaded === "landing") return;
+      root.dataset.loaded = "landing";
+      root.innerHTML = `
+        <section class="landing-band landing-band--split">
+          <div>
+            <p class="landing-kicker">Créateur & intention</p>
+            <h2 class="landing-title">Une infrastructure de conception.</h2>
+          </div>
+          <div class="landing-card">
+            <h3>Jonathan YAV, étudiant en architecture</h3>
+            <p>
+              TEOMARCHI naît d'un besoin concret d'atelier : rendre l'architecture plus lisible,
+              mieux structurée et plus accessible, sans perdre l'exigence technique du projet.
+            </p>
+            <p>
+              La plateforme connecte références, outils, journal de projet, communauté, profils,
+              partenaires et futurs espaces de publication dans un même environnement sobre.
+            </p>
+          </div>
+        </section>
+
+        <section class="landing-band">
+          <div>
+            <p class="landing-kicker">Modules principaux</p>
+            <h2 class="landing-title">Une bibliothèque active pour concevoir.</h2>
+          </div>
+          <div class="landing-modules-grid">
+            ${[
+              ["Atlas", "Géographie des systèmes constructifs, climats, matières et leçons contemporaines.", "atlas"],
+              ["Chronos", "Frise matière-époque pour comprendre l'évolution technique de l'espace.", "chronos"],
+              ["Journalier", "Pilotage de projet : tâches, deadlines, calendrier, progression et notes.", "journalier"],
+              ["Feed", "Espace social architectural protégé contre le plagiat et pensé pour les rendus.", "feed"],
+              ["Showroom", "Galerie premium pour mobilier, matériaux, agences, sponsors et jeunes créateurs.", "showroom"]
+            ].map(([name, desc, nav]) => `
+              <article class="landing-card" role="button" tabindex="0" data-nav="${nav}">
+                <p class="landing-kicker">${name}</p>
+                <h3>${name}</h3>
+                <p>${desc}</p>
+              </article>
+            `).join("")}
+          </div>
+        </section>
+
+        <section class="landing-band">
+          <div>
+            <p class="landing-kicker">Offres premium</p>
+            <h2 class="landing-title">Publier, prescrire, se rendre visible.</h2>
+            <p class="landing-copy">
+              Les abonnements préparent l'accès aux outils avancés, au Showroom, à la publication,
+              aux mises en avant et aux futurs espaces professionnels.
+            </p>
+          </div>
+          <div class="landing-premium-grid">
+            <article class="landing-card">
+              <p class="landing-kicker">Studio</p>
+              <h3>Créateurs & étudiants</h3>
+              <p><span class="landing-price">29€</span> / mois</p>
+              <ul>
+                <li>Publication showroom préparée</li>
+                <li>Visibilité portfolio et Feed</li>
+                <li>Outils techniques premium</li>
+              </ul>
+              <button type="button" class="text-btn text-btn--primary" data-checkout-plan="studio">Choisir Studio</button>
+            </article>
+            <article class="landing-card">
+              <p class="landing-kicker">Agence</p>
+              <h3>Studios & partenaires</h3>
+              <p><span class="landing-price">89€</span> / mois</p>
+              <ul>
+                <li>Présence prioritaire dans le Showroom</li>
+                <li>Pages agence et contenus sponsorisés</li>
+                <li>Préparation multi-projets et équipes</li>
+              </ul>
+              <button type="button" class="text-btn text-btn--primary" data-checkout-plan="agence">Choisir Agence</button>
+            </article>
+          </div>
+        </section>
+
+        <section class="landing-status">
+          <div>
+            <p class="landing-kicker">État du projet</p>
+            <h2 class="landing-title">Plateforme en développement actif.</h2>
+            <p class="landing-copy">
+              TEOMARCHI se construit comme une future plateforme architecturale mondiale :
+              culturelle, technique, communautaire et ouverte aux collaborations.
+            </p>
+          </div>
+          <div class="landing-status__mark" aria-hidden="true">A</div>
+        </section>
+
+        <section class="landing-band">
+          <div>
+            <p class="landing-kicker">Contact & réseaux</p>
+            <h2 class="landing-title">Collaboration, Sponsors, Communauté.</h2>
+          </div>
+          <div class="landing-contact-grid">
+            <article class="landing-card">
+              <h3>Contact</h3>
+              <p>Pour toute question, collaboration, support ou partenariat.</p>
+              <a href="mailto:teomarchi@teomarchi.com" class="text-btn">teomarchi@teomarchi.com</a>
+            </article>
+            <article class="landing-card">
+              <h3>Futurs sponsors</h3>
+              <p>Matériaux, mobilier, BIM, écoles, studios, marques design et services créatifs.</p>
+              <button type="button" class="text-btn" data-nav="showroom">Découvrir le Showroom</button>
+            </article>
+            <article class="landing-card">
+              <h3>Communauté</h3>
+              <p>Étudiants, designers, agences, enseignants et créateurs liés à l'habitat.</p>
+              <button type="button" class="text-btn" data-nav="feed">Voir le Feed</button>
+            </article>
+            <article class="landing-card">
+              <h3>IA TEOMARCHI</h3>
+              <p>Lithia accompagne les choix de matériaux, systèmes constructifs, écologie et organisation de projet.</p>
+              <button type="button" class="text-btn" data-ai-open>Ouvrir Lithia</button>
+            </article>
+          </div>
+        </section>
+      `;
+    }
+
+    function initContactSponsors () {
+      const root = $("#contact-layout");
+      if (!root) return;
+      if (root.dataset.loaded === "contact-sponsors") return;
+      root.dataset.loaded = "contact-sponsors";
+
+      root.innerHTML = `
+        <div class="tm-contact">
+          <section class="tm-contact-hero">
+            <div>
+              <p class="landing-kicker">Contact & Sponsors</p>
+              <h3>Collaborer avec TEOMARCHI</h3>
+              <p>
+                TEOMARCHI rassemble apprentissage architectural, culture constructive,
+                outils techniques, écologie, publication et Showroom premium. Cette page
+                prépare les partenariats avec marques, écoles, agences, designers,
+                studios et sponsors liés à l’habitat.
+              </p>
+            </div>
+            <div class="tm-contact-actions">
+              <a class="text-btn text-btn--gold" href="mailto:teomarchi@teomarchi.com?subject=Partenariat%20TEOMARCHI">
+                Proposer un partenariat
+              </a>
+              <a class="text-btn" href="mailto:teomarchi@teomarchi.com?subject=Contact%20Jonathan%20Yav">
+                Contacter Jonathan Yav
+              </a>
+              <a class="text-btn" href="mailto:teomarchi@teomarchi.com?subject=Devenir%20sponsor%20TEOMARCHI">
+                Devenir sponsor
+              </a>
+            </div>
+          </section>
+
+          <section class="tm-contact-grid">
+            <article class="landing-card">
+              <p class="landing-kicker">Vision</p>
+              <h3>Une plateforme architecturale en construction active.</h3>
+              <p>
+                Le projet vise une bibliothèque technique, un atelier numérique,
+                un réseau social spécialisé et une galerie partenaire haut de gamme.
+              </p>
+            </article>
+            <article class="landing-card">
+              <p class="landing-kicker">Audience cible</p>
+              <h3>Étudiants, agences, écoles et marques.</h3>
+              <p>
+                TEOMARCHI parle aux créateurs de l’habitat : architecture, urbanisme,
+                design d’espace, matériaux, mobilier, BIM, écoconstruction et édition.
+              </p>
+            </article>
+            <article class="landing-card">
+              <p class="landing-kicker">Partenariats recherchés</p>
+              <h3>Visibilité sobre, utile et non intrusive.</h3>
+              <p>
+                sponsoring showroom, sponsoring module, soutien développement,
+                licences logicielles, matériel, collaborations écoles/agences.
+              </p>
+            </article>
+          </section>
+
+          <section class="tm-contact-deck">
+            <div>
+              <p class="landing-kicker">Sponsor Deck</p>
+              <h3>Base exportable pour un futur dossier sponsor.</h3>
+            </div>
+            <div class="tm-contact-deck__grid">
+              ${SPONSOR_DECK_SECTIONS.map(section => `
+                <article class="tm-contact-deck__card">
+                  <span>${escapeHTML(section.title)}</span>
+                  <p>${escapeHTML(section.body)}</p>
+                </article>
+              `).join("")}
+            </div>
+          </section>
+
+          <section class="tm-contact-links">
+            <article>
+              <span>Email</span>
+              <a href="mailto:teomarchi@teomarchi.com">teomarchi@teomarchi.com</a>
+            </article>
+            <article>
+              <span>Instagram</span>
+              <p>Placeholder officiel à connecter</p>
+            </article>
+            <article>
+              <span>LinkedIn</span>
+              <p>Placeholder officiel à connecter</p>
+            </article>
+            <article>
+              <span>Site officiel</span>
+              <p>Placeholder domaine TEOMARCHI</p>
+            </article>
+          </section>
+        </div>
+      `;
+    }
+
+    function injectAICSS () {
+      if (document.getElementById("tm-ai-css")) return;
+      const style = document.createElement("style");
+      style.id = "tm-ai-css";
+      style.textContent = `
+        .tm-ai-panel {
+          position: fixed;
+          inset: 0;
+          z-index: 9990;
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
+          transition: opacity .24s ease, visibility .24s ease;
+        }
+        .tm-ai-panel.is-open {
+          opacity: 1;
+          visibility: visible;
+          pointer-events: auto;
+        }
+        .tm-ai-panel__scrim {
+          position: absolute;
+          inset: 0;
+          background: rgba(0,0,0,.42);
+          backdrop-filter: blur(6px);
+        }
+        .tm-ai-panel__sheet {
+          position: absolute;
+          top: 0;
+          right: 0;
+          width: min(440px, calc(100vw - 1rem));
+          height: 100dvh;
+          display: grid;
+          grid-template-rows: auto 1fr auto;
+          gap: 0;
+          background: color-mix(in srgb, var(--surface) 94%, var(--bg));
+          border-left: var(--border-gold);
+          box-shadow: -28px 0 80px rgba(0,0,0,.34);
+          transform: translateX(105%);
+          transition: transform .28s ease;
+        }
+        .tm-ai-panel.is-open .tm-ai-panel__sheet { transform: translateX(0); }
+        .tm-ai-panel__head,
+        .tm-ai-panel__form {
+          padding: 1rem;
+          border-bottom: var(--border);
+        }
+        .tm-ai-panel__form { border-top: var(--border); border-bottom: 0; }
+        .tm-ai-panel__head {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: .8rem;
+        }
+        .tm-ai-panel__head h3 {
+          margin: .2rem 0 0;
+          font-family: var(--serif);
+          font-size: clamp(1.45rem, 4vw, 2rem);
+          font-weight: 300;
+        }
+        .tm-ai-panel__messages {
+          min-width: 0;
+          overflow-y: auto;
+          padding: 1rem;
+          display: grid;
+          align-content: start;
+          gap: .8rem;
+        }
+        .tm-ai-msg {
+          border: var(--border);
+          border-radius: 16px;
+          padding: .85rem;
+          background: color-mix(in srgb, var(--surface-2) 80%, transparent);
+          color: var(--ink);
+        }
+        .tm-ai-msg--user {
+          margin-left: auto;
+          max-width: 88%;
+          border-color: rgba(201,169,110,.34);
+          background: rgba(201,169,110,.12);
+        }
+        .tm-ai-msg p { margin: .35rem 0 0; color: var(--muted); }
+        .tm-ai-suggestions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: .45rem;
+          margin-top: .75rem;
+        }
+        .tm-ai-suggestions button,
+        .tm-ai-panel__form button {
+          min-height: 40px;
+        }
+        .tm-ai-panel__form {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: .6rem;
+        }
+        .tm-ai-panel__form input {
+          min-width: 0;
+          width: 100%;
+          border: var(--border);
+          border-radius: 999px;
+          background: var(--surface-2);
+          color: var(--ink);
+          padding: .85rem 1rem;
+          outline: none;
+        }
+        @media (max-width: 720px) {
+          .tm-ai-panel__sheet {
+            width: 100vw;
+            border-left: 0;
+          }
+          .tm-ai-panel__form {
+            grid-template-columns: 1fr;
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    function renderAIIntro () {
+      const messages = $("#tm-ai-messages");
+      if (!messages) return;
+      messages.innerHTML = `
+        <article class="tm-ai-msg">
+          <strong>${AI_DEFAULT_NAME}, IA TEOMARCHI</strong>
+          <p>
+            J’aide sur les matériaux, systèmes constructifs, écologie, organisation de projet,
+            références Atlas/Chronos/Panthéon, Outils et Normes. ${AI_LIMIT_MESSAGE}
+          </p>
+          <p>${AI_PRIVACY_NOTE}</p>
+          <div class="tm-ai-suggestions">
+            ${AI_QUICK_PROMPTS.map(prompt => `
+              <button class="chip" type="button" data-ai-suggestion="${escapeHTML(prompt)}">${escapeHTML(prompt)}</button>
+            `).join("")}
+          </div>
+        </article>
+      `;
+    }
+
+    function initTeomarchiAI () {
+      if (aiBooted) return;
+      aiBooted = true;
+      injectAICSS();
+      if (!$("#teomarchi-ai-panel")) {
+        const panel = document.createElement("aside");
+        panel.id = "teomarchi-ai-panel";
+        panel.className = "tm-ai-panel";
+        panel.setAttribute("aria-hidden", "true");
+        panel.innerHTML = `
+          <div class="tm-ai-panel__scrim" data-ai-close></div>
+          <section class="tm-ai-panel__sheet" role="dialog" aria-modal="true" aria-labelledby="tm-ai-title">
+            <header class="tm-ai-panel__head">
+              <div>
+                <p class="landing-kicker">Assistant architectural</p>
+                <h3 id="tm-ai-title">${AI_DEFAULT_NAME}</h3>
+              </div>
+              <button class="icon-btn" type="button" data-ai-close aria-label="Fermer l’IA">×</button>
+            </header>
+            <div class="tm-ai-panel__messages" id="tm-ai-messages"></div>
+            <form class="tm-ai-panel__form" data-ai-form>
+              <input id="tm-ai-input" name="message" type="text" maxlength="520"
+                     autocomplete="off" placeholder="Question architecture, matière, écologie..." data-ai-input>
+              <button class="text-btn text-btn--gold" type="submit" data-ai-submit>Envoyer</button>
+            </form>
+          </section>
+        `;
+        document.body.appendChild(panel);
+      }
+      renderAIIntro();
+      $("#ai-panel-btn")?.addEventListener("click", e => {
+        e.preventDefault();
+        openAIPanel();
+      }, { once: false });
+    }
+
+    function openAIPanel () {
+      initTeomarchiAI();
+      const panel = $("#teomarchi-ai-panel");
+      if (!panel) return;
+      panel.classList.add("is-open");
+      panel.removeAttribute("aria-hidden");
+      panel.style.display = "block";
+      panel.style.position = "fixed";
+      panel.style.inset = "0";
+      panel.style.width = "100vw";
+      panel.style.height = "100vh";
+      panel.style.zIndex = "9990";
+      panel.style.background = "rgba(0, 0, 0, 0.42)";
+      panel.style.opacity = "1";
+      panel.style.visibility = "visible";
+      panel.style.pointerEvents = "auto";
+      const sheet = $(".tm-ai-panel__sheet", panel);
+      if (sheet) {
+        sheet.style.position = "absolute";
+        sheet.style.display = "grid";
+        sheet.style.top = "0";
+        sheet.style.right = "0";
+        sheet.style.width = "440px";
+        sheet.style.maxWidth = "calc(100vw - 1rem)";
+        sheet.style.height = "100vh";
+        sheet.style.background = "var(--surface)";
+        sheet.style.transform = "translateX(0)";
+      }
+      document.body.classList.add("has-open-panel");
+      $("#tm-ai-input")?.focus({ preventScroll: true });
+    }
+
+    function closeAIPanel () {
+      const panel = $("#teomarchi-ai-panel");
+      if (!panel) return;
+      panel.classList.remove("is-open");
+      panel.setAttribute("aria-hidden", "true");
+      panel.style.display = "";
+      panel.style.position = "";
+      panel.style.inset = "";
+      panel.style.width = "";
+      panel.style.height = "";
+      panel.style.zIndex = "";
+      panel.style.background = "";
+      panel.style.opacity = "";
+      panel.style.visibility = "";
+      panel.style.pointerEvents = "";
+      const sheet = $(".tm-ai-panel__sheet", panel);
+      if (sheet) {
+        sheet.style.position = "";
+        sheet.style.display = "";
+        sheet.style.top = "";
+        sheet.style.right = "";
+        sheet.style.width = "";
+        sheet.style.maxWidth = "";
+        sheet.style.height = "";
+        sheet.style.background = "";
+        sheet.style.transform = "";
+      }
+      document.body.classList.remove("has-open-panel");
+    }
+
+    function sanitizeAIInput (value) {
+      return String(value ?? "")
+        .replace(/[<>]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 520);
+    }
+
+    function guardAIResponseDomain (message) {
+      const normalized = normalize(message);
+      const suspicious = /(secret|cle privee|cle api|api key|sk_live|sk_test|webhook|whsec|service account|code source|firebase config|token github|prompt injection|ignore previous|system prompt)/i;
+      if (suspicious.test(normalized)) {
+        return {
+          allowed: false,
+          eventType: "demande de secrets ou code source / prompt injection",
+          severity: "high",
+          reply: "Je ne peux pas aider à obtenir des secrets, du code source privé, des clés, des tokens ou contourner les règles de l’assistant."
+        };
+      }
+
+      const domain = /(architecture|habitat|materiau|matériau|beton|béton|bois|acier|verre|pierre|terre|climat|ecologie|écologie|toiture|isolation|ventilation|inertie|structure|constructif|projet|atelier|plan|norme|pmr|urbanisme|ville|atlas|chronos|pantheon|panthéon|showroom|journalier|fiches|outils|belgique|france|maroc|japon|norvege|norvège|canada|chaud|humide|froid|bas-carbone)/i;
+      if (!domain.test(normalized)) {
+        return {
+          allowed: false,
+          eventType: "hors domaine architecture",
+          severity: "low",
+          reply: "Je reste centrée sur l’architecture, l’habitat, les matériaux, l’écologie, les normes, le projet et la culture constructive."
+        };
+      }
+
+      return { allowed: true };
+    }
+
+    function appendAIMessage (content, type = "assistant") {
+      const messages = $("#tm-ai-messages");
+      if (!messages) return;
+      const item = document.createElement("article");
+      item.className = `tm-ai-msg${type === "user" ? " tm-ai-msg--user" : ""}`;
+      item.innerHTML = type === "user"
+        ? `<strong>Vous</strong><p>${escapeHTML(content)}</p>`
+        : `<strong>${AI_DEFAULT_NAME}</strong><p>${escapeHTML(content)}</p>`;
+      messages.appendChild(item);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function getLocalArchitectureAnswer (message) {
+      const q = normalize(message);
+      if (q.includes("belgique") || q.includes("toiture")) {
+        return "Pour la Belgique : privilégier une enveloppe continue, isolation forte, gestion des ponts thermiques, ventilation contrôlée, toiture isolée et ventilée. Les matériaux courants restent brique, bois, isolants biosourcés et réemploi selon contexte.";
+      }
+      if (q.includes("humide")) {
+        return "En climat humide : protéger les parois de l’eau, ventiler correctement, éviter les parois non respirantes mal conçues, travailler les débords, drainage, ventilation et matériaux compatibles avec l’humidité.";
+      }
+      if (q.includes("inertie")) {
+        return "Pour améliorer l’inertie thermique : placer de la masse utile côté intérieur, limiter les surchauffes par protection solaire, ventiler la nuit si le climat le permet et associer matériaux lourds avec isolation continue.";
+      }
+      if (q.includes("bas-carbone") || q.includes("carbone")) {
+        return "Un système bas-carbone commence par sobriété, réemploi, bois/CLT si pertinent, terre crue, isolants biosourcés, préfabrication raisonnée et limitation des portées inutiles.";
+      }
+      if (q.includes("organiser") || q.includes("projet")) {
+        return "Structure le projet en phases : intention, références, contraintes, esquisses, système constructif, calendrier, checklist, rendus et revue. Le module Journalier sert à piloter tâches, deadlines et avancement.";
+      }
+      if (q.includes("maroc") || q.includes("chaud")) {
+        return "Pour climat chaud : inertie thermique, patios, ombre, ventilation naturelle, terre crue ou pierre selon ressources, couleurs claires, protections solaires et limitation des gains directs.";
+      }
+      return "Je peux orienter la réponse avec Atlas, Chronos, Panthéon, Outils, Normes & Villes et Écologie. Précise le pays, le climat, le matériau ou le type de projet pour obtenir une recommandation plus ciblée.";
+    }
+
+    function getAIAdminDiagnostics () {
+      const user = window.TEOMARCHI_AUTH_STATE?.user || null;
+      const userEmail = String(user?.email || "").toLowerCase();
+      if (userEmail === ADMIN_EMAIL) {
+        return [
+          "Diagnostic admin TEOMARCHI : accès autorisé.",
+          `Modules déclarés : ${MODULES.map(m => m.id).join(", ")}.`,
+          `Stripe Studio : ${window.TEOMARCHI_CONFIG?.stripe?.paymentLinks?.studio || "manquant"}.`,
+          `Stripe Agence : ${window.TEOMARCHI_CONFIG?.stripe?.paymentLinks?.agence || "manquant"}.`,
+          "Actions destructives non disponibles depuis cette commande front."
+        ].join(" ");
+      }
+      logSecurityEvent("commande admin refusee", "/teo-admin", "medium");
+      return "Commande admin refusée. /teo-admin est réservé à l’admin principal connecté.";
+    }
+
+    function logSecurityEvent (eventType, message, severity = "low") {
+      try {
+        const user = window.TEOMARCHI_AUTH_STATE?.user || null;
+        if (!user || typeof getFirestoreDb !== "function") return;
+        const db = getFirestoreDb();
+        if (!db) return;
+        db.collection("securityLogs").add({
+          userId: user.uid,
+          email: user.email || "",
+          eventType,
+          message: String(message || "").slice(0, 300),
+          severity,
+          createdAt: typeof firebase !== "undefined" && firebase.firestore
+            ? firebase.firestore.FieldValue.serverTimestamp()
+            : new Date().toISOString()
+        }).catch(() => {});
+      } catch {}
+    }
+
+    function handleAIMessage (rawMessage) {
+      const message = sanitizeAIInput(rawMessage);
+      if (!message) return;
+      appendAIMessage(message, "user");
+
+      if (message === "/teo-admin") {
+        appendAIMessage(getAIAdminDiagnostics(), "assistant");
+        return;
+      }
+
+      const guard = guardAIResponseDomain(message);
+      if (!guard.allowed) {
+        logSecurityEvent(guard.eventType, message, guard.severity);
+        appendAIMessage(guard.reply, "assistant");
+        return;
+      }
+
+      appendAIMessage(getLocalArchitectureAnswer(message), "assistant");
+    }
+
     /* ── Navigation ───────────────────────────────────────────── */
     function resolveHash () {
       const hash = location.hash.replace("#", "").trim();
-      return MODULES.some(m => m.id === hash) ? hash : "atlas";
+      return MODULES.some(m => m.id === hash) ? hash : "accueil";
     }
 
     function navigateTo (moduleId, pushHistory = true) {
-      if (!MODULES.some(m => m.id === moduleId)) moduleId = "atlas";
+      if (!MODULES.some(m => m.id === moduleId)) moduleId = "accueil";
       currentModule = moduleId;
 
       /* Modules : afficher le courant, masquer les autres */
@@ -183,11 +824,8 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         section.classList.toggle("is-active", section.dataset.module === moduleId);
       });
 
-      /* Hero visible uniquement sur Atlas */
-      const hero = $("#hero");
-      if (hero) hero.style.display = moduleId === "atlas" ? "" : "none";
-
       syncTabs(moduleId);
+      if (moduleId === "contact") initContactSponsors();
 
       if (pushHistory && location.hash !== "#" + moduleId) {
         history.pushState(null, "", "#" + moduleId);
@@ -269,7 +907,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       if (!modMatches.length && !userMatches.length) {
         results.innerHTML = `<div class="result-item">
           <strong>Aucun résultat</strong>
-          <span>Essayez : Atlas, Chronos, Fiches, PMR…</span>
+          <span>Essayez : Atlas, Chronos, Normes, PMR…</span>
         </div>`;
       } else {
         results.innerHTML =
@@ -323,6 +961,40 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         if (legalClose) {
           e.preventDefault();
           closeLegalSlider();
+          return;
+        }
+
+        const aiOpen = e.target.closest("[data-ai-open]");
+        if (aiOpen) {
+          e.preventDefault();
+          openAIPanel();
+          return;
+        }
+
+        const aiClose = e.target.closest("[data-ai-close]");
+        if (aiClose) {
+          e.preventDefault();
+          closeAIPanel();
+          return;
+        }
+
+        const aiSuggestion = e.target.closest("[data-ai-suggestion]");
+        if (aiSuggestion) {
+          e.preventDefault();
+          const input = $("#tm-ai-input");
+          if (input) input.value = aiSuggestion.dataset.aiSuggestion || "";
+          handleAIMessage(aiSuggestion.dataset.aiSuggestion || "");
+          return;
+        }
+
+        const aiSubmit = e.target.closest("[data-ai-submit]");
+        if (aiSubmit) {
+          e.preventDefault();
+          const form = aiSubmit.closest("[data-ai-form]");
+          const input = form?.querySelector("[data-ai-input]");
+          const value = input?.value || "";
+          if (input) input.value = "";
+          handleAIMessage(value);
           return;
         }
 
@@ -389,6 +1061,16 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       /* Recherche */
       $("#global-search")?.addEventListener("input", handleSearch);
 
+      document.addEventListener("submit", e => {
+        const form = e.target.closest("[data-ai-form]");
+        if (!form) return;
+        e.preventDefault();
+        const input = form.querySelector("[data-ai-input]");
+        const value = input?.value || "";
+        if (input) input.value = "";
+        handleAIMessage(value);
+      });
+
       /* Fermer résultats au clic hors recherche */
       document.addEventListener("click", e => {
         if (!e.target.closest(".search-wrap"))
@@ -403,7 +1085,10 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       /* Navigation navigateur arrière/avant */
       window.addEventListener("popstate", () => navigateTo(resolveHash(), false));
       window.addEventListener("keydown", e => {
-        if (e.key === "Escape") closeLegalSlider();
+        if (e.key === "Escape") {
+          closeLegalSlider();
+          closeAIPanel();
+        }
       });
     }
 
@@ -468,6 +1153,8 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       run("applyTheme",   () => applyTheme(store.get(STORAGE.theme, "dark")));
       run("buildTabs",    buildTabs);
       run("buildMetrics", buildMetrics);
+      run("landing",      initLandingSections);
+      run("teomarchiAI",  initTeomarchiAI);
       run("syncSession",  syncSessionBtn);
       run("navigate",     () => navigateTo(resolveHash(), false));
       run("bindEvents",   bindEvents);
@@ -476,6 +1163,11 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
 
     window.navigateTo  = navigateTo;
     window.toggleTheme = toggleTheme;
+    window.TEOMARCHI_AI = {
+      open: openAIPanel,
+      close: closeAIPanel,
+      ask: handleAIMessage
+    };
 
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", init);
@@ -500,6 +1192,12 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         display: grid;
         gap: 1rem;
         isolation: isolate;
+      }
+      .tm-journalier-workbench {
+        background:
+          linear-gradient(90deg, rgba(245,245,241,.025) 1px, transparent 1px),
+          linear-gradient(rgba(245,245,241,.02) 1px, transparent 1px);
+        background-size: 42px 42px;
       }
       .tm-journalier *,
       .tm-journalier *::before,
@@ -807,6 +1505,23 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         border-radius: inherit;
         background: var(--gold);
         transition: width .24s ease;
+      }
+      .tm-journalier-progress-central {
+        padding: .9rem;
+        border: .5px solid rgba(201,169,110,.28);
+        border-radius: var(--r-md);
+        background: rgba(201,169,110,.045);
+      }
+      .tm-journalier-timeline {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: .42rem;
+        margin-top: .85rem;
+      }
+      .tm-journalier-timeline span {
+        height: 3px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--gold), rgba(245,245,241,.18));
       }
       .tm-journalier-subtasks {
         display: flex;
@@ -1395,12 +2110,15 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
             ${_esc(title)}
           </h2>
         </div>
-        <div id="journalier-progress">
+        <div id="journalier-progress" class="tm-journalier-progress-central">
           <div style="display:flex;justify-content:space-between;align-items:baseline;gap:1rem;margin-bottom:.55rem">
             <span class="tm-journalier-muted">Progression consolidée</span>
             <strong style="font-family:var(--serif);font-size:2.4rem;font-weight:300;line-height:1;color:var(--gold)">${progress}%</strong>
           </div>
           ${_renderProgressTrack(progress, "Progression globale du projet")}
+          <div class="tm-journalier-timeline" aria-hidden="true">
+            <span></span><span></span><span></span><span></span>
+          </div>
         </div>
         ${!_hasProjectContent(project) ? `
           <div class="tm-journalier-empty">
@@ -1891,7 +2609,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     const project = state.projects[state.activeProjectType] || { ...JOURNALIER_EMPTY_PROJECT };
 
     root.innerHTML = `
-      <div class="tm-journalier" aria-label="Centre de gestion Journalier">
+      <div class="tm-journalier tm-journalier-workbench tm-shell tm-reveal" aria-label="Centre de gestion Journalier">
         <nav class="tm-journalier-nav" aria-label="Navigation Journalier">
           ${[
             ["journalier-dashboard", "Dashboard"],
@@ -2035,9 +2753,59 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     { id: "kuma", nom: "Kengo Kuma", epoque: "Contemporain bas-carbone", pays: "Japon", doctrine: "Dissolution matérielle", systemeFavori: "Trames bois répétées", matiereDominante: "Bois", oeuvreRepere: "Asakusa Culture Center", apportTechnique: "Assemblage, texture et faible masse visuelle.", leconProjet: "La répétition légère peut fabriquer une présence forte.", tags: ["bois", "trame"] },
     { id: "kere", nom: "Francis Kéré", epoque: "Contemporain bas-carbone", pays: "Burkina Faso / Allemagne", doctrine: "Climat social", systemeFavori: "Ventilation passive", matiereDominante: "Terre / métal", oeuvreRepere: "École de Gando", apportTechnique: "Double toiture ventilée et matériaux locaux.", leconProjet: "La performance vient souvent de la coupe climatique.", tags: ["terre", "ventilation"] },
     { id: "grafton", nom: "Yvonne Farrell / Shelley McNamara", epoque: "Contemporain", pays: "Irlande", doctrine: "Section civique", systemeFavori: "Masse percée", matiereDominante: "Béton / pierre", oeuvreRepere: "UTEC Lima", apportTechnique: "Épaisseur structurelle adaptée au climat.", leconProjet: "Une coupe poreuse peut faire ville et climat.", tags: ["section", "inertie"] }
-  ];
+  ].map(item => ({
+    influences: item.tags?.join(" / ") || item.epoque,
+    courantsLies: item.epoque,
+    mouvement: item.mouvement || item.epoque,
+    philosophie: item.philosophie || item.doctrine,
+    influence: item.influence || item.tags?.join(" / ") || item.epoque,
+    architectesLies: item.architectesLies || item.tags?.join(" / ") || item.epoque,
+    ...item
+  }));
+
+  const DATA_PANTHEON_EXPANDED = [
+    ...DATA_PANTHEON,
+    { id: "alberti", nom: "Leon Battista Alberti", pays: "Italie", epoque: "Renaissance", mouvement: "Humanisme", doctrine: "Architecture comme discipline savante", matiereDominante: "Pierre", systemeFavori: "Façade proportionnée", oeuvreRepere: "Santa Maria Novella", apportTechnique: "Relie théorie, proportion et représentation.", philosophie: "La beauté naît de l'ordre mesuré.", influence: "Palladio / Renaissance", architectesLies: "Palladio, Brunelleschi", leconProjet: "Un projet gagne en force quand sa règle est lisible.", tags: ["proportion", "humanisme"] },
+    { id: "borromini", nom: "Francesco Borromini", pays: "Italie", epoque: "Baroque", mouvement: "Baroque", doctrine: "Géométrie dynamique", matiereDominante: "Pierre / stuc", systemeFavori: "Plans courbes", oeuvreRepere: "San Carlo alle Quattro Fontane", apportTechnique: "Complexifie la géométrie sans perdre la structure.", philosophie: "L'espace peut être mis en tension.", influence: "Baroque romain", architectesLies: "Bernini, Guarini", leconProjet: "La courbe doit organiser la coupe, pas seulement l'image.", tags: ["baroque", "géométrie"] },
+    { id: "william-morris", nom: "William Morris", pays: "Royaume-Uni", epoque: "XIXe siècle", mouvement: "Arts & Crafts", doctrine: "Retour à l'artisanat", matiereDominante: "Bois / brique", systemeFavori: "Maison artisanale", oeuvreRepere: "Red House", apportTechnique: "Réconcilie usage, fabrication et décoration.", philosophie: "La qualité sociale passe par le travail bien fait.", influence: "Arts & Crafts / design moderne", architectesLies: "Voysey, Mackintosh", leconProjet: "Le détail est un acte culturel autant que technique.", tags: ["artisanat", "design"] },
+    { id: "horta", nom: "Victor Horta", pays: "Belgique", epoque: "Art nouveau", mouvement: "Art nouveau", doctrine: "Structure ornementale", matiereDominante: "Fer / verre / pierre", systemeFavori: "Escalier, verrière, ossature métallique", oeuvreRepere: "Hôtel Tassel", apportTechnique: "Transforme le métal en langage spatial fluide.", philosophie: "La structure peut devenir mouvement.", influence: "Art nouveau européen", architectesLies: "Guimard, Gaudí", leconProjet: "Un matériau industriel peut produire une architecture organique.", tags: ["fer", "verrière"] },
+    { id: "gropius", nom: "Walter Gropius", pays: "Allemagne", epoque: "Modernisme", mouvement: "Bauhaus", doctrine: "Art, industrie et pédagogie", matiereDominante: "Acier / verre", systemeFavori: "Ossature rationnelle", oeuvreRepere: "Bauhaus Dessau", apportTechnique: "Institutionnalise la synthèse design-construction.", philosophie: "Former par le prototype et la production.", influence: "Bauhaus / modernisme", architectesLies: "Mies, Breuer", leconProjet: "L'école peut devenir un système spatial.", tags: ["bauhaus", "verre"] },
+    { id: "perriand", nom: "Charlotte Perriand", pays: "France", epoque: "Modernisme", mouvement: "Modernisme social", doctrine: "Habiter par l'équipement", matiereDominante: "Bois / métal", systemeFavori: "Mobilier intégré", oeuvreRepere: "Équipements pour l'habitation", apportTechnique: "Relie corps, mobilier, logement et industrialisation.", philosophie: "Le confort est une précision sociale.", influence: "Design moderne", architectesLies: "Le Corbusier, Jean Prouvé", leconProjet: "Dessiner l'intérieur revient à dessiner l'usage.", tags: ["mobilier", "usage"] },
+    { id: "prouve", nom: "Jean Prouvé", pays: "France", epoque: "Modernisme", mouvement: "Industrialisation", doctrine: "Construire comme on fabrique", matiereDominante: "Acier / aluminium", systemeFavori: "Panneaux préfabriqués", oeuvreRepere: "Maison Tropicale", apportTechnique: "Pousse la préfabrication légère et démontable.", philosophie: "La logique d'atelier doit rester visible.", influence: "High-tech / préfabrication", architectesLies: "Perriand, Piano, Rogers", leconProjet: "Une pièce bien pensée contient déjà le chantier.", tags: ["préfabriqué", "métal"] },
+    { id: "saarinen", nom: "Eero Saarinen", pays: "Finlande / États-Unis", epoque: "Modernisme", mouvement: "Modernisme expressif", doctrine: "Structure iconique", matiereDominante: "Béton / acier", systemeFavori: "Coques et grandes portées", oeuvreRepere: "TWA Flight Center", apportTechnique: "Donne une dimension expressive aux portées modernes.", philosophie: "La structure peut représenter le mouvement.", influence: "Modernisme américain", architectesLies: "Kahn, Niemeyer", leconProjet: "L'icône reste crédible si sa structure est claire.", tags: ["coque", "portée"] },
+    { id: "paul-rudolph", nom: "Paul Rudolph", pays: "États-Unis", epoque: "Brutalisme", mouvement: "Brutalisme", doctrine: "Complexité spatiale béton", matiereDominante: "Béton", systemeFavori: "Coupe épaisse", oeuvreRepere: "Yale Art and Architecture Building", apportTechnique: "Développe une spatialité stratifiée par niveaux.", philosophie: "La coupe est un relief social.", influence: "Brutalisme américain", architectesLies: "Kahn, Le Corbusier", leconProjet: "La complexité doit rester orientable.", tags: ["béton", "coupe"] },
+    { id: "sejima", nom: "Kazuyo Sejima", pays: "Japon", epoque: "Contemporain", mouvement: "Minimalisme atmosphérique", doctrine: "Fluidité légère", matiereDominante: "Acier / verre", systemeFavori: "Plans fins et transparence", oeuvreRepere: "Rolex Learning Center", apportTechnique: "Dissout limites et hiérarchies par structure légère.", philosophie: "L'espace peut être continu et non autoritaire.", influence: "SANAA", architectesLies: "Ryue Nishizawa", leconProjet: "La simplicité exige une structure extrêmement maîtrisée.", tags: ["SANAA", "transparence"] },
+    { id: "nishizawa", nom: "Ryue Nishizawa", pays: "Japon", epoque: "Contemporain", mouvement: "Minimalisme atmosphérique", doctrine: "Fragmentation douce", matiereDominante: "Acier / verre", systemeFavori: "Petites structures autonomes", oeuvreRepere: "Moriyama House", apportTechnique: "Recompose l'habitat en unités fines et poreuses.", philosophie: "Le vide entre les volumes est un espace habité.", influence: "SANAA", architectesLies: "Kazuyo Sejima", leconProjet: "Fragmenter peut créer plus de relations qu'un bloc unique.", tags: ["SANAA", "porosité"] },
+    { id: "zumthor", nom: "Peter Zumthor", pays: "Suisse", epoque: "Contemporain", mouvement: "Phénoménologie", doctrine: "Atmosphère matérielle", matiereDominante: "Pierre / bois / béton", systemeFavori: "Masse précise", oeuvreRepere: "Thermes de Vals", apportTechnique: "Fait du détail matériel une expérience complète.", philosophie: "La matière porte la mémoire du lieu.", influence: "Architecture sensorielle", architectesLies: "Kahn, Aalto", leconProjet: "La précision constructive produit une émotion durable.", tags: ["matière", "atmosphère"] },
+    { id: "toyo-ito", nom: "Toyo Ito", pays: "Japon", epoque: "Contemporain", mouvement: "Structure organique numérique", doctrine: "Fluidité structurelle", matiereDominante: "Acier / béton", systemeFavori: "Trames irrégulières", oeuvreRepere: "Médiathèque de Sendai", apportTechnique: "Transforme noyaux et tubes en système spatial.", philosophie: "La structure peut devenir paysage intérieur.", influence: "Architecture japonaise contemporaine", architectesLies: "SANAA, Sou Fujimoto", leconProjet: "Un système porteur peut organiser flux, lumière et programme.", tags: ["tube", "numérique"] },
+    { id: "shigeru-ban", nom: "Shigeru Ban", pays: "Japon", epoque: "Contemporain bas-carbone", mouvement: "Humanitaire / papier", doctrine: "Légèreté et urgence", matiereDominante: "Bois / carton", systemeFavori: "Tubes carton, bois, structures démontables", oeuvreRepere: "Centre Pompidou-Metz", apportTechnique: "Légitime des matériaux pauvres et démontables.", philosophie: "La dignité constructive doit être accessible.", influence: "Architecture humanitaire", architectesLies: "Kuma, Kéré", leconProjet: "La sobriété matérielle peut être très technique.", tags: ["carton", "démontable"] },
+    { id: "herzog-de-meuron", nom: "Herzog & de Meuron", pays: "Suisse", epoque: "Contemporain", mouvement: "Matérialité critique", doctrine: "Surface, matière, perception", matiereDominante: "Béton / brique / verre", systemeFavori: "Enveloppe expressive", oeuvreRepere: "Tate Modern", apportTechnique: "Transforme la peau du bâtiment en système culturel.", philosophie: "L'enveloppe peut porter mémoire et programme.", influence: "Architecture suisse contemporaine", architectesLies: "Zumthor, Koolhaas", leconProjet: "Une façade forte doit aussi résoudre climat et structure.", tags: ["enveloppe", "matière"] },
+    { id: "sanaa", nom: "SANAA", pays: "Japon", epoque: "Contemporain", mouvement: "Minimalisme atmosphérique", doctrine: "Transparence sociale", matiereDominante: "Acier / verre", systemeFavori: "Plateaux fluides", oeuvreRepere: "Rolex Learning Center", apportTechnique: "Organise le programme par continuité et douceur.", philosophie: "L'espace collectif peut devenir paysage.", influence: "Sejima / Nishizawa", architectesLies: "Kazuyo Sejima, Ryue Nishizawa", leconProjet: "La fluidité se construit par une grande rigueur géométrique.", tags: ["collectif", "fluidité"] },
+    { id: "doshi", nom: "Balkrishna Doshi", pays: "Inde", epoque: "Contemporain", mouvement: "Modernisme tropical", doctrine: "Climat social", matiereDominante: "Béton / brique", systemeFavori: "Voûtes, cours, ombre", oeuvreRepere: "Aranya Housing", apportTechnique: "Adapte modernisme, climat et ville informelle.", philosophie: "L'architecture doit accompagner les modes de vie.", influence: "Le Corbusier / Inde", architectesLies: "Le Corbusier, Kahn", leconProjet: "Le logement gagne quand il accepte l'appropriation.", tags: ["Inde", "social"] },
+    { id: "hassan-fathy", nom: "Hassan Fathy", pays: "Égypte", epoque: "Modernisme régional", mouvement: "Vernaculaire moderne", doctrine: "Terre, climat et communauté", matiereDominante: "Terre crue", systemeFavori: "Voûte nubienne", oeuvreRepere: "New Gourna", apportTechnique: "Réhabilite les savoir-faire de terre crue.", philosophie: "La modernité peut venir du local.", influence: "Architecture bioclimatique", architectesLies: "Kéré, Doshi", leconProjet: "Un système local doit être socialement transmissible.", tags: ["terre", "voûte"] },
+    { id: "glenn-murcutt", nom: "Glenn Murcutt", pays: "Australie", epoque: "Contemporain", mouvement: "Régionalisme climatique", doctrine: "Toucher légèrement la terre", matiereDominante: "Acier / tôle / bois", systemeFavori: "Maison légère ventilée", oeuvreRepere: "Marika-Alderton House", apportTechnique: "Développe une architecture fine adaptée au climat.", philosophie: "Suivre le vent, le soleil et l'eau.", influence: "Architecture bioclimatique", architectesLies: "Aalto, Kéré", leconProjet: "La légèreté doit répondre précisément au climat.", tags: ["Australie", "ventilation"] }
+  ].map(item => ({
+    influences: item.influences || item.influence || item.tags?.join(" / ") || item.epoque,
+    courantsLies: item.courantsLies || item.mouvement || item.epoque,
+    ...item
+  }));
 
   /* ── DATA_ATLAS — géographie des systèmes constructifs ─────── */
+  const ATLAS_CONTINENTS = {
+    "sahara-terre": "Afrique",
+    "japon-bois": "Asie",
+    "rome-beton": "Europe",
+    "gothique-france": "Europe",
+    "mediterranee-pierre": "Europe / Afrique",
+    "alpes-mixte": "Europe",
+    "scandinavie-massif": "Europe",
+    "bresil-modernisme": "Amérique du Sud",
+    "high-tech-europe": "Europe",
+    "bambou-tropical": "Asie / Amérique du Sud",
+    "clt-bas-carbone": "Europe",
+    "terre-contemporaine": "Europe / Afrique"
+  };
+
   const DATA_ATLAS = [
     { id: "sahara-terre", titre: "Architecture vernaculaire saharienne", pays: "Algérie / Mali", ville: "Mzab, Djenné", periode: "Vernaculaire", climat: "Aride chaud", systemeConstructif: "Murs porteurs en terre crue", matiere: "Terre", portee: "Faible à moyenne", inertie: "Très forte", technique: "Masse, patios, ruelles étroites, protection solaire.", lecon: "Utiliser inertie et ombre avant la climatisation active.", tags: ["patio", "terre", "inertie"] },
     { id: "japon-bois", titre: "Japon traditionnel", pays: "Japon", ville: "Kyoto / Nara", periode: "Préindustriel", climat: "Tempéré humide", systemeConstructif: "Poteaux-poutres assemblés à sec", matiere: "Bois", portee: "Modérée", inertie: "Faible", technique: "Trame, débords de toiture, panneaux mobiles.", lecon: "Concevoir une structure réparable, démontable et adaptable.", tags: ["bois", "assemblage", "trame"] },
@@ -2051,7 +2819,50 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     { id: "bambou-tropical", titre: "Structures tropicales en bambou", pays: "Indonésie / Colombie", ville: "Bali / Andes", periode: "Contemporain", climat: "Tropical humide", systemeConstructif: "Treillis et arcs en fibres végétales", matiere: "Bambou", portee: "Moyenne", inertie: "Faible", technique: "Courbure, ligatures, ventilation permanente.", lecon: "Un matériau léger demande une stratégie d'assemblage claire.", tags: ["bambou", "biosourcé", "ventilation"] },
     { id: "clt-bas-carbone", titre: "Bas-carbone contemporain", pays: "Europe", ville: "Vienne / Paris / Oslo", periode: "Contemporain", climat: "Tempéré", systemeConstructif: "CLT, poteau-poutre bois, noyaux hybrides", matiere: "Bois", portee: "Moyenne", inertie: "Moyenne", technique: "Préfabrication, réversibilité, assemblages secs.", lecon: "Réduire carbone et chantier exige une trame répétable.", tags: ["CLT", "bas-carbone", "sec"] },
     { id: "terre-contemporaine", titre: "Terre contemporaine stabilisée", pays: "Suisse / France / Afrique", ville: "Lyon, Zurich, Gando", periode: "Contemporain", climat: "Variable", systemeConstructif: "BTC, pisé, murs épais", matiere: "Terre", portee: "Faible", inertie: "Très forte", technique: "Préfabrication de blocs, protection à l'eau, chaînages.", lecon: "Le bas-carbone impose de redessiner détails et protections.", tags: ["terre", "inertie", "eau"] }
-  ];
+  ].map(item => ({
+    ...item,
+    continent: ATLAS_CONTINENTS[item.id] || "Monde",
+    lieu: item.ville,
+    region: item.ville,
+    materiauDominant: item.matiere,
+    typeHabitat: item.typeHabitat || "Habitat et équipement",
+    contraintePrincipale: item.technique,
+    ventilation: item.ventilation || "À calibrer selon climat local",
+    isolation: item.isolation || "À adapter à l'enveloppe",
+    risqueNaturel: item.risqueNaturel || "Variable",
+    leconArchitecturale: item.lecon
+  }));
+
+  const DATA_ATLAS_EXPANDED = [
+    ...DATA_ATLAS,
+    { id: "belgique-brique", titre: "Belgique — brique isolée", pays: "Belgique", region: "Bruxelles / Flandre / Wallonie", continent: "Europe", climat: "Océanique humide", periode: "Contemporain", materiauDominant: "Brique / isolation", systemeConstructif: "Maçonnerie porteuse ou parement + structure isolée", typeHabitat: "Maison mitoyenne / logement collectif", contraintePrincipale: "Humidité, ponts thermiques, mitoyenneté", inertie: "Moyenne à forte", portee: "Moyenne", ventilation: "Ventilation contrôlée et extraction humide", isolation: "Forte isolation continue", risqueNaturel: "Humidité", leconArchitecturale: "Travailler l'enveloppe comme une coupe hygrothermique.", tags: ["brique", "humidité", "isolation"], relatedIds: ["eco-belgique", "pmr"] },
+    { id: "france-pierre-beton", titre: "France — pierre, béton et réhabilitation", pays: "France", region: "Paris / Lyon / littoral", continent: "Europe", climat: "Tempéré varié", periode: "Moderne à contemporain", materiauDominant: "Pierre / béton", systemeConstructif: "Mur porteur réhabilité, béton armé, ossature bois en extension", typeHabitat: "Logement collectif / équipement", contraintePrincipale: "Réemploi du bâti et performance carbone", inertie: "Forte", portee: "Moyenne à grande", ventilation: "Naturelle assistée ou double flux", isolation: "ITE ou ITI selon patrimoine", risqueNaturel: "Canicule / retrait argile", leconArchitecturale: "Composer avec l'existant réduit souvent matière et carbone.", tags: ["réhabilitation", "pierre", "béton"], relatedIds: ["eco-france", "chronos-moderne"] },
+    { id: "pays-bas-pilotis", titre: "Pays-Bas — sol humide et structures légères", pays: "Pays-Bas", region: "Randstad / polders", continent: "Europe", climat: "Océanique humide", periode: "Contemporain", materiauDominant: "Bois / acier / brique", systemeConstructif: "Fondations profondes, façades légères, toiture compacte", typeHabitat: "Logement dense", contraintePrincipale: "Eau, sol compressible, densité", inertie: "Moyenne", portee: "Moyenne", ventilation: "Contrôlée avec récupération", isolation: "Enveloppe très étanche", risqueNaturel: "Inondation", leconArchitecturale: "Le rapport au sol devient un système technique central.", tags: ["eau", "polder", "fondation"], relatedIds: ["eco-pays-bas"] },
+    { id: "suisse-mineral-bois", titre: "Suisse — précision minérale et bois", pays: "Suisse", region: "Plateau suisse / Alpes", continent: "Europe", climat: "Froid à tempéré", periode: "Contemporain", materiauDominant: "Bois / béton / pierre", systemeConstructif: "Hybride béton-bois, enveloppe performante", typeHabitat: "Habitat dense / chalet réinterprété", contraintePrincipale: "Froid, pente, précision constructive", inertie: "Forte", portee: "Moyenne", ventilation: "Contrôlée en hiver", isolation: "Très forte", risqueNaturel: "Neige / pente", leconArchitecturale: "La précision du détail protège matière, énergie et usage.", tags: ["alpin", "bois", "précision"], relatedIds: ["eco-suisse"] },
+    { id: "italie-maconnerie", titre: "Italie — maçonnerie, patio et séisme", pays: "Italie", region: "Toscane / Rome / Sicile", continent: "Europe", climat: "Méditerranéen", periode: "Antiquité à contemporain", materiauDominant: "Pierre / brique", systemeConstructif: "Maçonnerie renforcée, voûtes, patios", typeHabitat: "Maison urbaine / palais / logement", contraintePrincipale: "Séisme et chaleur estivale", inertie: "Forte", portee: "Moyenne", ventilation: "Traversante + patios", isolation: "Isolation par l'extérieur si compatible", risqueNaturel: "Séisme", leconArchitecturale: "Renforcer sans effacer la logique porteuse historique.", tags: ["maçonnerie", "séisme", "patio"], relatedIds: ["eco-italie"] },
+    { id: "espagne-patio", titre: "Espagne — patio, ombre et céramique", pays: "Espagne", region: "Andalousie / Catalogne", continent: "Europe", climat: "Chaud sec à méditerranéen", periode: "Vernaculaire à contemporain", materiauDominant: "Brique / céramique / béton", systemeConstructif: "Maison patio, murs épais, protections solaires", typeHabitat: "Maison patio / logement collectif", contraintePrincipale: "Surchauffe estivale", inertie: "Forte", portee: "Moyenne", ventilation: "Nocturne + patios", isolation: "Priorité toiture et protections solaires", risqueNaturel: "Canicule", leconArchitecturale: "L'ombre est un matériau de projet.", tags: ["patio", "ombre", "céramique"], relatedIds: ["eco-espagne"] },
+    { id: "maroc-terre-patio", titre: "Maroc — terre crue et compacité", pays: "Maroc", region: "Marrakech / Atlas / médinas", continent: "Afrique", climat: "Aride chaud", periode: "Vernaculaire", materiauDominant: "Terre crue", systemeConstructif: "Pisé, adobe, patio, ruelles compactes", typeHabitat: "Riad / ksar", contraintePrincipale: "Chaleur, soleil, poussière", inertie: "Très forte", portee: "Faible à moyenne", ventilation: "Patio + tirage thermique", isolation: "Masse et ombrage plutôt qu'isolant léger", risqueNaturel: "Séisme / chaleur", leconArchitecturale: "La compacité fabrique du confort avant la machine.", tags: ["terre", "patio", "aride"], relatedIds: ["eco-maroc"] },
+    { id: "egypte-inertie", titre: "Égypte — masse et ventilation sèche", pays: "Égypte", region: "Le Caire / vallée du Nil", continent: "Afrique", climat: "Désertique", periode: "Antiquité à contemporain", materiauDominant: "Pierre / terre / béton", systemeConstructif: "Murs massifs, moucharabieh, cours ombrées", typeHabitat: "Habitat dense / équipement", contraintePrincipale: "Rayonnement solaire et poussière", inertie: "Très forte", portee: "Moyenne", ventilation: "Ventilation haute et protections filtrantes", isolation: "Toitures protégées", risqueNaturel: "Chaleur extrême", leconArchitecturale: "Filtrer lumière et air peut structurer toute la façade.", tags: ["inertie", "ombre", "désert"], relatedIds: ["eco-egypte"] },
+    { id: "chine-cour-trame", titre: "Chine — cour, trame et densité", pays: "Chine", region: "Pékin / Shanghai / provinces", continent: "Asie", climat: "Continental à subtropical", periode: "Impérial à contemporain", materiauDominant: "Bois / brique / béton", systemeConstructif: "Cour intérieure, trame bois, béton dense", typeHabitat: "Cour urbaine / tour", contraintePrincipale: "Densité, pollution, amplitudes thermiques", inertie: "Moyenne à forte", portee: "Moyenne à grande", ventilation: "Cour + filtration selon contexte", isolation: "Variable selon zone climatique", risqueNaturel: "Séisme / pollution", leconArchitecturale: "La cour reste un outil climatique même en densité.", tags: ["cour", "trame", "densité"], relatedIds: ["eco-chine"] },
+    { id: "inde-jali", titre: "Inde — jali, veranda et mousson", pays: "Inde", region: "Ahmedabad / Kerala / Delhi", continent: "Asie", climat: "Tropical à chaud humide", periode: "Vernaculaire à moderne", materiauDominant: "Brique / pierre / béton", systemeConstructif: "Brise-soleil, jali, vérandas, toiture ventilée", typeHabitat: "Maison / institution", contraintePrincipale: "Mousson, chaleur, ventilation", inertie: "Forte", portee: "Moyenne", ventilation: "Traversante + ombrage profond", isolation: "Toiture ventilée prioritaire", risqueNaturel: "Mousson / chaleur", leconArchitecturale: "La façade peut être un filtre climatique habité.", tags: ["jali", "mousson", "ventilation"], relatedIds: ["eco-inde"] },
+    { id: "mexique-patio-masse", titre: "Mexique — patio minéral et séisme", pays: "Mexique", region: "Mexico / Oaxaca", continent: "Amérique du Nord", climat: "Altitude tempérée à chaud sec", periode: "Vernaculaire à contemporain", materiauDominant: "Pierre / béton / adobe", systemeConstructif: "Cour, murs massifs, béton parasismique", typeHabitat: "Maison patio / équipement", contraintePrincipale: "Séisme et amplitude thermique", inertie: "Forte", portee: "Moyenne", ventilation: "Patio + ventilation nocturne", isolation: "Masse + protections solaires", risqueNaturel: "Séisme", leconArchitecturale: "L'épaisseur peut protéger du climat et stabiliser l'espace.", tags: ["patio", "séisme", "masse"], relatedIds: ["eco-mexique"] },
+    { id: "usa-light-frame", titre: "États-Unis — light frame et grands climats", pays: "États-Unis", region: "Nord-Est / Californie / Sud", continent: "Amérique du Nord", climat: "Très varié", periode: "Moderne à contemporain", materiauDominant: "Bois / acier / béton", systemeConstructif: "Light frame, noyaux béton, enveloppe industrialisée", typeHabitat: "Maison individuelle / immeuble", contraintePrincipale: "Cyclone, feu, séisme selon région", inertie: "Faible à moyenne", portee: "Moyenne à grande", ventilation: "Mécanique selon climat", isolation: "Variable, souvent forte en climat froid", risqueNaturel: "Feu / cyclone / séisme", leconArchitecturale: "Un même pays impose plusieurs architectures climatiques.", tags: ["light-frame", "risques", "industrialisation"], relatedIds: ["eco-etats-unis"] },
+    { id: "canada-envelope", titre: "Canada — enveloppe froide et bois", pays: "Canada", region: "Québec / Ontario / Colombie-Britannique", continent: "Amérique du Nord", climat: "Froid continental", periode: "Contemporain", materiauDominant: "Bois / béton", systemeConstructif: "Ossature bois, CLT, enveloppe très isolée", typeHabitat: "Maison / logement collectif", contraintePrincipale: "Froid long, condensation, neige", inertie: "Moyenne", portee: "Moyenne", ventilation: "Double flux ou ventilation contrôlée", isolation: "Très forte + pare-vapeur maîtrisé", risqueNaturel: "Neige / gel", leconArchitecturale: "L'étanchéité à l'air est une question de dessin.", tags: ["froid", "bois", "enveloppe"], relatedIds: ["eco-canada"] },
+    { id: "allemagne-passivhaus", titre: "Allemagne — Passivhaus et préfabrication", pays: "Allemagne", region: "Freiburg / Berlin", continent: "Europe", climat: "Tempéré froid", periode: "Contemporain", materiauDominant: "Bois / brique / béton", systemeConstructif: "Enveloppe passive, préfabrication, solaire maîtrisé", typeHabitat: "Logement collectif / équipement", contraintePrincipale: "Performance énergétique et précision", inertie: "Moyenne à forte", portee: "Moyenne", ventilation: "Double flux haute efficacité", isolation: "Très forte", risqueNaturel: "Canicule croissante", leconArchitecturale: "Mesurer l'énergie transforme l'organisation du détail.", tags: ["passif", "préfabrication", "énergie"], relatedIds: ["eco-allemagne"] },
+    { id: "royaume-uni-brique", titre: "Royaume-Uni — terrasse brique et humidité", pays: "Royaume-Uni", region: "Londres / Manchester", continent: "Europe", climat: "Océanique humide", periode: "Industriel à contemporain", materiauDominant: "Brique / acier", systemeConstructif: "Terraced house, rénovation, structure acier en extension", typeHabitat: "Maison mitoyenne / équipement", contraintePrincipale: "Humidité, patrimoine, densification", inertie: "Moyenne", portee: "Moyenne", ventilation: "Naturelle assistée", isolation: "Réhabilitation fine des parois", risqueNaturel: "Humidité / inondation", leconArchitecturale: "La répétition typologique peut devenir support d'adaptation.", tags: ["brique", "mitoyen", "réhabilitation"], relatedIds: ["eco-royaume-uni"] },
+    { id: "grece-blanc-ombre", titre: "Grèce — masse blanche et ventilation", pays: "Grèce", region: "Cyclades / Athènes", continent: "Europe", climat: "Méditerranéen chaud", periode: "Vernaculaire", materiauDominant: "Pierre / chaux", systemeConstructif: "Maison compacte, enduit clair, toiture plate", typeHabitat: "Maison insulaire", contraintePrincipale: "Soleil, vent, rareté de l'eau", inertie: "Forte", portee: "Faible", ventilation: "Traversante par petites ouvertures", isolation: "Masse + réflexion solaire", risqueNaturel: "Séisme / chaleur", leconArchitecturale: "Réduire l'ouverture peut améliorer le confort d'été.", tags: ["blanc", "insulaire", "ombre"], relatedIds: ["eco-grece"] },
+    { id: "turquie-seisme", titre: "Turquie — trame parasismique", pays: "Turquie", region: "Istanbul / Anatolie", continent: "Europe / Asie", climat: "Méditerranéen à continental", periode: "Ottoman à contemporain", materiauDominant: "Bois / pierre / béton", systemeConstructif: "Ossature bois historique, béton armé parasismique", typeHabitat: "Maison urbaine / immeuble", contraintePrincipale: "Séisme et densité", inertie: "Moyenne", portee: "Moyenne", ventilation: "Traversante selon trame", isolation: "Variable selon région", risqueNaturel: "Séisme", leconArchitecturale: "La ductilité doit guider structure et façade.", tags: ["séisme", "ossature", "trame"], relatedIds: ["eco-turquie"] },
+    { id: "kenya-climat-social", titre: "Kenya — ventilation et ressources locales", pays: "Kenya", region: "Nairobi / Mombasa", continent: "Afrique", climat: "Tropical d'altitude à humide", periode: "Contemporain", materiauDominant: "Terre / pierre / métal", systemeConstructif: "Double toiture, murs ventilés, matériaux locaux", typeHabitat: "École / habitat communautaire", contraintePrincipale: "Chaleur, coût, maintenance", inertie: "Moyenne à forte", portee: "Faible à moyenne", ventilation: "Naturelle permanente", isolation: "Toiture protégée", risqueNaturel: "Chaleur / pluies intenses", leconArchitecturale: "La simplicité climatique améliore aussi l'économie du projet.", tags: ["local", "ventilation", "école"], relatedIds: ["eco-kenya"] },
+    { id: "afrique-du-sud-hybride", titre: "Afrique du Sud — climat sec et hybridation", pays: "Afrique du Sud", region: "Le Cap / Johannesburg", continent: "Afrique", climat: "Méditerranéen à semi-aride", periode: "Contemporain", materiauDominant: "Brique / béton / acier", systemeConstructif: "Maçonnerie, protections solaires, structure mixte", typeHabitat: "Maison / équipement", contraintePrincipale: "Soleil, eau, sécurité, vent", inertie: "Forte", portee: "Moyenne", ventilation: "Traversante protégée", isolation: "Toitures et parois exposées", risqueNaturel: "Sécheresse / feu", leconArchitecturale: "L'eau et l'ombre doivent être intégrées au plan.", tags: ["sécheresse", "ombre", "hybride"], relatedIds: ["eco-afrique-du-sud"] },
+    { id: "australie-bushfire", titre: "Australie — légèreté, ombre et feu", pays: "Australie", region: "Sydney / Melbourne / zones rurales", continent: "Océanie", climat: "Chaud sec à tempéré", periode: "Contemporain", materiauDominant: "Bois / acier / terre", systemeConstructif: "Maison ventilée, véranda, protections feu", typeHabitat: "Maison individuelle", contraintePrincipale: "Surchauffe, feu, sécheresse", inertie: "Faible à moyenne", portee: "Moyenne", ventilation: "Traversante + surtoiture", isolation: "Toiture et ombrage prioritaires", risqueNaturel: "Feu / chaleur", leconArchitecturale: "La protection incendie devient une stratégie spatiale.", tags: ["feu", "véranda", "ombre"], relatedIds: ["eco-australie"] }
+  ].map(item => ({
+    ...item,
+    ville: item.ville || item.region,
+    lieu: item.lieu || item.region,
+    matiere: item.matiere || item.materiauDominant,
+    technique: item.technique || item.contraintePrincipale,
+    lecon: item.lecon || item.leconArchitecturale
+  }));
 
   /* ── Placeholder SVG architectural (léger, générique) ───────── */
   const _svgSketch = (seed = 0) => {
@@ -2108,10 +2919,11 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       .tm-tech { display:grid; gap:1rem; min-width:0; }
       .tm-tech-controls {
         display:grid;
-        grid-template-columns:minmax(220px,1.2fr) repeat(4,minmax(150px,.7fr));
+        grid-template-columns:repeat(auto-fit,minmax(178px,1fr));
         gap:.72rem;
-        align-items:stretch;
+        align-items:start;
       }
+      .tm-tech-search { grid-column:span 2; }
       .tm-tech .field {
         min-height:0;
         align-items:stretch;
@@ -2129,6 +2941,33 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       }
       .tm-tech .field input,
       .tm-tech .field select { width:100%; }
+      .tm-tech-filter-group { display:grid; gap:.42rem; min-width:0; }
+      .tm-tech-chip-row {
+        display:flex;
+        flex-wrap:wrap;
+        gap:.3rem;
+        min-width:0;
+      }
+      .tm-tech-chip {
+        appearance:none;
+        border:var(--border);
+        border-radius:var(--r-pill);
+        background:rgba(245,245,241,.035);
+        color:var(--muted);
+        cursor:pointer;
+        font-size:.55rem;
+        letter-spacing:.08em;
+        min-height:24px;
+        padding:.15rem .5rem;
+        text-transform:uppercase;
+        transition:border-color .18s ease, color .18s ease, background .18s ease;
+      }
+      .tm-tech-chip:hover,
+      .tm-tech-chip.is-active {
+        border-color:rgba(201,169,110,.42);
+        background:var(--gold-glow);
+        color:var(--gold);
+      }
       .tm-tech-layout {
         display:grid;
         grid-template-columns:minmax(0,1fr) minmax(280px,.38fr);
@@ -2216,6 +3055,10 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         padding:1.1rem;
       }
       .tm-tech-compare { position:static; }
+      .tm-tech-detail {
+        max-height:calc(100vh - 112px);
+        overflow:auto;
+      }
       .tm-tech-kicker {
         margin:0;
         color:var(--gold);
@@ -2287,6 +3130,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         .tm-tech-controls,
         .tm-tech-layout,
         .tm-tech-compare-grid { grid-template-columns:1fr; }
+        .tm-tech-search { grid-column:auto; }
         .tm-tech-detail { position:static; }
       }
     `;
@@ -2296,12 +3140,52 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
   /* ── Renderer générique léger pour modules techniques ───────── */
   const _techState = {};
 
-  const _techNorm = value =>
-    String(value ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  function normalizeSearch(value) {
+    return String(value ?? "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }
+
+  function normalizeText(value) {
+    return normalizeSearch(value);
+  }
+
+  function filterBySearch(data, query, keys = []) {
+    const needle = normalizeText(query);
+    if (!needle) return data;
+    return data.filter(item => {
+      const haystack = keys.length
+        ? keys.map(key => item[key]).flat().join(" ")
+        : Object.values(item).flat().join(" ");
+      return normalizeText(haystack).includes(needle);
+    });
+  }
+
+  function renderEmptyState(title = "Aucun résultat", text = "Ajustez la recherche ou les filtres.") {
+    return `
+      <div class="tm-tech-empty">
+        <strong>${_esc(title)}</strong>
+        <p>${_esc(text)}</p>
+      </div>
+    `;
+  }
+
+  function renderTagList(tags = [], className = "tm-tech-badges") {
+    const list = Array.isArray(tags) ? tags : String(tags || "").split(",").map(tag => tag.trim()).filter(Boolean);
+    if (!list.length) return "";
+    return `<div class="${_esc(className)}">${list.slice(0, 8).map(tag => `<span>${_esc(tag)}</span>`).join("")}</div>`;
+  }
+
+  function getUniqueValues(data, key) {
+    return [...new Set((data || []).map(item => item?.[key]).filter(Boolean))]
+      .sort((a, b) => String(a).localeCompare(String(b), "fr"));
+  }
+
+  const _techNorm = normalizeSearch;
 
   const _uniqueValues = (data, key) =>
-    [...new Set(data.map(item => item[key]).filter(Boolean))]
-      .sort((a, b) => String(a).localeCompare(String(b), "fr"));
+    getUniqueValues(data, key);
 
   const _techItemText = item =>
     _techNorm(Object.values(item).flat().join(" "));
@@ -2313,11 +3197,99 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     </div>
   `).join("");
 
+  function renderFilterChips(data, filters, state, moduleId) {
+    if (!Array.isArray(filters) || !filters.length) return "";
+
+    return filters.map(filter => {
+      const values = _uniqueValues(data, filter.key);
+      return `
+        <div class="tm-tech-filter-group" data-tech-filter-group="${_esc(filter.key)}">
+          <label class="field tm-tech-filter">
+            <span>${_esc(filter.label)}</span>
+            <select data-tech-filter="${_esc(filter.key)}">
+              <option value="">Tous</option>
+              ${values.map(value => `
+                <option value="${_esc(value)}" ${state.filters?.[filter.key] === value ? "selected" : ""}>
+                  ${_esc(value)}
+                </option>
+              `).join("")}
+            </select>
+          </label>
+          <div class="tm-tech-chip-row" aria-label="${_esc(filter.label)} ${_esc(moduleId)}">
+            ${values.slice(0, 5).map(value => `
+              <button type="button"
+                      class="tm-tech-chip ${state.filters?.[filter.key] === value ? "is-active" : ""}"
+                      data-tech-chip
+                      data-tech-filter="${_esc(filter.key)}"
+                      data-tech-value="${_esc(value)}">
+                ${_esc(value)}
+              </button>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function renderDetailPanel(selected, options, fields, titleKey) {
+    const detailClass = ["tm-tech-detail", options.detailClass || `tm-${options.id}-detail`]
+      .filter(Boolean)
+      .join(" ");
+
+    return `
+      <aside class="${_esc(detailClass)}" data-tech-detail>
+        ${selected ? `
+          <p class="tm-tech-kicker">${_esc(options.detailKicker(selected))}</p>
+          <h3>${_esc(selected[titleKey])}</h3>
+          <div class="tm-tech-rows">${_techDetailRows(selected, fields)}</div>
+          ${(selected.influences || selected.courantsLies) ? `
+            <div class="tm-tech-rows">
+              ${selected.influences ? `
+                <div class="tm-tech-row">
+                  <span>Influences</span>
+                  <strong>${_esc(selected.influences)}</strong>
+                </div>
+              ` : ""}
+              ${selected.courantsLies ? `
+                <div class="tm-tech-row">
+                  <span>Courants liés</span>
+                  <strong>${_esc(selected.courantsLies)}</strong>
+                </div>
+              ` : ""}
+            </div>
+          ` : ""}
+          <p class="tm-tech-lesson">${_esc(options.lesson(selected))}</p>
+        ` : `
+          <div class="tm-tech-empty">
+            <strong>${_esc(options.emptyTitle || "Aucune donnée")}</strong>
+            <p>${_esc(options.emptyText || "Ce module ne contient pas encore d'entrée.")}</p>
+          </div>
+        `}
+      </aside>
+    `;
+  }
+
+  function restoreTechnicalSearchFocus(container, focusState) {
+    if (!container || !focusState?.active) return;
+    const input = container.querySelector("[data-tech-search]");
+    if (!input) return;
+
+    input.focus({ preventScroll: true });
+    const cursor = Math.min(focusState.cursor ?? input.value.length, input.value.length);
+    if (typeof input.setSelectionRange === "function") {
+      input.setSelectionRange(cursor, cursor);
+    }
+  }
+
   function renderTechnicalCards(container, data, options) {
     if (!container) return;
 
     const id = options.id;
     const state = _techState[id] ||= { query: "", filters: {}, selectedId: data[0]?.id || null, compare: [] };
+    state.filters ||= {};
+    state.compare ||= [];
+    state.query ||= "";
+
     const filters = options.filters || [];
     const fields = options.fields || [];
     const titleKey = options.titleKey || "titre";
@@ -2333,35 +3305,33 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     });
 
     if (!filtered.some(item => item.id === state.selectedId)) {
-      state.selectedId = filtered[0]?.id || data[0]?.id || null;
+      state.selectedId = filtered[0]?.id || null;
     }
-    const selected = data.find(item => item.id === state.selectedId) || filtered[0] || data[0];
+    const selected = filtered.find(item => item.id === state.selectedId) || filtered[0] || null;
 
     const compareItems = (state.compare || [])
       .map(itemId => data.find(item => item.id === itemId))
       .filter(Boolean);
 
+    const visualContext = { data, filtered, selected, state, options };
+    const listClass = ["tm-tech-grid", options.listClass || ""].filter(Boolean).join(" ");
+    const activeSearch = container.contains(document.activeElement)
+      && document.activeElement.matches("[data-tech-search]");
+    const focusState = {
+      active: activeSearch,
+      cursor: activeSearch ? document.activeElement.selectionStart : state.query.length
+    };
+
     container.dataset.techModule = id;
     container.innerHTML = `
-      <div class="tm-tech" data-tech-shell="${_esc(id)}">
+      <div class="tm-tech tm-tech--${_esc(id)} tm-${_esc(id)} tm-shell tm-reveal" data-tech-shell="${_esc(id)}">
+        ${options.visualIntro ? options.visualIntro(visualContext) : ""}
         <div class="tm-tech-controls">
           <label class="field tm-tech-search">
             <input type="search" data-tech-search placeholder="${_esc(options.searchPlaceholder || "Rechercher...")}"
                    value="${_esc(state.query)}" autocomplete="off" />
           </label>
-          ${filters.map(filter => `
-            <label class="field tm-tech-filter">
-              <span>${_esc(filter.label)}</span>
-              <select data-tech-filter="${_esc(filter.key)}">
-                <option value="">Tous</option>
-                ${_uniqueValues(data, filter.key).map(value => `
-                  <option value="${_esc(value)}" ${state.filters[filter.key] === value ? "selected" : ""}>
-                    ${_esc(value)}
-                  </option>
-                `).join("")}
-              </select>
-            </label>
-          `).join("")}
+          ${renderFilterChips(data, filters, state, id)}
         </div>
 
         ${options.compare ? `
@@ -2385,12 +3355,50 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         ` : ""}
 
         <div class="tm-tech-layout">
-          <div class="tm-tech-grid">
+          <div class="${_esc(listClass)}">
             ${filtered.length ? filtered.map((item, i) => {
               const active = item.id === selected?.id;
               const compared = state.compare?.includes(item.id);
+              const cardClass = [
+                "tm-tech-card",
+                active ? "is-active" : "",
+                options.cardClass || "",
+                options.id === "chronos" ? "tm-chronos-period-card" : "",
+                options.id === "pantheon" ? "tm-pantheon-figure-card" : "",
+                options.id === "atlas" ? "tm-atlas-system-card" : ""
+              ].filter(Boolean).join(" ");
+
+              if (options.layout === "timeline") {
+                return `
+                  <article class="${_esc(cardClass)}"
+                           data-tech-card="${_esc(item.id)}"
+                           data-chronos-period="${_esc(item.id)}"
+                           tabindex="0">
+                    <div class="tm-chronos-marker">
+                      <span>${_esc(item.dates || "")}</span>
+                    </div>
+                    <div class="tm-tech-card-body">
+                      <span class="tm-tech-tag">${_esc(options.tag(item))}</span>
+                      <h3>${_esc(item[titleKey])}</h3>
+                      <p>${_esc(subtitleKeys.map(key => item[key]).filter(Boolean).join(" · "))}</p>
+                      <div class="tm-tech-badges">
+                        ${(item.tags || []).slice(0, 4).map(tag => `<span>${_esc(tag)}</span>`).join("")}
+                      </div>
+                      ${options.compare ? `
+                        <button type="button" class="text-btn ${compared ? "text-btn--primary" : ""}"
+                                data-chronos-compare="${_esc(item.id)}">${compared ? "Comparé" : "Comparer"}</button>
+                      ` : ""}
+                    </div>
+                  </article>
+                `;
+              }
+
               return `
-                <article class="tm-tech-card ${active ? "is-active" : ""}" data-tech-card="${_esc(item.id)}" tabindex="0">
+                <article class="${_esc(cardClass)}"
+                         data-tech-card="${_esc(item.id)}"
+                         ${options.id === "pantheon" ? `data-pantheon-figure="${_esc(item.id)}"` : ""}
+                         ${options.id === "atlas" ? `data-atlas-system="${_esc(item.id)}"` : ""}
+                         tabindex="0">
                   <div class="tm-tech-sketch">${_svgSketch(i)}</div>
                   <div class="tm-tech-card-body">
                     <span class="tm-tech-tag">${_esc(options.tag(item))}</span>
@@ -2408,28 +3416,17 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
               `;
             }).join("") : `
               <div class="tm-tech-empty">
-                <strong>Aucun résultat</strong>
-                <p>Modifiez la recherche ou les filtres.</p>
+                <strong>${_esc(options.emptyTitle || "Aucun résultat")}</strong>
+                <p>${_esc(options.emptyText || "Modifiez la recherche ou les filtres.")}</p>
               </div>
             `}
           </div>
 
-          <aside class="tm-tech-detail" data-tech-detail>
-            ${selected ? `
-              <p class="tm-tech-kicker">${_esc(options.detailKicker(selected))}</p>
-              <h3>${_esc(selected[titleKey])}</h3>
-              <div class="tm-tech-rows">${_techDetailRows(selected, fields)}</div>
-              <p class="tm-tech-lesson">${_esc(options.lesson(selected))}</p>
-            ` : `
-              <div class="tm-tech-empty">
-                <strong>${_esc(options.emptyTitle || "Aucune donnée")}</strong>
-                <p>${_esc(options.emptyText || "Ce module ne contient pas encore d'entrée.")}</p>
-              </div>
-            `}
-          </aside>
+          ${renderDetailPanel(selected, options, fields, titleKey)}
         </div>
       </div>
     `;
+    restoreTechnicalSearchFocus(container, focusState);
   }
 
   function _bindTechnicalModule(root, data, options) {
@@ -2453,6 +3450,17 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     });
 
     root.addEventListener("click", e => {
+      const chip = e.target.closest("[data-tech-chip]");
+      if (chip) {
+        const state = _techState[options.id] ||= { filters: {}, compare: [] };
+        state.filters ||= {};
+        const key = chip.dataset.techFilter;
+        const value = chip.dataset.techValue || "";
+        if (key) state.filters[key] = state.filters[key] === value ? "" : value;
+        renderTechnicalCards(root, data, options);
+        return;
+      }
+
       const compareBtn = e.target.closest("[data-chronos-compare]");
       if (compareBtn) {
         e.stopPropagation();
@@ -2551,51 +3559,842 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     }
   ] : [];
 
-  /* ── DATA_FICHES — 6 fiches encyclopédie constructive ──────── */
-  const DATA_FICHES = [
-    {
-      titre:      "Assemblages bois CLT",
-      sous_titre: "Catalogue des assemblages structurels pour panneaux CLT : tenon-mortaise, crantage, platines acier et vis inclinées. Tolérances de mise en œuvre, charges admissibles et détails de nœuds courants en phase APD.",
-      tag:        "TECHNIQUE",
-      image_url:  "",
-      _bg:        "linear-gradient(140deg,#08090e 0%,#0e1220 55%,#161e36 100%)"
-    },
-    {
-      titre:      "Béton banché",
-      sous_titre: "Coulage en banches métalliques ou bois : dosage, vibration, cure et décoffrage. Traitements de parement : grenaillage, sablage, brossage. Précautions anti-bullage et reprises de bétonnage DTU 21.",
-      tag:        "BÉTON",
-      image_url:  "",
-      _bg:        "linear-gradient(140deg,#0c0c0a 0%,#1a1a14 55%,#2a2a1e 100%)"
-    },
-    {
-      titre:      "Étanchéité toiture-terrasse",
-      sous_titre: "Systèmes bicouche SBS et monocouche TPO/EPDM pour toitures inaccessibles et jardins. Points singuliers : relevés, acrotères et émergences. DTU 43.1, règles professionnelles CSNE et essais de ponçage.",
-      tag:        "ÉTANCHÉITÉ",
-      image_url:  "",
-      _bg:        "linear-gradient(140deg,#090e0c 0%,#121e18 55%,#1a2c22 100%)"
-    },
-    {
-      titre:      "Mur rideau aluminium",
-      sous_titre: "Façade légère en profilés aluminium : montants, traverses, pare-vapeur et traitement des joints. Calcul des flèches admissibles sous vent et gestion des ponts thermiques par rupteur de façade NF EN 13830.",
-      tag:        "FAÇADE",
-      image_url:  "",
-      _bg:        "linear-gradient(140deg,#0e0e0c 0%,#201e16 55%,#302e20 100%)"
-    },
-    {
-      titre:      "Fondations sur pieux",
-      sous_titre: "Pieux forés, battus et vissés : sélection selon la nature du sol et les charges. Dimensionnement par la méthode pressiométrique. Interface pieu-dalle, armatures de liaison au chevêtre et contrôle COFRAC.",
-      tag:        "FONDATION",
-      image_url:  "",
-      _bg:        "linear-gradient(140deg,#0c0a08 0%,#1e1810 55%,#302618 100%)"
-    },
-    {
-      titre:      "ITE — Isolation par l'extérieur",
-      sous_titre: "Systèmes ETICS sous enduit et bardage ventilé : fixation mécanique vs collée, jonctions menuiseries et soubassements. Gains en déphasage thermique et compatibilité RE2020 avec vérification pont thermique Th-BCE.",
-      tag:        "THERMIQUE",
-      image_url:  "",
-      _bg:        "linear-gradient(140deg,#080c10 0%,#10182a 55%,#182440 100%)"
-    }
+  const ETUDES_PAGE_SIZE = 6;
+  const CITY_PAGE_SIZE = 9;
+
+  const DATA_ETUDES_ECOLES = [
+    { id: "ulb-lacambre-horta", nom: "ULB — Faculté d'Architecture La Cambre Horta", ville: "Bruxelles", pays: "Belgique", type: "université", filieresProposees: ["Architecture", "Patrimoine / restauration", "Architecture durable / écoconstruction"], officialUrl: "https://archi.ulb.be", description: "Formation universitaire en architecture. Certaines informations pédagogiques restent à vérifier selon l'année académique." },
+    { id: "uclouvain-loci", nom: "UCLouvain — LOCI", ville: "Louvain-la-Neuve", pays: "Belgique", type: "université", filieresProposees: ["Architecture", "Urbanisme", "Architecture durable / écoconstruction"], officialUrl: "https://uclouvain.be/fr/facultes/loci", description: "Faculté d'architecture, d'ingénierie architecturale et d'urbanisme. Données de parcours à vérifier." },
+    { id: "uliege-archi", nom: "Université de Liège — Faculté d'Architecture", ville: "Liège", pays: "Belgique", type: "université", filieresProposees: ["Architecture", "Urbanisme", "BIM / modélisation"], officialUrl: "https://www.archi.uliege.be", description: "Formation universitaire en architecture et culture constructive. Détails de programme à vérifier." },
+    { id: "umons-fau", nom: "UMONS — Faculté d'Architecture et d'Urbanisme", ville: "Mons", pays: "Belgique", type: "université", filieresProposees: ["Architecture", "Urbanisme", "Patrimoine / restauration"], officialUrl: "https://web.umons.ac.be/fau/", description: "Parcours architecture et urbanisme avec ancrage territorial. Informations à vérifier." },
+    { id: "saint-luc-bruxelles", nom: "ESA Saint-Luc Bruxelles", ville: "Bruxelles", pays: "Belgique", type: "supérieur artistique", filieresProposees: ["Architecture d’intérieur", "Design d’espace", "Scénographie", "Design mobilier"], officialUrl: "https://www.stluc-bruxelles-esa.be/", description: "École supérieure artistique orientée espace, objet et image. Parcours à vérifier." },
+    { id: "saint-luc-liege", nom: "ESA Saint-Luc Liège", ville: "Liège", pays: "Belgique", type: "supérieur artistique", filieresProposees: ["Architecture d’intérieur", "Design d’espace", "Scénographie"], officialUrl: "https://www.saint-luc.be/", description: "École artistique proposant des formations liées à l'espace et au design. Données à vérifier." },
+    { id: "luca-gand", nom: "LUCA School of Arts", ville: "Gand", pays: "Belgique", type: "supérieur artistique", filieresProposees: ["Architecture d’intérieur", "Design mobilier", "Design d’espace"], officialUrl: "https://www.luca-arts.be/", description: "École d'art et de design. Vérifier campus et intitulés précis." },
+    { id: "uantwerpen-design", nom: "University of Antwerp — Design Sciences", ville: "Anvers", pays: "Belgique", type: "université", filieresProposees: ["Architecture d’intérieur", "Patrimoine / restauration", "Design d’espace"], officialUrl: "https://www.uantwerpen.be/en/about-uantwerp/faculties/faculty-design-sciences/", description: "Faculté liée aux sciences du design. Détails de filières à vérifier." },
+    { id: "kuleuven-architecture", nom: "KU Leuven — Faculty of Architecture", ville: "Gand", pays: "Belgique", type: "université", filieresProposees: ["Architecture", "Urbanisme", "BIM / modélisation"], officialUrl: "https://www.kuleuven.be/faculteitarchitectuur", description: "Faculté d'architecture implantée notamment à Bruxelles et Gand. Données à vérifier." },
+    { id: "esa-tournai", nom: "ESA Saint-Luc Tournai", ville: "Tournai", pays: "Belgique", type: "supérieur artistique", filieresProposees: ["Architecture d’intérieur", "Design d’espace", "Scénographie"], officialUrl: "https://www.stluc-tournai.be/", description: "École supérieure artistique. Intitulés exacts à vérifier avant candidature." },
+    { id: "ensaplv", nom: "ENSA Paris-La Villette", ville: "Paris", pays: "France", type: "public", filieresProposees: ["Architecture", "Urbanisme", "BIM / modélisation"], officialUrl: "https://www.paris-lavillette.archi.fr/", description: "École nationale supérieure d'architecture. Parcours et admissions à vérifier." },
+    { id: "ensapb", nom: "ENSA Paris-Belleville", ville: "Paris", pays: "France", type: "public", filieresProposees: ["Architecture", "Patrimoine / restauration", "Architecture durable / écoconstruction"], officialUrl: "https://www.paris-belleville.archi.fr/", description: "École nationale supérieure d'architecture. Détails pédagogiques à vérifier." },
+    { id: "ensa-lyon", nom: "ENSA Lyon", ville: "Lyon", pays: "France", type: "public", filieresProposees: ["Architecture", "Architecture durable / écoconstruction", "Ingénierie construction"], officialUrl: "https://www.lyon.archi.fr/", description: "École nationale supérieure d'architecture. Parcours à vérifier." },
+    { id: "ensa-marseille", nom: "ENSA Marseille", ville: "Marseille", pays: "France", type: "public", filieresProposees: ["Architecture", "Urbanisme", "Paysage"], officialUrl: "https://www.marseille.archi.fr/", description: "École nationale supérieure d'architecture, contexte méditerranéen. Données à vérifier." },
+    { id: "ensa-nantes", nom: "ENSA Nantes", ville: "Nantes", pays: "France", type: "public", filieresProposees: ["Architecture", "Scénographie", "BIM / modélisation"], officialUrl: "https://www.nantes.archi.fr/", description: "École nationale supérieure d'architecture. Ateliers et formations à vérifier." },
+    { id: "ensap-lille", nom: "ENSAP Lille", ville: "Lille", pays: "France", type: "public", filieresProposees: ["Architecture", "Paysage", "Urbanisme"], officialUrl: "https://www.lille.archi.fr/", description: "École nationale supérieure d'architecture et de paysage. Données à vérifier." },
+    { id: "ensap-bordeaux", nom: "ENSAP Bordeaux", ville: "Bordeaux", pays: "France", type: "public", filieresProposees: ["Architecture", "Paysage", "Architecture durable / écoconstruction"], officialUrl: "https://www.bordeaux.archi.fr/", description: "École nationale supérieure d'architecture et de paysage. Informations à vérifier." },
+    { id: "ensa-strasbourg", nom: "ENSA Strasbourg", ville: "Strasbourg", pays: "France", type: "public", filieresProposees: ["Architecture", "Ingénierie construction", "BIM / modélisation"], officialUrl: "https://www.strasbourg.archi.fr/", description: "École nationale supérieure d'architecture. Certains doubles parcours sont à vérifier." },
+    { id: "ensa-grenoble", nom: "ENSA Grenoble", ville: "Grenoble", pays: "France", type: "public", filieresProposees: ["Architecture", "Architecture durable / écoconstruction", "Ingénierie construction"], officialUrl: "https://www.grenoble.archi.fr/", description: "École nationale supérieure d'architecture, culture montagne et environnement. À vérifier." },
+    { id: "ensa-toulouse", nom: "ENSA Toulouse", ville: "Toulouse", pays: "France", type: "public", filieresProposees: ["Architecture", "Urbanisme", "Patrimoine / restauration"], officialUrl: "https://www.toulouse.archi.fr/", description: "École nationale supérieure d'architecture. Données à vérifier." },
+    { id: "ensa-montpellier", nom: "ENSA Montpellier", ville: "Montpellier", pays: "France", type: "public", filieresProposees: ["Architecture", "Architecture durable / écoconstruction", "Patrimoine / restauration"], officialUrl: "https://www.montpellier.archi.fr/", description: "École nationale supérieure d'architecture. Parcours et admissions à vérifier." }
+  ].map(school => ({
+    statut: "à vérifier",
+    filieres: school.filieresProposees,
+    lienOfficiel: school.officialUrl,
+    courteDescription: school.description,
+    ...school
+  }));
+
+  const DATA_ETUDES_FILIERES = [
+    { id: "architecture", nom: "Architecture", description: "Formation centrale pour concevoir bâtiments, espaces publics, détails constructifs et stratégies territoriales.", dureeMoyenne: "5 ans en Belgique ou France, hors spécialisations", diplomeVise: "Master / diplôme d'État selon pays, à vérifier", competences: ["projet", "représentation", "construction", "histoire", "urbanisme"], logicielsUtiles: ["AutoCAD", "Revit", "Rhino", "SketchUp", "Adobe CC"], debouches: ["architecte", "chef de projet", "assistant de projet", "maîtrise d'œuvre"], ecolesAssociees: ["ulb-lacambre-horta", "uclouvain-loci", "uliege-archi", "umons-fau", "ensaplv", "ensapb", "ensa-lyon"], villes: ["Bruxelles", "Louvain-la-Neuve", "Liège", "Mons", "Paris", "Lyon"], pays: ["Belgique", "France"], tags: ["atelier", "projet", "construction"] },
+    { id: "interieur", nom: "Architecture d’intérieur", description: "Conception des espaces intérieurs, ambiances, mobilier intégré, matériaux et usages.", dureeMoyenne: "3 à 5 ans selon école", diplomeVise: "Bachelor / master artistique ou diplôme spécialisé, à vérifier", competences: ["espace", "matériaux", "ergonomie", "lumière", "mobilier"], logicielsUtiles: ["SketchUp", "AutoCAD", "Rhino", "Enscape", "InDesign"], debouches: ["architecte d'intérieur", "designer d'espace", "scénographe", "concepteur retail"], ecolesAssociees: ["saint-luc-bruxelles", "saint-luc-liege", "luca-gand", "uantwerpen-design", "esa-tournai"], villes: ["Bruxelles", "Liège", "Gand", "Anvers", "Tournai"], pays: ["Belgique"], tags: ["intérieur", "matière", "ambiance"] },
+    { id: "urbanisme", nom: "Urbanisme", description: "Lecture territoriale, planification, mobilité, habitat, politiques publiques et formes urbaines.", dureeMoyenne: "1 à 5 ans selon entrée et master", diplomeVise: "Master urbanisme / architecture / aménagement, à vérifier", competences: ["cartographie", "diagnostic", "règlement", "mobilité", "concertation"], logicielsUtiles: ["QGIS", "Illustrator", "AutoCAD", "Excel", "InDesign"], debouches: ["urbaniste", "chargé d'études", "programmiste", "collectivité"], ecolesAssociees: ["uclouvain-loci", "umons-fau", "uliege-archi", "ensaplv", "ensa-marseille", "ensap-lille", "ensa-toulouse"], villes: ["Louvain-la-Neuve", "Mons", "Liège", "Paris", "Marseille", "Lille", "Toulouse"], pays: ["Belgique", "France"], tags: ["ville", "territoire", "cartographie"] },
+    { id: "paysage", nom: "Paysage", description: "Projet de sols, végétal, eau, climat, espaces publics et transformation des territoires.", dureeMoyenne: "3 à 5 ans selon école", diplomeVise: "Diplôme de paysagiste / master paysage, à vérifier", competences: ["végétal", "sol", "hydrologie", "territoire", "dessin"], logicielsUtiles: ["QGIS", "AutoCAD", "Photoshop", "Illustrator", "InDesign"], debouches: ["paysagiste", "concepteur espace public", "chargé d'études environnement"], ecolesAssociees: ["ensap-lille", "ensap-bordeaux", "ensa-marseille"], villes: ["Lille", "Bordeaux", "Marseille"], pays: ["France"], tags: ["sol", "climat", "végétal"] },
+    { id: "design-espace", nom: "Design d’espace", description: "Conception d'espaces culturels, commerciaux, événementiels et domestiques avec forte attention à l'usage.", dureeMoyenne: "3 à 5 ans selon école", diplomeVise: "Bachelor / master artistique ou diplôme spécialisé, à vérifier", competences: ["scénario d'usage", "volume", "signalétique", "maquette", "matière"], logicielsUtiles: ["SketchUp", "Rhino", "Blender", "Adobe CC"], debouches: ["designer d'espace", "concepteur retail", "assistant scénographe"], ecolesAssociees: ["saint-luc-bruxelles", "saint-luc-liege", "luca-gand", "esa-tournai"], villes: ["Bruxelles", "Liège", "Gand", "Tournai"], pays: ["Belgique"], tags: ["usage", "volume", "expérience"] },
+    { id: "design-mobilier", nom: "Design mobilier", description: "Création d'objets, meubles, prototypes et systèmes de fabrication liés à l'habitat.", dureeMoyenne: "3 à 5 ans selon école", diplomeVise: "Bachelor / master design, à vérifier", competences: ["ergonomie", "prototype", "assemblage", "matériaux", "dessin technique"], logicielsUtiles: ["Rhino", "Fusion 360", "SolidWorks", "KeyShot", "Adobe CC"], debouches: ["designer mobilier", "prototypiste", "designer produit"], ecolesAssociees: ["saint-luc-bruxelles", "luca-gand"], villes: ["Bruxelles", "Gand"], pays: ["Belgique"], tags: ["objet", "prototype", "fabrication"] },
+    { id: "scenographie", nom: "Scénographie", description: "Conception d'espaces narratifs pour exposition, spectacle, musées, événements et installations.", dureeMoyenne: "3 à 5 ans selon école", diplomeVise: "Diplôme artistique / spécialisation, à vérifier", competences: ["récit spatial", "lumière", "parcours", "montage", "maquette"], logicielsUtiles: ["SketchUp", "Vectorworks", "Blender", "Adobe CC"], debouches: ["scénographe", "concepteur exposition", "designer événementiel"], ecolesAssociees: ["saint-luc-bruxelles", "saint-luc-liege", "ensa-nantes", "esa-tournai"], villes: ["Bruxelles", "Liège", "Nantes", "Tournai"], pays: ["Belgique", "France"], tags: ["exposition", "récit", "lumière"] },
+    { id: "patrimoine", nom: "Patrimoine / restauration", description: "Étude du bâti existant, relevé, diagnostic, restauration, réemploi et interventions sensibles.", dureeMoyenne: "1 à 5 ans selon spécialisation", diplomeVise: "Master ou spécialisation patrimoine, à vérifier", competences: ["relevé", "diagnostic", "matériaux anciens", "réhabilitation", "règlement"], logicielsUtiles: ["AutoCAD", "Revit", "Recap", "QGIS", "InDesign"], debouches: ["architecte patrimoine", "chargé de mission", "diagnostiqueur bâti"], ecolesAssociees: ["ulb-lacambre-horta", "umons-fau", "uantwerpen-design", "ensapb", "ensa-toulouse", "ensa-montpellier"], villes: ["Bruxelles", "Mons", "Anvers", "Paris", "Toulouse", "Montpellier"], pays: ["Belgique", "France"], tags: ["patrimoine", "réhabilitation", "diagnostic"] },
+    { id: "ingenierie-construction", nom: "Ingénierie construction", description: "Approche technique structure, enveloppe, chantier, physique du bâtiment et coordination.", dureeMoyenne: "3 à 5 ans selon école", diplomeVise: "Master ingénierie / architecture / construction, à vérifier", competences: ["structure", "physique du bâtiment", "chantier", "détail", "économie"], logicielsUtiles: ["Revit", "Robot", "Excel", "AutoCAD", "BIMcollab"], debouches: ["ingénieur construction", "coordinateur technique", "AMO", "chef de projet"], ecolesAssociees: ["ensa-lyon", "ensa-strasbourg", "ensa-grenoble"], villes: ["Lyon", "Strasbourg", "Grenoble"], pays: ["France"], tags: ["structure", "chantier", "technique"] },
+    { id: "bim", nom: "BIM / modélisation", description: "Modélisation numérique, coordination, maquette informationnelle, synthèse et documentation.", dureeMoyenne: "1 à 5 ans selon entrée et spécialisation", diplomeVise: "Certificat / bachelor / master, à vérifier", competences: ["modèle BIM", "coordination", "familles", "quantités", "interopérabilité"], logicielsUtiles: ["Revit", "Archicad", "Navisworks", "BIMcollab", "Dynamo"], debouches: ["BIM modeleur", "BIM coordinateur", "dessinateur-projeteur", "synthèse technique"], ecolesAssociees: ["uliege-archi", "kuleuven-architecture", "ensaplv", "ensa-nantes", "ensa-strasbourg"], villes: ["Liège", "Gand", "Paris", "Nantes", "Strasbourg"], pays: ["Belgique", "France"], tags: ["BIM", "maquette", "coordination"] },
+    { id: "durable", nom: "Architecture durable / écoconstruction", description: "Conception bas-carbone, bioclimatique, matériaux biosourcés, réemploi et sobriété constructive.", dureeMoyenne: "1 à 5 ans selon parcours", diplomeVise: "Master ou spécialisation environnement, à vérifier", competences: ["ACV", "bioclimatique", "isolation", "réemploi", "matériaux"], logicielsUtiles: ["Pleiades", "Revit", "One Click LCA", "Excel", "QGIS"], debouches: ["consultant durable", "architecte bas-carbone", "AMO environnement", "chargé d'études"], ecolesAssociees: ["ulb-lacambre-horta", "uclouvain-loci", "ensapb", "ensa-lyon", "ensap-bordeaux", "ensa-grenoble", "ensa-montpellier"], villes: ["Bruxelles", "Louvain-la-Neuve", "Paris", "Lyon", "Bordeaux", "Grenoble", "Montpellier"], pays: ["Belgique", "France"], tags: ["bas-carbone", "écoconstruction", "réemploi"] }
+  ].map(filiere => ({
+    durée: filiere.dureeMoyenne,
+    diplôme: filiere.diplomeVise,
+    ...filiere
+  }));
+
+  const DATA_FICHES_TECHNIQUES = [
+    { id: "toiture-plate-chaude", titre: "toiture plate chaude", categorie: "Toitures", sousCategorie: "Toiture plate", niveau: "intermédiaire", usage: "Toiture compacte isolée au-dessus du support.", descriptionCourte: "Détail pédagogique d'une toiture plate chaude avec pare-vapeur, isolant, étanchéité et acrotère.", couches: ["support porteur", "pare-vapeur", "isolant rigide", "étanchéité EPDM", "protection"], materiaux: ["béton", "EPDM", "PIR", "laine de bois"], pointsVigilance: ["continuité du pare-vapeur", "relevés d'étanchéité", "pente minimale"], erreursFrequentes: ["oublier les évacuations EP", "percer l'étanchéité sans traitement"], avantages: ["bonne performance thermique", "détail courant"], limites: ["points singuliers sensibles"], motsCles: ["acrotère", "étanchéité", "pare-vapeur"], externalLinks: [{ label: "Voir un organisme technique", url: "https://www.buildwise.be/", type: "site technique" }], schema: "toiture", statut: "à vérifier" },
+    { id: "toiture-plate-froide", titre: "toiture plate froide", categorie: "Toitures", sousCategorie: "Toiture ventilée", niveau: "avancé", usage: "Cas à manier avec prudence, ventilation nécessaire.", descriptionCourte: "Toiture avec isolation sous support et lame d'air ventilée.", couches: ["plafond", "pare-vapeur", "isolant semi-rigide", "lame d'air", "support", "étanchéité"], materiaux: ["bois", "laine minérale", "EPDM"], pointsVigilance: ["ventilation réelle", "risque condensation"], erreursFrequentes: ["lame d'air bloquée", "pare-vapeur discontinu"], avantages: ["compatible rénovation ciblée"], limites: ["risque hygrothermique élevé"], motsCles: ["condensation", "ventilation", "frein-vapeur"], externalLinks: [{ label: "Documentation technique générale", url: "https://www.cstb.fr/", type: "documentation" }], schema: "toiture", statut: "à compléter" },
+    { id: "toiture-vegetalisee", titre: "toiture végétalisée", categorie: "Toitures", sousCategorie: "Végétalisation", niveau: "avancé", usage: "Rétention d'eau, inertie et biodiversité sur toiture plate.", descriptionCourte: "Principe de couches : étanchéité anti-racine, drainage, substrat, végétal.", couches: ["support", "pare-vapeur", "isolant", "membrane anti-racine", "drainage", "substrat", "végétation"], materiaux: ["EPDM", "substrat", "drainage", "végétal"], pointsVigilance: ["charge", "entretien", "évacuation trop-plein"], erreursFrequentes: ["sous-estimer le poids saturé", "absence de protection racinaire"], avantages: ["rétention d'eau", "confort d'été"], limites: ["entretien et charge"], motsCles: ["biodiversité", "eau", "substrat"], externalLinks: [{ label: "Ressource environnement", url: "https://www.ademe.fr/", type: "documentation" }], schema: "toiture", statut: "à vérifier" },
+    { id: "toiture-pente", titre: "toiture en pente", categorie: "Charpentes", sousCategorie: "Couverture inclinée", niveau: "débutant", usage: "Couverture tuile, ardoise ou zinc avec isolation et ventilation.", descriptionCourte: "Détail de toiture en pente avec chevrons, écran, isolant, pare-vapeur et couverture.", couches: ["chevrons", "isolant", "pare-vapeur", "écran sous-toiture", "liteaux", "couverture"], materiaux: ["bois", "tuile", "ardoise", "laine de bois"], pointsVigilance: ["ventilation sous couverture", "continuité air", "raccord gouttière"], erreursFrequentes: ["écran non raccordé", "pont thermique au pied de rampant"], avantages: ["écoulement simple", "détail lisible"], limites: ["raccords et lucarnes complexes"], motsCles: ["chevron", "liteau", "gouttière"], externalLinks: [{ label: "Voir ressource bois", url: "https://www.fcba.fr/", type: "documentation" }], schema: "toiture-pente", statut: "à compléter" },
+    { id: "terrasse-bois", titre: "terrasse bois", categorie: "Terrasses", sousCategorie: "Platelage extérieur", niveau: "débutant", usage: "Sol extérieur sur lambourdes, plots ou structure légère.", descriptionCourte: "Terrasse avec lames, lambourdes, cales, pente et ventilation.", couches: ["support", "plots", "lambourdes", "lames bois", "jeu périphérique"], materiaux: ["bois", "acier galvanisé", "plots"], pointsVigilance: ["pente", "ventilation", "désolidarisation"], erreursFrequentes: ["bois en contact permanent avec eau", "entraxe excessif"], avantages: ["montage sec", "remplaçable"], limites: ["entretien"], motsCles: ["lambourdes", "plots", "extérieur"], externalLinks: [{ label: "Documentation bois", url: "https://www.fcba.fr/", type: "documentation" }], schema: "plancher", statut: "à vérifier" },
+    { id: "mur-ossature-bois", titre: "mur ossature bois", categorie: "Ossature bois", sousCategorie: "Mur porteur léger", niveau: "intermédiaire", usage: "Mur porteur ou remplissage avec isolant, panneaux et bardage.", descriptionCourte: "Coupe mur ossature bois : lisse basse, montants, OSB, laine de bois, pare-pluie, bardage.", couches: ["bardage", "lame d'air", "pare-pluie", "laine de bois", "OSB", "frein-vapeur", "parement intérieur"], materiaux: ["bois", "OSB", "laine de bois", "bardage"], pointsVigilance: ["contreventement", "continuité frein-vapeur", "pied de mur"], erreursFrequentes: ["OSB côté froid mal placé", "bardage non ventilé"], avantages: ["léger", "préfabriqué", "bas-carbone"], limites: ["détails humidité"], motsCles: ["OSB", "lisse haute", "isolant semi-rigide"], externalLinks: [{ label: "Ressource construction bois", url: "https://www.fcba.fr/", type: "documentation" }], schema: "mur", statut: "à vérifier" },
+    { id: "mur-beton-ite", titre: "mur béton isolé par l’extérieur", categorie: "Béton", sousCategorie: "ITE", niveau: "intermédiaire", usage: "Mur porteur lourd avec isolation continue extérieure.", descriptionCourte: "Voile béton, isolant extérieur, sous-enduit ou façade ventilée.", couches: ["béton", "fixations", "isolant", "sous-enduit", "finition"], materiaux: ["béton", "laine minérale", "enduit"], pointsVigilance: ["fixation", "soubassement", "ponts thermiques"], erreursFrequentes: ["retour d'isolant oublié", "départ ITE trop bas"], avantages: ["inertie intérieure", "ponts thermiques réduits"], limites: ["traitement des seuils"], motsCles: ["ITE", "voile", "soubassement"], externalLinks: [{ label: "Centre scientifique et technique", url: "https://www.cstb.fr/", type: "site technique" }], schema: "mur", statut: "à vérifier" },
+    { id: "facade-ventilee", titre: "façade ventilée", categorie: "Façade", sousCategorie: "Bardage rapporté", niveau: "intermédiaire", usage: "Enveloppe avec lame d'air ventilée et peau extérieure.", descriptionCourte: "Mur support, isolant, ossature secondaire, lame d'air, parement.", couches: ["support", "isolant", "pare-pluie", "ossature secondaire", "lame d'air", "parement"], materiaux: ["acier", "bois", "aluminium", "fibre-ciment"], pointsVigilance: ["entrée/sortie d'air", "feu façade", "fixations"], erreursFrequentes: ["lame d'air interrompue", "pare-pluie exposé"], avantages: ["durable", "réparable"], limites: ["détail feu et coût"], motsCles: ["lame d'air", "bardage", "pare-pluie"], externalLinks: [{ label: "Ressource technique", url: "https://www.buildwise.be/", type: "site technique" }], schema: "facade", statut: "à compléter" },
+    { id: "bardage-bois", titre: "bardage bois", categorie: "Façade", sousCategorie: "Peau extérieure", niveau: "débutant", usage: "Parement extérieur ventilé en lames ou panneaux bois.", descriptionCourte: "Bardage, tasseaux, pare-pluie, ventilation basse et haute.", couches: ["pare-pluie", "tasseaux", "lame d'air", "bardage", "fixations"], materiaux: ["bois", "inox", "pare-pluie"], pointsVigilance: ["classe d'emploi", "eau stagnante", "entraxe"], erreursFrequentes: ["coupe horizontale non protégée", "absence grille anti-rongeur"], avantages: ["renouvelable", "léger"], limites: ["grisaillement et entretien"], motsCles: ["tasseau", "ventilation", "fixation"], externalLinks: [{ label: "Documentation bois", url: "https://www.fcba.fr/", type: "documentation" }], schema: "facade", statut: "à vérifier" },
+    { id: "plancher-bois", titre: "plancher bois", categorie: "Planchers", sousCategorie: "Solivage", niveau: "intermédiaire", usage: "Plancher léger avec solives, panneau, acoustique et revêtement.", descriptionCourte: "Solives, OSB, isolant acoustique, chape sèche ou revêtement.", couches: ["solives", "OSB", "isolant", "lambourdes", "revêtement de sol"], materiaux: ["bois", "OSB", "laine de bois"], pointsVigilance: ["vibrations", "acoustique", "trémies"], erreursFrequentes: ["portée mal estimée", "absence désolidarisation acoustique"], avantages: ["léger", "sec", "réversible"], limites: ["acoustique à traiter"], motsCles: ["solives", "OSB", "revêtement de sol"], externalLinks: [{ label: "Ressource bois", url: "https://www.fcba.fr/", type: "documentation" }], schema: "plancher", statut: "à compléter" },
+    { id: "dalle-beton", titre: "dalle béton", categorie: "Béton", sousCategorie: "Plancher lourd", niveau: "débutant", usage: "Plancher ou dalle sur terre-plein selon contexte.", descriptionCourte: "Dalle, armatures, isolant, rupteurs et finitions.", couches: ["hérisson", "film", "isolant", "béton armé", "chape", "revêtement"], materiaux: ["béton", "acier", "isolant"], pointsVigilance: ["joints", "remontées capillaires", "ponts thermiques"], erreursFrequentes: ["absence rupture périphérique", "cure insuffisante"], avantages: ["inertie", "robustesse"], limites: ["carbone", "temps de séchage"], motsCles: ["dalle", "armature", "terre-plein"], externalLinks: [{ label: "Ressource technique", url: "https://www.cstb.fr/", type: "site technique" }], schema: "plancher", statut: "à vérifier" },
+    { id: "semelle-filante", titre: "fondation semelle filante", categorie: "Fondations", sousCategorie: "Fondation superficielle", niveau: "intermédiaire", usage: "Support continu sous murs porteurs.", descriptionCourte: "Semelle, armatures, béton de propreté, mur de soubassement.", couches: ["sol porteur", "béton de propreté", "armatures", "semelle", "soubassement"], materiaux: ["béton", "acier"], pointsVigilance: ["sol", "hors gel", "drainage"], erreursFrequentes: ["dimensionnement sans étude sol", "drain absent"], avantages: ["simple", "courant"], limites: ["dépend du sol"], motsCles: ["hors gel", "semelle", "drain"], externalLinks: [{ label: "Centre technique", url: "https://www.buildwise.be/", type: "site technique" }], schema: "fondation", statut: "à vérifier" },
+    { id: "acrotere", titre: "acrotère", categorie: "Acrotères", sousCategorie: "Relevé toiture plate", niveau: "avancé", usage: "Couronnement et relevé d'étanchéité en rive de toiture.", descriptionCourte: "Acrotère avec relevé, isolant, couvertine, pente et rupture thermique.", couches: ["mur support", "isolant", "relevé étanchéité", "capot / acrotère", "couvertine"], materiaux: ["béton", "EPDM", "aluminium", "isolant"], pointsVigilance: ["hauteur relevé", "fixation couvertine", "pont thermique"], erreursFrequentes: ["couvertine plate", "relevé trop bas"], avantages: ["bord net", "protection rive"], limites: ["point singulier sensible"], motsCles: ["capot", "relevé", "couvertine"], externalLinks: [{ label: "Documentation toiture", url: "https://www.buildwise.be/", type: "site technique" }], schema: "toiture", statut: "à vérifier" },
+    { id: "evacuation-ep", titre: "gouttière / évacuation EP", categorie: "Étanchéité", sousCategorie: "Eaux pluviales", niveau: "intermédiaire", usage: "Collecte et évacuation des eaux de toiture.", descriptionCourte: "Naissance EP, trop-plein, pente, crapaudine et raccord étanchéité.", couches: ["étanchéité", "naissance EP", "crapaudine", "descente", "trop-plein"], materiaux: ["zinc", "PVC", "EPDM", "aluminium"], pointsVigilance: ["débit", "entretien", "trop-plein"], erreursFrequentes: ["évacuation unique", "pente insuffisante"], avantages: ["sécurité toiture"], limites: ["maintenance"], motsCles: ["EP", "gouttière", "trop-plein"], externalLinks: [{ label: "Ressource technique", url: "https://www.cstb.fr/", type: "documentation" }], schema: "toiture", statut: "à compléter" },
+    { id: "isolation-interieure", titre: "isolation intérieure", categorie: "Isolation", sousCategorie: "ITI", niveau: "débutant", usage: "Isolation côté intérieur en rénovation ou contraintes façade.", descriptionCourte: "Ossature, isolant, pare-vapeur/frein-vapeur et parement.", couches: ["mur existant", "isolant semi-rigide", "frein-vapeur", "ossature", "plaque"], materiaux: ["laine de bois", "plaque de plâtre", "frein-vapeur"], pointsVigilance: ["condensation", "ponts thermiques", "continuité vapeur"], erreursFrequentes: ["pare-vapeur percé", "retours non isolés"], avantages: ["intérieur maîtrisé", "façade conservée"], limites: ["perte surface", "hygrothermie"], motsCles: ["ITI", "frein-vapeur", "pont thermique"], externalLinks: [{ label: "Ressource environnement", url: "https://www.ademe.fr/", type: "documentation" }], schema: "mur", statut: "à vérifier" },
+    { id: "isolation-exterieure", titre: "isolation extérieure", categorie: "Isolation", sousCategorie: "ITE", niveau: "intermédiaire", usage: "Enveloppe continue à l'extérieur du support.", descriptionCourte: "ITE sous enduit ou sous bardage avec traitement des points singuliers.", couches: ["support", "isolant", "fixation", "sous-enduit", "finition"], materiaux: ["laine minérale", "fibre de bois", "enduit"], pointsVigilance: ["soubassement", "menuiseries", "feu"], erreursFrequentes: ["départs mal protégés", "tableaux oubliés"], avantages: ["continuité thermique", "inertie conservée"], limites: ["autorisation façade"], motsCles: ["ITE", "tableau", "soubassement"], externalLinks: [{ label: "Ressource technique", url: "https://www.cstb.fr/", type: "site technique" }], schema: "mur", statut: "à vérifier" },
+    { id: "pare-vapeur", titre: "pare-vapeur", categorie: "Isolation", sousCategorie: "Gestion vapeur", niveau: "débutant", usage: "Limiter fortement le passage de vapeur d'eau.", descriptionCourte: "Membrane continue côté chaud selon composition et climat.", couches: ["support", "adhésif", "pare-vapeur", "passage réseau traité"], materiaux: ["membrane", "adhésif", "manchon"], pointsVigilance: ["continuité", "traversées", "recouvrements"], erreursFrequentes: ["prise électrique non traitée", "adhésif inadapté"], avantages: ["réduit condensation"], limites: ["peut bloquer le séchage"], motsCles: ["vapeur", "membrane", "étanchéité air"], externalLinks: [{ label: "Ressource pédagogique", url: "https://www.buildwise.be/", type: "documentation" }], schema: "membrane", statut: "à compléter" },
+    { id: "frein-vapeur", titre: "frein-vapeur", categorie: "Isolation", sousCategorie: "Gestion vapeur", niveau: "intermédiaire", usage: "Réguler la vapeur tout en permettant un certain séchage.", descriptionCourte: "Membrane hygrovariable ou freinant la diffusion selon détail.", couches: ["parement", "frein-vapeur", "isolant", "support"], materiaux: ["membrane", "adhésif", "bois"], pointsVigilance: ["choix hygrothermique", "continuité"], erreursFrequentes: ["confusion avec pare-vapeur", "jonctions non collées"], avantages: ["sécurité hygrothermique"], limites: ["nécessite calcul"], motsCles: ["hygrovariable", "vapeur", "bois"], externalLinks: [{ label: "Ressource technique", url: "https://www.buildwise.be/", type: "site technique" }], schema: "membrane", statut: "à vérifier" },
+    { id: "epdm", titre: "étanchéité EPDM", categorie: "Étanchéité", sousCategorie: "Membrane", niveau: "intermédiaire", usage: "Membrane souple pour toiture plate, relevés et points singuliers.", descriptionCourte: "EPDM collé ou lesté avec relevés, angles et évacuations traités.", couches: ["support", "primaire", "membrane EPDM", "relevé", "protection"], materiaux: ["EPDM", "colle", "aluminium"], pointsVigilance: ["angles", "collage", "évacuations"], erreursFrequentes: ["angle sans pièce adaptée", "support humide"], avantages: ["durable", "souple"], limites: ["pose précise"], motsCles: ["membrane", "relevé", "toiture"], externalLinks: [{ label: "Ressource toiture", url: "https://www.buildwise.be/", type: "documentation" }], schema: "toiture", statut: "à vérifier" },
+    { id: "poteau-poutre", titre: "assemblage poteau-poutre", categorie: "Acier", sousCategorie: "Structure", niveau: "avancé", usage: "Nœud structurel bois ou acier selon système.", descriptionCourte: "Principe d'assemblage avec platine, boulons, équerres ou connecteurs.", couches: ["poteau", "poutre", "platine", "boulons", "contreventement"], materiaux: ["acier", "bois", "boulonnerie"], pointsVigilance: ["reprise d'efforts", "feu", "tolérances"], erreursFrequentes: ["détail non démontable", "jeu de montage oublié"], avantages: ["lisible", "préfabriquable"], limites: ["calcul obligatoire"], motsCles: ["poteau", "poutre", "platine"], externalLinks: [{ label: "Ressource structure bois", url: "https://www.fcba.fr/", type: "documentation" }], schema: "structure", statut: "à compléter" },
+    { id: "seuil-porte", titre: "détail seuil de porte", categorie: "Menuiseries", sousCategorie: "Seuil", niveau: "avancé", usage: "Jonction sol intérieur/extérieur, accessibilité et étanchéité.", descriptionCourte: "Seuil avec rupture thermique, pente, relevé et ressaut limité.", couches: ["revêtement intérieur", "seuil", "étanchéité", "pente extérieure", "isolant"], materiaux: ["aluminium", "béton", "EPDM", "isolant"], pointsVigilance: ["eau", "PMR", "pont thermique"], erreursFrequentes: ["seuil trop haut", "pente vers intérieur"], avantages: ["confort d'usage"], limites: ["détail sensible"], motsCles: ["seuil", "PMR", "eau"], externalLinks: [{ label: "Ressource accessibilité", url: "https://www.ecologie.gouv.fr/", type: "documentation" }], schema: "seuil", statut: "à vérifier" },
+    { id: "detail-fenetre", titre: "détail fenêtre", categorie: "Menuiseries", sousCategorie: "Tableau", niveau: "intermédiaire", usage: "Pose en tunnel, applique ou nu extérieur selon stratégie thermique.", descriptionCourte: "Menuiserie, tapées, compribande, tablette, retour isolant.", couches: ["mur", "isolant", "dormant", "joint", "appui", "tableau"], materiaux: ["bois", "aluminium", "PVC", "isolant"], pointsVigilance: ["étanchéité air/eau", "pont thermique", "appui"], erreursFrequentes: ["joint discontinu", "tableau non isolé"], avantages: ["performance enveloppe"], limites: ["multiples variantes"], motsCles: ["fenêtre", "tableau", "appui"], externalLinks: [{ label: "Ressource technique", url: "https://www.cstb.fr/", type: "documentation" }], schema: "fenetre", statut: "à vérifier" },
+    { id: "escalier-bois", titre: "escalier bois", categorie: "Escaliers", sousCategorie: "Circulation verticale", niveau: "intermédiaire", usage: "Escalier intérieur, limons, marches, garde-corps.", descriptionCourte: "Principe marche/giron/limon avec garde-corps et échappée.", couches: ["limon", "marche", "contremarche", "garde-corps", "palier"], materiaux: ["bois", "acier"], pointsVigilance: ["Blondel", "échappée", "garde-corps"], erreursFrequentes: ["giron irrégulier", "main courante oubliée"], avantages: ["léger", "chaleureux"], limites: ["acoustique et feu"], motsCles: ["giron", "limon", "Blondel"], externalLinks: [{ label: "Ressource bois", url: "https://www.fcba.fr/", type: "documentation" }], schema: "escalier", statut: "à compléter" },
+    { id: "escalier-beton", titre: "escalier béton", categorie: "Béton", sousCategorie: "Escalier coulé", niveau: "avancé", usage: "Escalier robuste intégré à la structure.", descriptionCourte: "Paillasse, armatures, nez de marche, palier et finition.", couches: ["coffrage", "armatures", "béton", "nez de marche", "revêtement"], materiaux: ["béton", "acier", "pierre"], pointsVigilance: ["coffrage", "ferraillage", "hauteur constante"], erreursFrequentes: ["première marche différente", "réservation oubliée"], avantages: ["inertie", "robustesse"], limites: ["poids", "chantier humide"], motsCles: ["paillasse", "coffrage", "marche"], externalLinks: [{ label: "Ressource technique", url: "https://www.cstb.fr/", type: "site technique" }], schema: "escalier", statut: "à vérifier" },
+    { id: "angle-ossature", titre: "détail d’angle ossature bois", categorie: "Détails d’angle", sousCategorie: "Angle sortant", niveau: "avancé", usage: "Continuité isolation, pare-pluie et bardage sur angle.", descriptionCourte: "Angle avec montants, panneaux, tasseaux croisés, retour pare-pluie.", couches: ["montants", "OSB", "isolant", "pare-pluie", "tasseaux", "bardage"], materiaux: ["bois", "OSB", "laine de bois"], pointsVigilance: ["continuité air", "fixation bardage", "eau"], erreursFrequentes: ["angle non ventilé", "pare-pluie coupé"], avantages: ["préfabricable"], limites: ["précision nécessaire"], motsCles: ["angle", "bardage", "ossature"], externalLinks: [{ label: "Ressource bois", url: "https://www.fcba.fr/", type: "documentation" }], schema: "angle", statut: "à compléter" },
+    { id: "jonction-mur-toiture", titre: "jonction mur/toiture", categorie: "Jonctions mur/toiture", sousCategorie: "Raccord enveloppe", niveau: "avancé", usage: "Continuité thermique, vapeur, air et étanchéité entre mur et toiture.", descriptionCourte: "Raccord lisse haute, pare-vapeur, isolant, écran et couverture.", couches: ["mur", "lisse haute", "pare-vapeur", "isolant toiture", "écran", "couverture"], materiaux: ["bois", "membrane", "laine de bois"], pointsVigilance: ["continuité des membranes", "pont thermique rive"], erreursFrequentes: ["membrane interrompue", "isolant compressé"], avantages: ["performance enveloppe"], limites: ["détail complexe"], motsCles: ["lisse haute", "jonction", "pare-vapeur"], externalLinks: [{ label: "Ressource technique", url: "https://www.buildwise.be/", type: "site technique" }], schema: "jonction", statut: "à vérifier" },
+    { id: "jonction-mur-plancher", titre: "jonction mur/plancher", categorie: "Jonctions mur/plancher", sousCategorie: "Nez de dalle", niveau: "avancé", usage: "Traitement pont thermique et acoustique au droit du plancher.", descriptionCourte: "Mur, plancher, isolant périphérique, rupteur et parement.", couches: ["mur", "plancher", "rupteur", "isolant", "parement"], materiaux: ["béton", "bois", "isolant"], pointsVigilance: ["pont thermique", "acoustique", "feu"], erreursFrequentes: ["nez de dalle exposé", "joint acoustique absent"], avantages: ["continuité constructive"], limites: ["coordination structure/enveloppe"], motsCles: ["nez de dalle", "rupteur", "acoustique"], externalLinks: [{ label: "Ressource technique", url: "https://www.cstb.fr/", type: "site technique" }], schema: "jonction", statut: "à compléter" },
+    { id: "pmr-douche", titre: "détail PMR douche accessible", categorie: "Détails PMR", sousCategorie: "Salle d'eau", niveau: "intermédiaire", usage: "Douche de plain-pied avec pente, siphon et aire de manœuvre.", descriptionCourte: "Receveur intégré, étanchéité sous carrelage, pente et ressaut nul.", couches: ["support", "forme de pente", "étanchéité", "carrelage", "siphon"], materiaux: ["béton", "carrelage", "membrane"], pointsVigilance: ["pente", "ressaut", "glissance"], erreursFrequentes: ["siphon mal placé", "pente insuffisante"], avantages: ["accessibilité", "confort"], limites: ["réservations nécessaires"], motsCles: ["PMR", "douche", "plain-pied"], externalLinks: [{ label: "Ressource accessibilité", url: "https://www.ecologie.gouv.fr/", type: "documentation" }], schema: "pmr", statut: "à vérifier" },
+    { id: "detail-ecologique-paille", titre: "détail écologique paille enduite", categorie: "Détails écologiques", sousCategorie: "Biosourcé", niveau: "avancé", usage: "Mur à forte épaisseur isolante en bottes de paille ou caissons.", descriptionCourte: "Ossature, paille, enduit terre/chaux, protection pluie et soubassement.", couches: ["soubassement", "ossature bois", "paille", "enduit terre", "enduit chaux"], materiaux: ["paille", "bois", "terre", "chaux"], pointsVigilance: ["humidité", "soubassement", "feu"], erreursFrequentes: ["paille proche du sol", "débord toiture insuffisant"], avantages: ["bas-carbone", "isolant"], limites: ["détails eau très sensibles"], motsCles: ["paille", "terre", "biosourcé"], externalLinks: [{ label: "Ressource environnement", url: "https://www.ademe.fr/", type: "documentation" }], schema: "mur", statut: "à vérifier" }
   ];
+
+  const CITY_WARNING = "Ces données sont indicatives et pédagogiques. Les règles exactes doivent toujours être vérifiées auprès des documents officiels, communes, cantons, régions ou services d’urbanisme compétents.";
+
+  const cityLink = (label, url, type = "site officiel") => ({ label, url, type });
+
+  function makeCityStandard(config) {
+    const paysDefaults = {
+      Belgique: {
+        langue: "français / néerlandais selon région",
+        accessibilité: "PMR, cheminements, portes, rampes, sanitaires accessibles à vérifier selon région et affectation.",
+        normesFeu: "Sécurité incendie, compartimentage, évacuation, issues et garde-corps à confirmer avec SIAMU ou service incendie compétent.",
+        acoustique: "Exigences selon logement, mitoyenneté, voirie et affectation du projet.",
+        énergie: "Performance énergétique régionale, isolation continue, ventilation contrôlée, ponts thermiques.",
+        toiture: "Toitures plates fréquentes en tissu dense, pentes et évacuations EP à vérifier.",
+        façade: "Alignement, matérialité locale, éventuelles contraintes patrimoniales.",
+        matériauxCourants: ["brique", "béton", "bois", "enduit", "acier"],
+        contraintesClimatiques: "Climat tempéré humide : pluie, gel ponctuel, gestion eau et isolation.",
+        documentsOfficiels: ["RRU / CoDT / documents communaux selon région", "service urbanisme communal"]
+      },
+      France: {
+        langue: "français",
+        accessibilité: "PMR, ERP, logement, cheminements, ascenseurs et sanitaires selon programme à vérifier.",
+        normesFeu: "Incendie, évacuation, escaliers, garde-corps et ERP selon programme à valider avec textes applicables.",
+        acoustique: "Exigences selon logement, équipements, voirie, ERP et mitoyenneté.",
+        énergie: "RE2020 ou règles rénovation selon cas, stratégie passive et réduction des surchauffes.",
+        toiture: "Selon PLU, patrimoine, pente locale, toiture terrasse ou couverture traditionnelle.",
+        façade: "PLU, teintes, matériaux, menuiseries, alignements et ABF éventuel.",
+        matériauxCourants: ["béton", "pierre", "brique", "bois", "enduit"],
+        contraintesClimatiques: "Contraintes variables : humidité, chaleur estivale, vent, montagne ou littoral selon ville.",
+        documentsOfficiels: ["PLU / PLUi", "Géoportail de l'urbanisme", "service urbanisme municipal"]
+      },
+      Suisse: {
+        langue: "français / allemand selon canton",
+        accessibilité: "Accessibilité, ascenseurs, cheminements et sanitaires à vérifier selon canton et affectation.",
+        normesFeu: "Protection incendie, évacuation, garde-corps et exigences cantonales à confirmer.",
+        acoustique: "Exigences selon logement, nuisance, affectation et canton.",
+        énergie: "Standards énergétiques cantonaux, enveloppe performante, ventilation et limitation des surchauffes.",
+        toiture: "Selon commune, canton, neige, patrimoine, pentes ou toitures plates.",
+        façade: "Règles communales/cantonales, matérialité locale, intégration paysagère.",
+        matériauxCourants: ["béton", "bois", "pierre", "enduit", "verre"],
+        contraintesClimatiques: "Climat tempéré à alpin selon ville : froid, neige, humidité, surchauffe estivale.",
+        documentsOfficiels: ["règlement communal", "règlement cantonal", "service urbanisme compétent"]
+      }
+    };
+    const d = paysDefaults[config.pays] || paysDefaults.France;
+    return {
+      id: config.id,
+      pays: config.pays,
+      ville: config.ville,
+      région: config.région,
+      langue: config.langue || d.langue,
+      typeZone: config.typeZone || "tissu urbain mixte",
+      densitéUrbaine: config.densitéUrbaine || "densité variable selon quartier",
+      hauteurIndicative: config.hauteurIndicative || "à vérifier selon règlement local et parcelle",
+      reculIndicatif: config.reculIndicatif || "alignement, recul ou mitoyenneté à vérifier selon rue et zone",
+      stationnement: config.stationnement || "obligations variables selon programme, accessibilité transports et règlement local",
+      accessibilité: config.accessibilité || d.accessibilité,
+      espacesVerts: config.espacesVerts || "végétalisation, pleine terre ou compensation à vérifier selon zone",
+      normesFeu: config.normesFeu || d.normesFeu,
+      acoustique: config.acoustique || d.acoustique,
+      énergie: config.énergie || d.énergie,
+      toiture: config.toiture || d.toiture,
+      façade: config.façade || d.façade,
+      matériauxCourants: config.matériauxCourants || d.matériauxCourants,
+      contraintesClimatiques: config.contraintesClimatiques || d.contraintesClimatiques,
+      documentsOfficiels: config.documentsOfficiels || d.documentsOfficiels,
+      liensUtiles: config.liensUtiles || [],
+      notes: config.notes || "Fiche pédagogique : toujours confirmer les règles au cas par cas avant dépôt ou conception détaillée.",
+      statut: config.statut || "à vérifier"
+    };
+  }
+
+  const DATA_CITY_STANDARDS = [
+    makeCityStandard({ id: "be-bruxelles", pays: "Belgique", ville: "Bruxelles", région: "Bruxelles-Capitale", langue: "français / néerlandais", typeZone: "centre métropolitain dense", densitéUrbaine: "très dense", hauteurIndicative: "gabarits variables, RRU et commune à vérifier", reculIndicatif: "alignement fréquent, mitoyenneté courante", stationnement: "fortement dépendant de l'accessibilité transports", espacesVerts: "cour intérieure, perméabilité et végétalisation à vérifier", documentsOfficiels: ["RRU", "urban.brussels", "commune concernée"], liensUtiles: [cityLink("urban.brussels", "https://urban.brussels/"), cityLink("Ville de Bruxelles", "https://www.bruxelles.be/")], statut: "source officielle" }),
+    makeCityStandard({ id: "be-liege", pays: "Belgique", ville: "Liège", région: "Wallonie", typeZone: "ville dense de vallée", densitéUrbaine: "dense en centre, plus ouverte en coteaux", hauteurIndicative: "CoDT et prescriptions communales à vérifier", reculIndicatif: "alignement urbain fréquent, pentes à considérer", matériauxCourants: ["brique", "pierre", "béton", "bois"], contraintesClimatiques: "pluie, relief, ruissellement et îlot de chaleur local", liensUtiles: [cityLink("Ville de Liège", "https://www.liege.be/")], statut: "à vérifier" }),
+    makeCityStandard({ id: "be-namur", pays: "Belgique", ville: "Namur", région: "Wallonie", typeZone: "centre historique et vallées", densitéUrbaine: "moyenne à dense", hauteurIndicative: "patrimoine et CoDT à vérifier", reculIndicatif: "alignement historique fréquent", contraintesClimatiques: "confluence, pluie et risque inondation à vérifier", liensUtiles: [cityLink("Ville de Namur", "https://www.namur.be/")], statut: "à vérifier" }),
+    makeCityStandard({ id: "be-mons", pays: "Belgique", ville: "Mons", région: "Wallonie", typeZone: "centre patrimonial", densitéUrbaine: "moyenne", hauteurIndicative: "gabarit historique à vérifier", reculIndicatif: "mitoyenneté et alignement fréquents", façade: "vigilance patrimoine, brique, pierre, enduit", liensUtiles: [cityLink("Ville de Mons", "https://www.mons.be/")], statut: "à vérifier" }),
+    makeCityStandard({ id: "be-charleroi", pays: "Belgique", ville: "Charleroi", région: "Wallonie", typeZone: "ville industrielle en transformation", densitéUrbaine: "moyenne à dense", hauteurIndicative: "à vérifier selon quartier et reconversion", reculIndicatif: "tissus mixtes, friches et alignements variables", matériauxCourants: ["brique", "béton", "acier", "bois"], notes: "Contexte utile pour reconversion, logements et équipements.", liensUtiles: [cityLink("Ville de Charleroi", "https://www.charleroi.be/")], statut: "à vérifier" }),
+    makeCityStandard({ id: "be-tournai", pays: "Belgique", ville: "Tournai", région: "Wallonie", typeZone: "ville patrimoniale", densitéUrbaine: "moyenne", hauteurIndicative: "patrimoine et prescriptions locales à vérifier", reculIndicatif: "alignement historique fréquent", façade: "pierre, brique, enduit et intégration patrimoniale", liensUtiles: [cityLink("Ville de Tournai", "https://www.tournai.be/")], statut: "à vérifier" }),
+    makeCityStandard({ id: "be-lln", pays: "Belgique", ville: "Louvain-la-Neuve", région: "Wallonie", typeZone: "ville universitaire planifiée", densitéUrbaine: "dense autour du centre universitaire", hauteurIndicative: "règles UCLouvain/commune à vérifier selon parcelle", reculIndicatif: "interfaces piétonnes et socles actifs à analyser", stationnement: "forte logique piétonne, parkings périphériques à vérifier", liensUtiles: [cityLink("Ottignies-Louvain-la-Neuve", "https://www.olln.be/")], statut: "à vérifier" }),
+    makeCityStandard({ id: "be-gand", pays: "Belgique", ville: "Gand", région: "Flandre", langue: "néerlandais", typeZone: "centre flamand dense", densitéUrbaine: "dense", hauteurIndicative: "règles flamandes et communales à vérifier", reculIndicatif: "alignement et patrimoine fréquents", façade: "brique, pierre, menuiseries et patrimoine à étudier", liensUtiles: [cityLink("Stad Gent", "https://stad.gent/")], statut: "à vérifier" }),
+    makeCityStandard({ id: "be-anvers", pays: "Belgique", ville: "Anvers", région: "Flandre", langue: "néerlandais", typeZone: "métropole portuaire dense", densitéUrbaine: "très dense en centre, tissus portuaires spécifiques", hauteurIndicative: "règles communales/flamandes à vérifier", reculIndicatif: "front bâti, îlots fermés et grands sites selon quartier", liensUtiles: [cityLink("Stad Antwerpen", "https://www.antwerpen.be/")], statut: "à vérifier" }),
+    makeCityStandard({ id: "be-bruges", pays: "Belgique", ville: "Bruges", région: "Flandre", langue: "néerlandais", typeZone: "centre patrimonial majeur", densitéUrbaine: "moyenne à dense", hauteurIndicative: "patrimoine strict à vérifier", reculIndicatif: "alignements historiques sensibles", façade: "intégration patrimoniale prioritaire", liensUtiles: [cityLink("Stad Brugge", "https://www.brugge.be/")], statut: "à vérifier" }),
+
+    makeCityStandard({ id: "fr-paris", pays: "France", ville: "Paris", région: "Île-de-France", typeZone: "centre métropolitain très dense", densitéUrbaine: "très dense", hauteurIndicative: "PLU bioclimatique et règles de gabarit à vérifier", reculIndicatif: "alignement urbain, cours, prospects et mitoyenneté", stationnement: "forte réduction possible selon secteur et programme", espacesVerts: "pleine terre, végétalisation et désimperméabilisation à vérifier", contraintesClimatiques: "îlot de chaleur, pluie intense, confort d'été", liensUtiles: [cityLink("Paris.fr", "https://www.paris.fr/"), cityLink("Géoportail urbanisme", "https://www.geoportail-urbanisme.gouv.fr/")], statut: "source officielle" }),
+    makeCityStandard({ id: "fr-lyon", pays: "France", ville: "Lyon", région: "Auvergne-Rhône-Alpes", typeZone: "métropole dense", densitéUrbaine: "dense", hauteurIndicative: "PLU-H métropolitain à vérifier", reculIndicatif: "alignement, prospects et pentes selon secteur", contraintesClimatiques: "chaleur estivale, relief, Rhône/Saône", liensUtiles: [cityLink("Ville de Lyon", "https://www.lyon.fr/")], statut: "à vérifier" }),
+    makeCityStandard({ id: "fr-marseille", pays: "France", ville: "Marseille", région: "Provence-Alpes-Côte d'Azur", typeZone: "ville méditerranéenne littorale", densitéUrbaine: "dense en centre, contrastée en périphérie", hauteurIndicative: "PLUi et risques à vérifier", reculIndicatif: "vent, pente, littoral et incendie à étudier", contraintesClimatiques: "chaleur, vent, soleil, risque incendie selon secteur", énergie: "protection solaire, ventilation naturelle, inertie et confort d'été", liensUtiles: [cityLink("Ville de Marseille", "https://www.marseille.fr/")], statut: "à vérifier" }),
+    makeCityStandard({ id: "fr-lille", pays: "France", ville: "Lille", région: "Hauts-de-France", typeZone: "métropole dense du nord", densitéUrbaine: "dense", hauteurIndicative: "PLU métropolitain à vérifier", reculIndicatif: "maisons de ville, mitoyenneté et alignements fréquents", contraintesClimatiques: "humidité, pluie, faible ensoleillement hivernal", liensUtiles: [cityLink("Ville de Lille", "https://www.lille.fr/")], statut: "à vérifier" }),
+    makeCityStandard({ id: "fr-bordeaux", pays: "France", ville: "Bordeaux", région: "Nouvelle-Aquitaine", typeZone: "ville patrimoniale et métropole", densitéUrbaine: "dense en centre, tissus échoppes", hauteurIndicative: "PLU et patrimoine UNESCO/ABF à vérifier", reculIndicatif: "alignements, cours, extensions en coeur d'îlot à vérifier", façade: "pierre blonde, enduit, patrimoine et teintes sensibles", liensUtiles: [cityLink("Ville de Bordeaux", "https://www.bordeaux.fr/")], statut: "à vérifier" }),
+    makeCityStandard({ id: "fr-nantes", pays: "France", ville: "Nantes", région: "Pays de la Loire", typeZone: "métropole fluviale", densitéUrbaine: "moyenne à dense", hauteurIndicative: "PLUm à vérifier", reculIndicatif: "tissus mixtes, renouvellement urbain et berges à analyser", contraintesClimatiques: "pluie, vent, Loire, confort d'été", liensUtiles: [cityLink("Nantes Métropole", "https://metropole.nantes.fr/")], statut: "à vérifier" }),
+    makeCityStandard({ id: "fr-strasbourg", pays: "France", ville: "Strasbourg", région: "Grand Est", typeZone: "métropole rhénane", densitéUrbaine: "dense en centre, mixte ailleurs", hauteurIndicative: "PLUi Eurométropole à vérifier", reculIndicatif: "alignement historique et tissus faubourgs", contraintesClimatiques: "froid hivernal, chaleur estivale, nappe et eau", liensUtiles: [cityLink("Strasbourg.eu", "https://www.strasbourg.eu/")], statut: "à vérifier" }),
+    makeCityStandard({ id: "fr-toulouse", pays: "France", ville: "Toulouse", région: "Occitanie", typeZone: "métropole du sud-ouest", densitéUrbaine: "moyenne à dense", hauteurIndicative: "PLUi-H à vérifier", reculIndicatif: "brique, faubourgs, tissus pavillonnaires et renouvellement", contraintesClimatiques: "chaleur estivale, soleil, risque inondation selon secteur", liensUtiles: [cityLink("Ville de Toulouse", "https://www.toulouse.fr/")], statut: "à vérifier" }),
+    makeCityStandard({ id: "fr-montpellier", pays: "France", ville: "Montpellier", région: "Occitanie", typeZone: "métropole méditerranéenne", densitéUrbaine: "moyenne à dense", hauteurIndicative: "PLU/PLUi à vérifier", reculIndicatif: "soleil, ombrage, tramway et extensions récentes à analyser", contraintesClimatiques: "chaleur, pluies méditerranéennes, confort d'été", liensUtiles: [cityLink("Ville de Montpellier", "https://www.montpellier.fr/")], statut: "à vérifier" }),
+    makeCityStandard({ id: "fr-grenoble", pays: "France", ville: "Grenoble", région: "Auvergne-Rhône-Alpes", typeZone: "ville alpine dense", densitéUrbaine: "dense en vallée", hauteurIndicative: "PLUi et contraintes montagne à vérifier", reculIndicatif: "vallée, ombres portées, risques naturels selon secteur", contraintesClimatiques: "froid, chaleur de vallée, inondation, risques montagne", liensUtiles: [cityLink("Ville de Grenoble", "https://www.grenoble.fr/")], statut: "à vérifier" }),
+    makeCityStandard({ id: "fr-rennes", pays: "France", ville: "Rennes", région: "Bretagne", typeZone: "métropole compacte", densitéUrbaine: "moyenne à dense", hauteurIndicative: "PLUi Rennes Métropole à vérifier", reculIndicatif: "tissus mixtes, îlots, secteurs patrimoniaux", contraintesClimatiques: "pluie, vent, confort d'été modéré", liensUtiles: [cityLink("Rennes Métropole", "https://metropole.rennes.fr/")], statut: "à vérifier" }),
+    makeCityStandard({ id: "fr-nice", pays: "France", ville: "Nice", région: "Provence-Alpes-Côte d'Azur", typeZone: "ville littorale dense", densitéUrbaine: "dense en bande côtière", hauteurIndicative: "PLU et risques littoraux à vérifier", reculIndicatif: "pentes, vues, littoral, incendie et patrimoine à analyser", contraintesClimatiques: "chaleur, soleil, vent, risque ruissellement", liensUtiles: [cityLink("Ville de Nice", "https://www.nice.fr/")], statut: "à vérifier" }),
+
+    makeCityStandard({ id: "ch-geneve", pays: "Suisse", ville: "Genève", région: "Canton de Genève", typeZone: "ville internationale dense", densitéUrbaine: "dense", hauteurIndicative: "règlements cantonaux et communaux à vérifier", reculIndicatif: "gabarits, cours, alignements et voisinage à contrôler", stationnement: "exigences cantonales, mobilité douce et transports à vérifier", liensUtiles: [cityLink("Ville de Genève", "https://www.geneve.ch/")], statut: "source officielle" }),
+    makeCityStandard({ id: "ch-lausanne", pays: "Suisse", ville: "Lausanne", région: "Canton de Vaud", typeZone: "ville en pente", densitéUrbaine: "dense en centre, pentes résidentielles", hauteurIndicative: "règlement communal/cantonal à vérifier", reculIndicatif: "pentes, vues, voisinage et patrimoine à analyser", contraintesClimatiques: "pente, pluie, lac, confort d'été", liensUtiles: [cityLink("Ville de Lausanne", "https://www.lausanne.ch/")], statut: "à vérifier" }),
+    makeCityStandard({ id: "ch-fribourg", pays: "Suisse", ville: "Fribourg", région: "Canton de Fribourg", typeZone: "ville historique de vallée", densitéUrbaine: "moyenne à dense", hauteurIndicative: "patrimoine et règlement communal/cantonal à vérifier", reculIndicatif: "relief, vues et tissus anciens", liensUtiles: [cityLink("Ville de Fribourg", "https://www.ville-fribourg.ch/")], statut: "à vérifier" }),
+    makeCityStandard({ id: "ch-neuchatel", pays: "Suisse", ville: "Neuchâtel", région: "Canton de Neuchâtel", typeZone: "ville lacustre", densitéUrbaine: "moyenne à dense", hauteurIndicative: "règles cantonales/communales à vérifier", reculIndicatif: "pente, lac, patrimoine et vues", contraintesClimatiques: "lac, vent, pluie, confort d'été", liensUtiles: [cityLink("Ville de Neuchâtel", "https://www.neuchatelville.ch/")], statut: "à vérifier" }),
+    makeCityStandard({ id: "ch-sion", pays: "Suisse", ville: "Sion", région: "Canton du Valais", typeZone: "ville alpine sèche", densitéUrbaine: "moyenne", hauteurIndicative: "règlement communal/cantonal à vérifier", reculIndicatif: "ensoleillement, pente, patrimoine et risques naturels", contraintesClimatiques: "froid, fort ensoleillement, sécheresse relative, risques alpins", énergie: "inertie, ombrage estival, isolation et ventilation nocturne à étudier", liensUtiles: [cityLink("Ville de Sion", "https://www.sion.ch/")], statut: "à vérifier" }),
+    makeCityStandard({ id: "ch-zurich", pays: "Suisse", ville: "Zurich", région: "Canton de Zurich", langue: "allemand", typeZone: "métropole dense", densitéUrbaine: "dense", hauteurIndicative: "règles communales/cantonales à vérifier", reculIndicatif: "îlots, densification et voisinage à contrôler", liensUtiles: [cityLink("Stadt Zürich", "https://www.stadt-zuerich.ch/")], statut: "à vérifier" }),
+    makeCityStandard({ id: "ch-bale", pays: "Suisse", ville: "Bâle", région: "Canton de Bâle-Ville", langue: "allemand", typeZone: "ville rhénane dense", densitéUrbaine: "dense", hauteurIndicative: "règlement cantonal/communal à vérifier", reculIndicatif: "front bâti, patrimoine et parcelles compactes", contraintesClimatiques: "Rhin, chaleur estivale, pluie", liensUtiles: [cityLink("Kanton Basel-Stadt", "https://www.bs.ch/")], statut: "à vérifier" }),
+    makeCityStandard({ id: "ch-berne", pays: "Suisse", ville: "Berne", région: "Canton de Berne", langue: "allemand / français selon contexte", typeZone: "capitale patrimoniale", densitéUrbaine: "moyenne à dense", hauteurIndicative: "patrimoine et règlements à vérifier", reculIndicatif: "centre historique très sensible, gabarits contrôlés", façade: "pierre, enduit, toiture et patrimoine à vérifier", liensUtiles: [cityLink("Stadt Bern", "https://www.bern.ch/")], statut: "à vérifier" })
+  ];
+
+  /* ── Études / Normes & Villes V1 — renderers légers et filtrables ─────── */
+  const _studyState = { query: "", country: "", sector: "", city: "", selectedId: DATA_ETUDES_FILIERES[0]?.id || "", selectedSchoolId: "", visible: ETUDES_PAGE_SIZE };
+  const _cityState = { query: "", country: "", zone: "", selectedId: DATA_CITY_STANDARDS[0]?.id || "", visible: CITY_PAGE_SIZE };
+
+  function _unique(list, pick) {
+    return [...new Set(list.flatMap(item => {
+      const value = typeof pick === "function" ? pick(item) : item[pick];
+      return Array.isArray(value) ? value : [value];
+    }).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "fr"));
+  }
+
+  function _captureLibraryFocus(root, selector) {
+    const active = document.activeElement;
+    if (!root || !active || !root.contains(active) || !active.matches(selector)) return null;
+    return { selector, cursor: active.selectionStart ?? active.value.length };
+  }
+
+  function _restoreLibraryFocus(root, focus) {
+    if (!root || !focus) return;
+    const input = root.querySelector(focus.selector);
+    if (!input) return;
+    input.focus({ preventScroll: true });
+    const cursor = Math.min(focus.cursor ?? input.value.length, input.value.length);
+    if (typeof input.setSelectionRange === "function") input.setSelectionRange(cursor, cursor);
+  }
+
+  function _selectOptions(values, selected) {
+    return `<option value="">Tous</option>${values.map(value => `<option value="${_esc(value)}" ${selected === value ? "selected" : ""}>${_esc(value)}</option>`).join("")}`;
+  }
+
+  function _schoolById(id) {
+    return DATA_ETUDES_ECOLES.find(school => school.id === id);
+  }
+
+  function _studyText(item) {
+    const schools = (item.ecolesAssociees || []).map(id => _schoolById(id)).filter(Boolean);
+    return normalizeText([
+      item.nom,
+      item.description,
+      item.diplomeVise,
+      item.competences,
+      item.logicielsUtiles,
+      item.debouches,
+      item.tags,
+      schools.map(s => [s.nom, s.ville, s.pays, s.type, s.description].join(" "))
+    ].flat().join(" "));
+  }
+
+  function _filterEtudes() {
+    const q = normalizeText(_studyState.query);
+    return DATA_ETUDES_FILIERES.filter(item => {
+      const schools = (item.ecolesAssociees || []).map(id => _schoolById(id)).filter(Boolean);
+      const countryMatch = !_studyState.country || item.pays.includes(_studyState.country);
+      const sectorMatch = !_studyState.sector || item.nom === _studyState.sector;
+      const cityMatch = !_studyState.city || item.villes.includes(_studyState.city) || schools.some(s => s.ville === _studyState.city);
+      const searchMatch = !q || _studyText(item).includes(q);
+      return countryMatch && sectorMatch && cityMatch && searchMatch;
+    });
+  }
+
+  function _renderStudyCard(item) {
+    return `
+      <article class="tm-library-card ${item.id === _studyState.selectedId ? "is-active" : ""}" data-study-card="${_esc(item.id)}" tabindex="0">
+        <p class="tm-tech-kicker">${_esc(item.pays.join(" / "))}</p>
+        <h3>${_esc(item.nom)}</h3>
+        <p>${_esc(item.description)}</p>
+        <div class="tm-tech-badges">${item.tags.slice(0, 4).map(tag => `<span>${_esc(tag)}</span>`).join("")}</div>
+      </article>
+    `;
+  }
+
+  function _renderStudyDetail(item) {
+    if (!item) return `<article class="tm-library-detail"><div class="tm-tech-empty"><strong>Aucune filière</strong><p>Aucune filière ne correspond aux filtres.</p></div></article>`;
+    const schools = (item.ecolesAssociees || []).map(id => _schoolById(id)).filter(Boolean);
+    const school = _schoolById(_studyState.selectedSchoolId) || schools[0] || null;
+    return `
+      <article class="tm-library-detail">
+        <p class="tm-tech-kicker">Fiche filière</p>
+        <h3>${_esc(item.nom)}</h3>
+        <p class="tm-library-lead">${_esc(item.description)}</p>
+        <div class="tm-library-matrix">
+          <div><span>Durée moyenne</span><strong>${_esc(item.dureeMoyenne)}</strong></div>
+          <div><span>Diplôme visé</span><strong>${_esc(item.diplomeVise)}</strong></div>
+          <div><span>Villes</span><strong>${_esc(item.villes.join(" · "))}</strong></div>
+          <div><span>Débouchés</span><strong>${_esc(item.debouches.join(" · "))}</strong></div>
+        </div>
+        <section class="tm-library-note">
+          <p class="tm-tech-kicker">Parcours type</p>
+          <p>Découvrir le projet, consolider la représentation, comprendre la construction, puis spécialiser le profil par atelier, stage, mémoire ou option selon l'école.</p>
+        </section>
+        <div class="tm-library-columns">
+          <section>
+            <p class="tm-tech-kicker">Compétences</p>
+            <div class="tm-tech-badges">${item.competences.map(v => `<span>${_esc(v)}</span>`).join("")}</div>
+          </section>
+          <section>
+            <p class="tm-tech-kicker">Logiciels utiles</p>
+            <div class="tm-tech-badges">${item.logicielsUtiles.map(v => `<span>${_esc(v)}</span>`).join("")}</div>
+          </section>
+        </div>
+        <section>
+          <p class="tm-tech-kicker">Écoles associées</p>
+          <div class="tm-study-school-list">
+            ${schools.map(s => `
+              <button type="button" class="${s.id === school?.id ? "is-active" : ""}" data-study-school="${_esc(s.id)}">
+                <strong>${_esc(s.nom)}</strong>
+                <span>${_esc(s.ville)} · ${_esc(s.pays)} · ${_esc(s.type)}</span>
+              </button>
+            `).join("")}
+          </div>
+        </section>
+        ${school ? `
+          <section class="tm-library-note">
+            <p class="tm-tech-kicker">Fiche école</p>
+            <h4>${_esc(school.nom)}</h4>
+            <p>${_esc(school.description)}</p>
+            <p>${_esc(school.ville)} · ${_esc(school.pays)} · ${_esc(school.type)} · ${_esc(school.statut)}</p>
+            <button type="button" class="text-btn" data-external-url="${_esc(school.lienOfficiel)}">Lien officiel</button>
+          </section>
+        ` : ""}
+        <p class="tm-library-warning">Les parcours, admissions et intitulés exacts sont à vérifier sur les sites officiels des écoles.</p>
+      </article>
+    `;
+  }
+
+  function renderEtudes(root) {
+    if (!root) return;
+    const focus = _captureLibraryFocus(root, "[data-study-search]");
+    const filtered = _filterEtudes();
+    if (!filtered.some(item => item.id === _studyState.selectedId)) _studyState.selectedId = filtered[0]?.id || "";
+    const selected = filtered.find(item => item.id === _studyState.selectedId) || filtered[0] || null;
+    const visible = filtered.slice(0, _studyState.visible);
+
+    root.innerHTML = `
+      <div class="tm-library tm-study tm-shell tm-reveal">
+        <section class="tm-editorial-panel tm-library-hero">
+          <p class="tm-tech-kicker">Base études Belgique / France</p>
+          <h3>Choisir une filière, comprendre les écoles, anticiper les débouchés.</h3>
+          <p class="tm-tech-muted">V1 pédagogique : les données restent volontairement prudentes. Les admissions et programmes doivent être confirmés sur les sites officiels.</p>
+        </section>
+        <div class="tm-library-controls">
+          <label class="field"><input type="search" data-study-search placeholder="Rechercher école, ville, logiciel, domaine..." value="${_esc(_studyState.query)}" autocomplete="off"></label>
+          <label class="field"><span>Pays</span><select data-study-country>${_selectOptions(_unique(DATA_ETUDES_FILIERES, "pays"), _studyState.country)}</select></label>
+          <label class="field"><span>Filière</span><select data-study-sector>${_selectOptions(_unique(DATA_ETUDES_FILIERES, "nom"), _studyState.sector)}</select></label>
+          <label class="field"><span>Ville</span><select data-study-city>${_selectOptions(_unique(DATA_ETUDES_ECOLES, "ville"), _studyState.city)}</select></label>
+        </div>
+        <div class="tm-library-layout">
+          <div>
+            <div class="tm-library-grid">
+              ${visible.length ? visible.map(_renderStudyCard).join("") : `<div class="tm-tech-empty"><strong>Aucune filière</strong><p>Aucune filière ne correspond aux filtres.</p></div>`}
+            </div>
+            ${filtered.length > visible.length ? `<button type="button" class="text-btn tm-library-more" data-study-more>Voir plus de filières</button>` : ""}
+          </div>
+          ${_renderStudyDetail(selected)}
+        </div>
+      </div>
+    `;
+    _restoreLibraryFocus(root, focus);
+  }
+
+  function bindEtudes(root) {
+    if (!root || root.dataset.etudesBound) return;
+    root.dataset.etudesBound = "true";
+    root.addEventListener("input", e => {
+      const input = e.target.closest("[data-study-search]");
+      if (!input) return;
+      _studyState.query = input.value || "";
+      _studyState.visible = ETUDES_PAGE_SIZE;
+      renderEtudes(root);
+    });
+    root.addEventListener("change", e => {
+      const country = e.target.closest("[data-study-country]");
+      const sector = e.target.closest("[data-study-sector]");
+      const city = e.target.closest("[data-study-city]");
+      if (!country && !sector && !city) return;
+      if (country) _studyState.country = country.value;
+      if (sector) _studyState.sector = sector.value;
+      if (city) _studyState.city = city.value;
+      _studyState.visible = ETUDES_PAGE_SIZE;
+      renderEtudes(root);
+    });
+    root.addEventListener("click", e => {
+      const card = e.target.closest("[data-study-card]");
+      const school = e.target.closest("[data-study-school]");
+      const more = e.target.closest("[data-study-more]");
+      if (card) _studyState.selectedId = card.dataset.studyCard;
+      if (school) _studyState.selectedSchoolId = school.dataset.studySchool;
+      if (more) _studyState.visible += ETUDES_PAGE_SIZE;
+      if (card || school || more) renderEtudes(root);
+    });
+  }
+
+  function initEtudes() {
+    const root = document.getElementById("etudes-layout");
+    if (!root) return;
+    renderEtudes(root);
+    bindEtudes(root);
+  }
+
+  function _cityText(item) {
+    return normalizeText([
+      item.pays,
+      item.ville,
+      item.région,
+      item.langue,
+      item.typeZone,
+      item.densitéUrbaine,
+      item.hauteurIndicative,
+      item.reculIndicatif,
+      item.stationnement,
+      item.accessibilité,
+      item.espacesVerts,
+      item.normesFeu,
+      item.acoustique,
+      item.énergie,
+      item.toiture,
+      item.façade,
+      item.matériauxCourants,
+      item.contraintesClimatiques,
+      item.documentsOfficiels,
+      item.notes,
+      item.statut
+    ].flat().join(" "));
+  }
+
+  function _filterCities() {
+    const q = normalizeText(_cityState.query);
+    return DATA_CITY_STANDARDS.filter(item => {
+      const countryMatch = !_cityState.country || item.pays === _cityState.country;
+      const zoneMatch = !_cityState.zone || item.typeZone === _cityState.zone;
+      const searchMatch = !q || _cityText(item).includes(q);
+      return countryMatch && zoneMatch && searchMatch;
+    });
+  }
+
+  function _renderCityCountryCard(country, count) {
+    const active = _cityState.country === country;
+    return `
+      <button type="button" class="tm-city-country ${active ? "is-active" : ""}" data-city-country-card="${_esc(country)}">
+        <span>${_esc(country)}</span>
+        <strong>${count}</strong>
+        <small>villes</small>
+      </button>
+    `;
+  }
+
+  function _renderCityCard(item) {
+    return `
+      <article class="tm-library-card tm-city-card ${item.id === _cityState.selectedId ? "is-active" : ""}" data-city-card="${_esc(item.id)}" tabindex="0">
+        <p class="tm-tech-kicker">${_esc(item.pays)} · ${_esc(item.région)}</p>
+        <h3>${_esc(item.ville)}</h3>
+        <p>${_esc(item.typeZone)} · ${_esc(item.densitéUrbaine)}</p>
+        <div class="tm-tech-badges">
+          <span>${_esc(item.statut)}</span>
+          <span>${_esc(item.hauteurIndicative)}</span>
+        </div>
+      </article>
+    `;
+  }
+
+  function _renderCitySection(title, rows) {
+    return `
+      <section class="tm-city-section">
+        <p class="tm-tech-kicker">${_esc(title)}</p>
+        <dl>
+          ${rows.map(([label, value]) => `
+            <div>
+              <dt>${_esc(label)}</dt>
+              <dd>${Array.isArray(value) ? value.map(v => _esc(v)).join(" · ") : _esc(value)}</dd>
+            </div>
+          `).join("")}
+        </dl>
+      </section>
+    `;
+  }
+
+  function _renderCityDetail(item) {
+    if (!item) {
+      return `<article class="tm-library-detail"><div class="tm-tech-empty"><strong>Aucune ville</strong><p>Aucune ville ne correspond aux filtres.</p></div></article>`;
+    }
+    return `
+      <article class="tm-library-detail tm-city-detail">
+        <p class="tm-tech-kicker">Fiche ville · ${_esc(item.statut)}</p>
+        <h3>${_esc(item.ville)}</h3>
+        <p class="tm-library-lead">${_esc(item.pays)} · ${_esc(item.région)} · ${_esc(item.typeZone)}</p>
+        <div class="tm-library-matrix">
+          <div><span>Densité</span><strong>${_esc(item.densitéUrbaine)}</strong></div>
+          <div><span>Langue</span><strong>${_esc(item.langue)}</strong></div>
+          <div><span>Hauteur</span><strong>${_esc(item.hauteurIndicative)}</strong></div>
+          <div><span>Recul</span><strong>${_esc(item.reculIndicatif)}</strong></div>
+        </div>
+        ${_renderCitySection("Urbanisme général", [
+          ["Tissu urbain", item.typeZone],
+          ["Densité", item.densitéUrbaine],
+          ["Patrimoine / notes", item.notes],
+          ["Contraintes climatiques", item.contraintesClimatiques]
+        ])}
+        ${_renderCitySection("Construction / dimensions", [
+          ["Hauteur indicative", item.hauteurIndicative],
+          ["Recul indicatif", item.reculIndicatif],
+          ["Stationnement", item.stationnement],
+          ["Façade", item.façade],
+          ["Matériaux courants", item.matériauxCourants]
+        ])}
+        ${_renderCitySection("Accessibilité", [
+          ["PMR / cheminements", item.accessibilité],
+          ["Espaces verts", item.espacesVerts]
+        ])}
+        ${_renderCitySection("Énergie / écologie", [
+          ["Énergie", item.énergie],
+          ["Toiture", item.toiture],
+          ["Acoustique", item.acoustique]
+        ])}
+        ${_renderCitySection("Sécurité", [
+          ["Incendie", item.normesFeu],
+          ["Documents à vérifier", item.documentsOfficiels]
+        ])}
+        <section class="tm-city-section">
+          <p class="tm-tech-kicker">Liens officiels</p>
+          <div class="tm-study-school-list">
+            ${item.liensUtiles.map(link => `
+              <button type="button" data-external-url="${_esc(link.url)}">
+                <strong>${_esc(link.label)}</strong>
+                <span>${_esc(link.type)} · ouvrir lien officiel</span>
+              </button>
+            `).join("") || `<p class="tm-tech-muted">Lien officiel à ajouter après vérification.</p>`}
+          </div>
+        </section>
+        <p class="tm-library-warning">${_esc(CITY_WARNING)}</p>
+      </article>
+    `;
+  }
+
+  function renderFiches(root) {
+    if (!root) return;
+    const focus = _captureLibraryFocus(root, "[data-city-search]");
+    const filtered = _filterCities();
+    if (!filtered.some(item => item.id === _cityState.selectedId)) _cityState.selectedId = filtered[0]?.id || "";
+    const selected = filtered.find(item => item.id === _cityState.selectedId) || filtered[0] || null;
+    const visibleCards = filtered.slice(0, _cityState.visible);
+    const countsByCountry = DATA_CITY_STANDARDS.reduce((acc, item) => {
+      acc[item.pays] = (acc[item.pays] || 0) + 1;
+      return acc;
+    }, {});
+
+    root.innerHTML = `
+      <div class="tm-library tm-city-standards tm-shell tm-reveal">
+        <section class="tm-editorial-panel tm-library-hero tm-city-hero">
+          <p class="tm-tech-kicker">Normothèque urbaine</p>
+          <h3>Comparer les contraintes de conception par pays, ville et tissu urbain.</h3>
+          <p class="tm-tech-muted">Base V1 pour orienter la recherche réglementaire : chaque projet doit être vérifié auprès des services compétents.</p>
+          <div class="tm-city-countries">
+            ${_unique(DATA_CITY_STANDARDS, "pays").map(country => _renderCityCountryCard(country, countsByCountry[country] || 0)).join("")}
+          </div>
+        </section>
+        <div class="tm-library-controls">
+          <label class="field"><input type="search" data-city-search placeholder="Rechercher ville, pays, zone, contrainte..." value="${_esc(_cityState.query)}" autocomplete="off"></label>
+          <label class="field"><span>Pays</span><select data-city-country>${_selectOptions(_unique(DATA_CITY_STANDARDS, "pays"), _cityState.country)}</select></label>
+          <label class="field"><span>Type de zone</span><select data-city-zone>${_selectOptions(_unique(DATA_CITY_STANDARDS, "typeZone"), _cityState.zone)}</select></label>
+        </div>
+        <div class="tm-library-layout">
+          <div>
+            <div class="tm-library-grid">
+              ${visibleCards.length ? visibleCards.map(_renderCityCard).join("") : `<div class="tm-tech-empty"><strong>Aucune ville</strong><p>Aucune ville ne correspond aux filtres.</p></div>`}
+            </div>
+            ${filtered.length > visibleCards.length ? `<button type="button" class="text-btn tm-library-more" data-city-more>Voir plus de villes</button>` : ""}
+          </div>
+          ${_renderCityDetail(selected)}
+        </div>
+      </div>
+    `;
+    _restoreLibraryFocus(root, focus);
+  }
+
+  function bindFiches(root) {
+    if (!root || root.dataset.fichesBound) return;
+    root.dataset.fichesBound = "true";
+    root.addEventListener("input", e => {
+      const input = e.target.closest("[data-city-search]");
+      if (!input) return;
+      _cityState.query = input.value || "";
+      _cityState.visible = CITY_PAGE_SIZE;
+      renderFiches(root);
+    });
+    root.addEventListener("change", e => {
+      const country = e.target.closest("[data-city-country]");
+      const zone = e.target.closest("[data-city-zone]");
+      if (!country && !zone) return;
+      if (country) _cityState.country = country.value;
+      if (zone) _cityState.zone = zone.value;
+      _cityState.visible = CITY_PAGE_SIZE;
+      renderFiches(root);
+    });
+    root.addEventListener("click", e => {
+      const countryCard = e.target.closest("[data-city-country-card]");
+      const card = e.target.closest("[data-city-card]");
+      const more = e.target.closest("[data-city-more]");
+      if (countryCard) {
+        const next = countryCard.dataset.cityCountryCard || "";
+        _cityState.country = _cityState.country === next ? "" : next;
+        _cityState.visible = CITY_PAGE_SIZE;
+      }
+      if (card) _cityState.selectedId = card.dataset.cityCard;
+      if (more) _cityState.visible += CITY_PAGE_SIZE;
+      if (countryCard || card || more) renderFiches(root);
+    });
+    root.addEventListener("keydown", e => {
+      const card = e.target.closest("[data-city-card]");
+      if (!card || (e.key !== "Enter" && e.key !== " ")) return;
+      e.preventDefault();
+      _cityState.selectedId = card.dataset.cityCard;
+      renderFiches(root);
+    });
+  }
+
+  function initFiches() {
+    const root = document.getElementById("fiches-layout");
+    if (!root) return;
+    renderFiches(root);
+    bindFiches(root);
+  }
+
+  (function injectLibraryCSS() {
+    if (document.getElementById("tm-library-css")) return;
+    const s = document.createElement("style");
+    s.id = "tm-library-css";
+    s.textContent = `
+      .tm-library { display:grid; gap:1rem; min-width:0; }
+      .tm-library-hero {
+        display:grid;
+        gap:.7rem;
+        background:
+          linear-gradient(90deg, rgba(201,169,110,.08), transparent 34%),
+          repeating-linear-gradient(0deg, rgba(245,245,241,.025) 0 1px, transparent 1px 28px),
+          var(--module-surface);
+      }
+      .tm-library-hero h3 {
+        margin:0;
+        font-family:var(--serif);
+        font-size:clamp(1.8rem,3vw,2.8rem);
+        font-weight:300;
+        line-height:1.04;
+      }
+      .tm-library-controls {
+        display:grid;
+        grid-template-columns:minmax(240px,1.5fr) repeat(3,minmax(150px,.6fr));
+        gap:.75rem;
+      }
+      .tm-library-layout {
+        display:grid;
+        grid-template-columns:minmax(0,1fr) minmax(300px,.42fr);
+        gap:1rem;
+        align-items:start;
+      }
+      .tm-library-grid {
+        display:grid;
+        grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+        gap:1rem;
+      }
+      .tm-library-card,
+      .tm-library-detail {
+        border:var(--border);
+        border-radius:var(--r-lg);
+        background:var(--surface);
+      }
+      .tm-library-card {
+        display:grid;
+        gap:.65rem;
+        padding:1rem;
+        cursor:pointer;
+        transition:border-color .18s ease, transform .18s ease, background .18s ease;
+      }
+      .tm-library-card:hover,
+      .tm-library-card.is-active {
+        border-color:rgba(201,169,110,.42);
+        background:var(--gold-glow);
+        transform:translateY(-1px);
+      }
+      .tm-library-card h3,
+      .tm-library-detail h3 {
+        margin:0;
+        font-family:var(--serif);
+        font-weight:300;
+        line-height:1.05;
+        color:var(--ink);
+      }
+      .tm-library-card h3 { font-size:1.42rem; }
+      .tm-library-detail h3 { font-size:2rem; }
+      .tm-library-card p,
+      .tm-library-detail p,
+      .tm-library-detail li {
+        color:var(--muted);
+        font-size:.75rem;
+        line-height:1.55;
+      }
+      .tm-library-detail {
+        position:sticky;
+        top:88px;
+        display:grid;
+        gap:1rem;
+        padding:1.1rem;
+        max-height:calc(100vh - 112px);
+        overflow:auto;
+      }
+      .tm-library-lead { color:var(--ink-2) !important; }
+      .tm-library-matrix,
+      .tm-library-columns {
+        display:grid;
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        gap:.7rem;
+      }
+      .tm-library-matrix div,
+      .tm-library-note {
+        border:var(--border);
+        border-radius:var(--r-md);
+        padding:.75rem;
+        background:var(--surface-2);
+      }
+      .tm-library-matrix span {
+        display:block;
+        color:var(--muted);
+        font-size:.56rem;
+        letter-spacing:.12em;
+        text-transform:uppercase;
+      }
+      .tm-library-matrix strong {
+        display:block;
+        margin-top:.28rem;
+        color:var(--ink-2);
+        font-size:.78rem;
+        font-weight:400;
+      }
+      .tm-study-school-list { display:grid; gap:.45rem; }
+      .tm-study-school-list button {
+        display:grid;
+        gap:.2rem;
+        text-align:left;
+        border:var(--border);
+        border-radius:var(--r-md);
+        padding:.7rem;
+        background:var(--surface-2);
+      }
+      .tm-study-school-list button:hover,
+      .tm-study-school-list button.is-active {
+        border-color:rgba(201,169,110,.38);
+        background:var(--gold-glow);
+      }
+      .tm-study-school-list strong { color:var(--ink); font-weight:400; }
+      .tm-study-school-list span { color:var(--muted); font-size:.65rem; }
+      .tm-library-warning {
+        border:var(--border-gold);
+        border-radius:var(--r-md);
+        padding:.8rem;
+        background:var(--gold-glow);
+        color:var(--ink-2) !important;
+      }
+      .tm-city-countries {
+        display:grid;
+        grid-template-columns:repeat(3,minmax(0,1fr));
+        gap:.65rem;
+        margin-top:.35rem;
+      }
+      .tm-city-country {
+        display:grid;
+        gap:.18rem;
+        text-align:left;
+        border:var(--border);
+        border-radius:var(--r-md);
+        padding:.85rem;
+        background:var(--surface);
+        color:var(--ink);
+        transition:border-color .18s ease, background .18s ease, transform .18s ease;
+      }
+      .tm-city-country:hover,
+      .tm-city-country.is-active {
+        border-color:rgba(201,169,110,.42);
+        background:var(--gold-glow);
+        transform:translateY(-1px);
+      }
+      .tm-city-country span {
+        font-family:var(--serif);
+        font-size:1.25rem;
+        line-height:1;
+      }
+      .tm-city-country strong {
+        color:var(--gold);
+        font-size:1.5rem;
+        font-weight:400;
+      }
+      .tm-city-country small,
+      .tm-city-section dt {
+        color:var(--muted);
+        font-size:.56rem;
+        letter-spacing:.12em;
+        text-transform:uppercase;
+      }
+      .tm-city-card .tm-tech-badges span:first-child {
+        border-color:rgba(201,169,110,.36);
+        color:var(--gold);
+      }
+      .tm-city-section {
+        display:grid;
+        gap:.65rem;
+        border:var(--border);
+        border-radius:var(--r-md);
+        padding:.85rem;
+        background:var(--surface-2);
+      }
+      .tm-city-section dl,
+      .tm-city-section div {
+        display:grid;
+        gap:.35rem;
+        margin:0;
+      }
+      .tm-city-section dd {
+        margin:0;
+        color:var(--ink-2);
+        font-size:.75rem;
+        line-height:1.55;
+      }
+      .tm-library-more { margin-top:1rem; width:100%; justify-content:center; }
+      .tm-fiche-card { grid-template-rows:auto auto auto 1fr auto; }
+      .tm-fiche-sketch,
+      .tm-fiche-large-sketch {
+        color:var(--gold);
+        border:var(--border);
+        border-radius:var(--r-md);
+        background:
+          linear-gradient(90deg, rgba(245,245,241,.04) 1px, transparent 1px),
+          linear-gradient(rgba(245,245,241,.035) 1px, transparent 1px),
+          var(--surface-2);
+        background-size:24px 24px;
+        overflow:hidden;
+      }
+      .tm-fiche-sketch svg { width:100%; height:96px; opacity:.78; }
+      .tm-fiche-large-sketch svg { width:100%; height:180px; opacity:.82; }
+      @media (max-width:1100px) {
+        .tm-library-controls,
+        .tm-library-layout,
+        .tm-library-matrix,
+        .tm-library-columns,
+        .tm-city-countries { grid-template-columns:1fr; }
+        .tm-library-detail { position:static; max-height:none; }
+      }
+    `;
+    document.head.appendChild(s);
+  })();
 
   /* ── DATA_CHRONOS — frise matière-époque technique ─────────── */
   const DATA_CHRONOS = [
@@ -2614,53 +4413,160 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     { id: "bas-carbone", periode: "Bas-carbone contemporain", dates: "2010 / aujourd'hui", materiau: "Biosourcé", systeme: "CLT, terre, réemploi, assemblage sec", portee: "Moyenne", inertie: "Variable", outil: "ACV, préfabrication, démontabilité", rupture: "Le carbone devient contrainte de conception.", consequenceSpatiale: "Trames répétables, réversibilité, hybridation matière.", exemples: "Grand Parc, Gando, immeubles CLT", tags: ["biosourcé", "réemploi"] }
   ];
 
+  const DATA_CHRONOS_EXPANDED = [
+    ...DATA_CHRONOS,
+    { id: "egypte-antique", periode: "Égypte antique", dates: "-3000 / -332", materiau: "Pierre", systeme: "Masse lithique, colonnes, linteaux", portee: "Faible à moyenne", inertie: "Très forte", outil: "Rampe, traîneau, taille pierre", rupture: "Monumentalité par géométrie, axe et masse.", consequenceSpatiale: "Séquences axiales, salles hypostyles, seuils compressés.", exemples: "Karnak, Louxor, Gizeh", tags: ["pierre", "axe", "masse"] },
+    { id: "baroque", periode: "Baroque", dates: "1600 / 1750", materiau: "Pierre", systeme: "Maçonnerie courbe, coupoles, stucs", portee: "Moyenne", inertie: "Forte", outil: "Stéréotomie, perspective, chantier artisanal", rupture: "Mouvement spatial et scénographie lumineuse.", consequenceSpatiale: "Plans ovales, axes obliques, espaces dynamiques.", exemples: "San Carlo alle Quattro Fontane, Versailles", tags: ["scénographie", "courbe"] },
+    { id: "arts-crafts", periode: "Arts & Crafts", dates: "1860 / 1910", materiau: "Bois", systeme: "Charpente artisanale, brique, menuiserie", portee: "Faible à moyenne", inertie: "Moyenne", outil: "Atelier, assemblage, artisanat", rupture: "Réaction qualitative à l'industrie.", consequenceSpatiale: "Maisons domestiques, détails visibles, intérieur intégré.", exemples: "Red House, maisons de Voysey", tags: ["artisanat", "bois"] },
+    { id: "bauhaus", periode: "Bauhaus", dates: "1919 / 1933", materiau: "Acier / verre", systeme: "Ossature, façade rideau, plan rationnel", portee: "Moyenne", inertie: "Faible", outil: "Prototype, standard, dessin industriel", rupture: "Fusion pédagogie, production et spatialité moderne.", consequenceSpatiale: "Ateliers lumineux, plateaux, transparence fonctionnelle.", exemples: "Bauhaus Dessau, maisons de maîtres", tags: ["standard", "verre"] },
+    { id: "deconstructivisme", periode: "Déconstructivisme", dates: "1980 / 2010", materiau: "Acier / béton", systeme: "Trames déformées, coques, volumes fragmentés", portee: "Variable", inertie: "Variable", outil: "Modélisation 3D, acier complexe", rupture: "Fragmentation de l'ordre orthogonal.", consequenceSpatiale: "Parcours instables, volumes obliques, enveloppes pliées.", exemples: "Guggenheim Bilbao, Vitra Fire Station", tags: ["fragment", "acier"] },
+    { id: "durable-contemporain", periode: "Architecture durable contemporaine", dates: "1990 / aujourd'hui", materiau: "Hybride", systeme: "Bioclimatique, enveloppes performantes, réemploi", portee: "Moyenne", inertie: "Optimisée", outil: "Simulation thermique, ACV, BIM", rupture: "Climat, énergie et carbone deviennent générateurs.", consequenceSpatiale: "Épaisseurs habitées, ventilation naturelle, sobriété constructive.", exemples: "BedZED, Vorarlberg, quartiers passifs", tags: ["bioclimatique", "ACV"] },
+    { id: "architecture-ia", periode: "Architecture numérique / IA", dates: "2020 / demain", materiau: "Hybride / réemploi", systeme: "Conception assistée, optimisation, fabrication robotisée", portee: "Variable", inertie: "Calculée", outil: "IA, BIM, scan 3D, robotique", rupture: "Décision et variante deviennent des objets de calcul.", consequenceSpatiale: "Systèmes adaptatifs, détails paramétrés, optimisation matière.", exemples: "Recherche IA, fabrication additive, jumeaux numériques", tags: ["IA", "numérique", "optimisation"] }
+  ].map(item => ({
+    ...item,
+    nom: item.nom || item.periode,
+    periodeHistorique: item.periodeHistorique || item.periode,
+    materiauDominant: item.materiauDominant || item.materiau,
+    systèmesConstructifs: item.systèmesConstructifs || item.systeme,
+    systemesConstructifs: item.systemesConstructifs || item.systeme,
+    porteeTypique: item.porteeTypique || item.portee,
+    portéeTypique: item.portéeTypique || item.portee,
+    outilsChantier: item.outilsChantier || item.outil,
+    innovationTechnique: item.innovationTechnique || item.rupture,
+    contrainteStructurelle: item.contrainteStructurelle || item.systeme,
+    exemplesArchitecturaux: item.exemplesArchitecturaux || item.exemples,
+    architectesLies: item.architectesLies || item.exemples
+  }));
+
+  const _atlasVisualIntro = ({ filtered = [], selected = null } = {}) => `
+    <section class="tm-editorial-panel tm-atlas-map tm-atlas-hero" aria-label="Atlas architectural mondial">
+      <div class="tm-atlas-hero-copy">
+        <p class="tm-tech-kicker">Atlas architectural</p>
+        <h3>Explorer le monde par climat, matière et système constructif.</h3>
+        <p class="tm-tech-muted">Une lecture d’atlas ancien modernisé : chaque lieu relie sol, climat, inertie, portée et leçon constructive pour le projet contemporain.</p>
+        <div class="tm-atlas-stats" aria-label="Statistiques Atlas">
+          <span><strong>${_esc(filtered.length)}</strong> systèmes visibles</span>
+          <span><strong>${_esc(selected?.continent || "Monde")}</strong> zone active</span>
+          <span><strong>${_esc(selected?.materiauDominant || selected?.matiere || "Matières")}</strong></span>
+        </div>
+      </div>
+      <div class="tm-atlas-globe" aria-hidden="true">
+        <svg viewBox="0 0 360 260" role="img">
+          <defs>
+            <linearGradient id="atlasGold" x1="0" x2="1">
+              <stop offset="0" stop-color="#C9A96E" stop-opacity=".18"/>
+              <stop offset="1" stop-color="#F5F5F1" stop-opacity=".08"/>
+            </linearGradient>
+          </defs>
+          <ellipse cx="180" cy="130" rx="134" ry="92" fill="url(#atlasGold)" stroke="#C9A96E" stroke-opacity=".42"/>
+          <path d="M46 130h268M180 38v184M82 78c56 18 130 18 196 0M82 182c56-18 130-18 196 0"
+                fill="none" stroke="#F5F5F1" stroke-opacity=".16"/>
+          <path d="M112 116l44-34 46 20 38-28 46 42-28 58-66 12-44-26-42 18-30-34z"
+                fill="rgba(201,169,110,.12)" stroke="#C9A96E" stroke-opacity=".44"/>
+          <circle cx="128" cy="118" r="4" fill="#C9A96E"/>
+          <circle cx="178" cy="92" r="3" fill="#C9A96E"/>
+          <circle cx="220" cy="154" r="3.5" fill="#C9A96E"/>
+          <circle cx="258" cy="106" r="3" fill="#C9A96E"/>
+        </svg>
+      </div>
+    </section>
+  `;
+
+  const _chronosVisualIntro = ({ filtered = [] } = {}) => `
+    <section class="tm-editorial-panel tm-chronos-spine tm-chronos-hero" aria-label="Ligne du temps constructive">
+      <p class="tm-tech-kicker">Frise matière-époque</p>
+      <h3>Lire l’histoire par la portée, l’outil et la matière.</h3>
+      <p class="tm-tech-muted">${_esc(filtered.length)} périodes techniques visibles. Sélectionnez une époque, puis comparez deux périodes pour mesurer les ruptures.</p>
+      <div class="tm-chronos-line" aria-hidden="true"></div>
+      <div class="tm-chronos-era-scale" aria-hidden="true">
+        <span>Origines</span>
+        <span>Industrie</span>
+        <span>Numérique</span>
+        <span>Bas-carbone</span>
+      </div>
+    </section>
+  `;
+
+  const _pantheonVisualIntro = ({ data = [], state = {} } = {}) => `
+    <section class="tm-editorial-panel tm-pantheon-gallery tm-pantheon-archive" aria-label="Galerie des doctrines">
+      <p class="tm-tech-kicker">Archive vivante</p>
+      <h3>Une galerie d’architectes classée par doctrines, matières et héritages.</h3>
+      <nav class="tm-pantheon-movement-nav" aria-label="Navigation par époque">
+        ${_uniqueValues(data, "epoque").map(value => `
+          <button type="button"
+                  class="tm-tech-chip ${state.filters?.epoque === value ? "is-active" : ""}"
+                  data-tech-chip
+                  data-tech-filter="epoque"
+                  data-tech-value="${_esc(value)}">${_esc(value)}</button>
+        `).join("")}
+      </nav>
+    </section>
+  `;
+
   const _atlasOptions = {
     id: "atlas",
+    visualIntro: _atlasVisualIntro,
     titleKey: "titre",
-    subtitleKeys: ["pays", "ville", "periode"],
+    subtitleKeys: ["continent", "pays", "periode"],
     searchPlaceholder: "Rechercher lieu, matière, climat...",
+    listClass: "tm-atlas-grid-systems",
     filters: [
-      { key: "matiere", label: "Matière" },
+      { key: "continent", label: "Continent" },
+      { key: "materiauDominant", label: "Matériau" },
       { key: "climat", label: "Climat" },
       { key: "periode", label: "Période" },
-      { key: "systemeConstructif", label: "Système" }
+      { key: "systemeConstructif", label: "Système" },
+      { key: "risqueNaturel", label: "Risque naturel" }
     ],
     fields: [
+      { key: "lieu", label: "Lieu" },
+      { key: "continent", label: "Continent" },
       { key: "pays", label: "Pays" },
-      { key: "ville", label: "Ville / région" },
+      { key: "region", label: "Région / ville" },
       { key: "climat", label: "Climat" },
+      { key: "periode", label: "Période" },
       { key: "systemeConstructif", label: "Système constructif" },
-      { key: "matiere", label: "Matière dominante" },
+      { key: "materiauDominant", label: "Matière dominante" },
+      { key: "typeHabitat", label: "Type d'habitat" },
       { key: "portee", label: "Portée" },
       { key: "inertie", label: "Inertie" },
-      { key: "technique", label: "Contrainte technique" }
+      { key: "ventilation", label: "Ventilation" },
+      { key: "isolation", label: "Isolation" },
+      { key: "risqueNaturel", label: "Risque naturel" },
+      { key: "contraintePrincipale", label: "Contrainte principale" }
     ],
-    tag: item => item.matiere,
+    tag: item => item.materiauDominant || item.matiere,
     detailKicker: item => item.climat,
-    lesson: item => item.lecon,
+    lesson: item => item.leconArchitecturale || item.lecon,
     emptyTitle: "Aucun système",
     emptyText: "Aucun système constructif ne correspond aux filtres."
   };
 
   const _chronosOptions = {
     id: "chronos",
-    titleKey: "periode",
-    subtitleKeys: ["dates", "materiau", "systeme"],
+    visualIntro: _chronosVisualIntro,
+    titleKey: "nom",
+    subtitleKeys: ["dates", "materiauDominant", "systemesConstructifs"],
     searchPlaceholder: "Rechercher période, matériau, rupture...",
     compare: true,
-    filters: [{ key: "materiau", label: "Matériau" }],
+    layout: "timeline",
+    listClass: "tm-chronos-timeline",
+    filters: [{ key: "materiauDominant", label: "Matériau" }],
     fields: [
       { key: "dates", label: "Dates" },
-      { key: "materiau", label: "Matériau dominant" },
-      { key: "systeme", label: "Système structurel" },
-      { key: "portee", label: "Portée possible" },
+      { key: "periodeHistorique", label: "Période historique" },
+      { key: "materiauDominant", label: "Matériau dominant" },
+      { key: "systemesConstructifs", label: "Système structurel" },
+      { key: "porteeTypique", label: "Portée typique" },
       { key: "inertie", label: "Inertie" },
-      { key: "outil", label: "Outil de chantier" },
-      { key: "rupture", label: "Rupture technique" },
+      { key: "outilsChantier", label: "Outil de chantier" },
+      { key: "innovationTechnique", label: "Innovation technique" },
+      { key: "contrainteStructurelle", label: "Contrainte structurelle" },
       { key: "consequenceSpatiale", label: "Conséquence spatiale" },
-      { key: "exemples", label: "Exemples" }
+      { key: "exemplesArchitecturaux", label: "Exemples" },
+      { key: "architectesLies", label: "Architectes liés" }
     ],
-    tag: item => item.materiau,
+    tag: item => item.materiauDominant || item.materiau,
     detailKicker: item => item.dates,
     lesson: item => item.consequenceSpatiale,
     emptyTitle: "Aucune période",
@@ -2669,11 +4575,16 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
 
   const _pantheonOptions = {
     id: "pantheon",
+    visualIntro: _pantheonVisualIntro,
     titleKey: "nom",
     subtitleKeys: ["epoque", "pays", "doctrine"],
     searchPlaceholder: "Rechercher architecte, pays, doctrine...",
+    layout: "archive",
+    listClass: "tm-pantheon-figure-grid",
     filters: [
       { key: "epoque", label: "Époque" },
+      { key: "pays", label: "Pays" },
+      { key: "mouvement", label: "Mouvement" },
       { key: "matiereDominante", label: "Matière" },
       { key: "doctrine", label: "Doctrine" }
     ],
@@ -2684,7 +4595,10 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       { key: "systemeFavori", label: "Système favori" },
       { key: "matiereDominante", label: "Matière dominante" },
       { key: "oeuvreRepere", label: "Œuvre repère" },
-      { key: "apportTechnique", label: "Apport technique" }
+      { key: "apportTechnique", label: "Apport technique" },
+      { key: "philosophie", label: "Philosophie" },
+      { key: "influence", label: "Influence" },
+      { key: "architectesLies", label: "Architectes liés" }
     ],
     tag: item => item.matiereDominante,
     detailKicker: item => item.epoque,
@@ -2696,22 +4610,22 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
   function initAtlas() {
     const root = document.getElementById("atlas-grid");
     if (!root) return;
-    renderTechnicalCards(root, DATA_ATLAS, _atlasOptions);
-    _bindTechnicalModule(root, DATA_ATLAS, _atlasOptions);
+    renderTechnicalCards(root, DATA_ATLAS_EXPANDED, _atlasOptions);
+    _bindTechnicalModule(root, DATA_ATLAS_EXPANDED, _atlasOptions);
   }
 
   function initChronos() {
     const root = document.getElementById("chronos-layout");
     if (!root) return;
-    renderTechnicalCards(root, DATA_CHRONOS, _chronosOptions);
-    _bindTechnicalModule(root, DATA_CHRONOS, _chronosOptions);
+    renderTechnicalCards(root, DATA_CHRONOS_EXPANDED, _chronosOptions);
+    _bindTechnicalModule(root, DATA_CHRONOS_EXPANDED, _chronosOptions);
   }
 
   function initPantheon() {
     const root = document.getElementById("pantheon-grid");
     if (!root) return;
-    renderTechnicalCards(root, DATA_PANTHEON, _pantheonOptions);
-    _bindTechnicalModule(root, DATA_PANTHEON, _pantheonOptions);
+    renderTechnicalCards(root, DATA_PANTHEON_EXPANDED, _pantheonOptions);
+    _bindTechnicalModule(root, DATA_PANTHEON_EXPANDED, _pantheonOptions);
   }
 
   /* ── Hooks MutationObserver — modules data-driven ──────────── */
@@ -2719,7 +4633,8 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     [
       { mod: "module-pantheon", render: initPantheon },
       { mod: "module-atlas",    render: initAtlas },
-      { mod: "module-fiches",   render: () => renderGrid("fiches-grid", DATA_FICHES) },
+      { mod: "module-fiches",   render: initFiches },
+      { mod: "module-etudes",   render: initEtudes },
       { mod: "module-chronos",  render: initChronos }
     ].forEach(({ mod, render }) => {
       const el = document.getElementById(mod);
@@ -2747,9 +4662,9 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         flex-direction: column;
         gap: .32rem;
         padding: .85rem;
-        border: 0.5px solid rgba(245,245,241,.09);
+        border: var(--border);
         border-radius: 16px;
-        background: #0C0C0A;
+        background: var(--surface);
         align-content: start;
       }
       .tm-normes-cats-title {
@@ -2758,7 +4673,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         font-weight: 500;
         letter-spacing: .17em;
         text-transform: uppercase;
-        color: #7A7670;
+        color: var(--muted);
         padding: .3rem .5rem .5rem;
       }
       .tm-normes-cat-btn {
@@ -2775,11 +4690,11 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         transition: background .18s ease, border-color .18s ease, color .18s ease;
       }
       .tm-normes-cat-btn:hover {
-        background: rgba(201,169,110,.06);
+        background: var(--gold-glow);
         border-color: rgba(201,169,110,.14);
       }
       .tm-normes-cat-btn.is-active {
-        background: rgba(201,169,110,.13);
+        background: var(--gold-dim);
         border-color: rgba(201,169,110,.38);
       }
       .tm-normes-dot {
@@ -2791,7 +4706,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         transition: background .18s ease, box-shadow .18s ease;
       }
       .tm-normes-cat-btn.is-active .tm-normes-dot {
-        background: #C9A96E;
+        background: var(--gold);
         box-shadow: 0 0 6px rgba(201,169,110,.5);
       }
       .tm-normes-cat-text { display: grid; gap: 2px; }
@@ -2799,20 +4714,20 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         font-family: "DM Sans", system-ui, sans-serif;
         font-size: .80rem;
         font-weight: 400;
-        color: #C8C4BA;
+        color: var(--ink-2);
         line-height: 1;
       }
-      .tm-normes-cat-btn.is-active .tm-normes-cat-label { color: #F5F5F1; }
+      .tm-normes-cat-btn.is-active .tm-normes-cat-label { color: var(--ink); }
       .tm-normes-cat-count {
         font-family: "DM Sans", system-ui, sans-serif;
         font-size: .58rem;
-        color: #7A7670;
+        color: var(--muted);
         line-height: 1;
       }
       .tm-normes-panel { display: grid; gap: .85rem; align-content: start; }
       .tm-normes-header {
         padding-bottom: .72rem;
-        border-bottom: 0.5px solid rgba(245,245,241,.09);
+        border-bottom: var(--border);
       }
       .tm-normes-grid {
         display: grid;
@@ -2823,9 +4738,9 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         display: grid;
         gap: .5rem;
         padding: 1rem 1.1rem;
-        border: 0.5px solid rgba(245,245,241,.09);
+        border: var(--border);
         border-radius: 14px;
-        background: #0C0C0A;
+        background: var(--surface-2);
         transition: border-color .18s ease;
       }
       .tm-normes-item:hover { border-color: rgba(201,169,110,.28); }
@@ -2833,7 +4748,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         font-family: "Cormorant Garamond", Georgia, serif;
         font-size: 1.75rem;
         font-weight: 300;
-        color: #C9A96E;
+        color: var(--gold);
         line-height: 1;
         margin: 0;
       }
@@ -2841,14 +4756,14 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         font-family: "DM Sans", system-ui, sans-serif;
         font-size: .80rem;
         font-weight: 400;
-        color: #F5F5F1;
+        color: var(--ink);
         margin: 0;
       }
       .tm-normes-note {
         font-family: "DM Sans", system-ui, sans-serif;
         font-size: .70rem;
         font-weight: 300;
-        color: #7A7670;
+        color: var(--muted);
         line-height: 1.55;
         margin: 0;
       }
@@ -2857,13 +4772,20 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         padding:.12rem .38rem;
         border:0.5px solid rgba(201,169,110,.18);
         border-radius:999px;
-        color:#9A8D72;
+        color:var(--gold);
         font-size:.54rem;
         letter-spacing:.07em;
         text-transform:uppercase;
       }
       .tm-outils-stack { display:grid; gap:1.2rem; }
-      .tm-tools-scale-grid { display:grid; grid-template-columns:1fr 1fr auto; gap:.72rem; align-items:end; }
+      .tm-tools-scale-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(160px,.55fr) minmax(0,1fr) auto; gap:.72rem; align-items:end; }
+      .tm-tools-scale-chips { display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.75rem; }
+      .tm-tools-scale-chip {
+        height:28px; padding:0 .68rem; border:var(--border); border-radius:999px;
+        color:var(--muted); background:rgba(201,169,110,.04);
+        font-size:.58rem; letter-spacing:.1em; text-transform:uppercase;
+      }
+      .tm-tools-scale-chip:hover { border-color:rgba(201,169,110,.35); color:var(--gold); }
       @media (max-width: 800px) {
         .tm-tools-scale-grid { grid-template-columns:1fr; }
       }
@@ -2876,7 +4798,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
   })();
 
   /* ── DATA_NORMES — dimensions par pièce ─────────────────────── */
-  const DATA_NORMES = [
+  let DATA_NORMES = [
     {
       id: "salon",
       label: "Salon",
@@ -3004,6 +4926,59 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     }
   ];
 
+  const TOOLS_DIMENSION_CATALOG = {
+    "Salon": ["Canapé 2 places|160 cm|180 cm|90 cm|80 cm|90 cm|180 cm", "Canapé 3 places|210 cm|240 cm|90 cm|82 cm|95 cm|240 cm", "Table basse|90 x 50 cm|120 x 70 cm|40 cm|38 cm|70 cm|120 cm", "Meuble TV|120 cm|180 cm|80 cm|45 cm|45 cm|180 cm", "Distance TV/canapé|200 cm|320 cm|0|0|0|320 cm", "Circulation salon|70 cm|90 cm|90 cm|0|0|90 cm", "Bibliothèque basse|100 cm|180 cm|80 cm|110 cm|35 cm|180 cm"],
+    "Chambre": ["Lit simple|90 x 190 cm|90 x 200 cm|60 cm|55 cm|200 cm|90 cm", "Lit double|140 x 190 cm|160 x 200 cm|70 cm|55 cm|200 cm|160 cm", "Lit queen|160 x 200 cm|180 x 200 cm|75 cm|55 cm|200 cm|180 cm", "Table de nuit|35 x 35 cm|50 x 45 cm|40 cm|55 cm|45 cm|50 cm", "Armoire|P 60 cm|L 180 cm|90 cm|220 cm|60 cm|180 cm", "Bureau chambre|100 x 55 cm|120 x 60 cm|80 cm|75 cm|60 cm|120 cm", "Circulation lit|60 cm|75 cm|75 cm|0|0|75 cm"],
+    "Cuisine": ["Plan de travail|H 90 cm|H 92 cm|90 cm|90 cm|60 cm|120 cm", "Meuble bas|P 60 cm|P 65 cm|90 cm|90 cm|60 cm|120 cm", "Meuble haut|P 35 cm|P 40 cm|50 cm|140 cm|40 cm|120 cm", "Îlot central|90 x 160 cm|100 x 220 cm|100 cm|92 cm|100 cm|220 cm", "Dégagement cuisine|90 cm|120 cm|120 cm|0|0|120 cm", "Triangle d’activité|4 m|7 m|0|0|0|700 cm", "Colonne four|60 x 60 cm|60 x 65 cm|100 cm|220 cm|65 cm|60 cm"],
+    "Salle de bain": ["Douche standard|80 x 90 cm|90 x 120 cm|70 cm|210 cm|90 cm|120 cm", "Douche confortable|90 x 120 cm|100 x 140 cm|90 cm|210 cm|100 cm|140 cm", "Baignoire|70 x 170 cm|80 x 180 cm|70 cm|55 cm|80 cm|180 cm", "Meuble vasque|60 x 45 cm|120 x 50 cm|90 cm|90 cm|50 cm|120 cm", "Lavabo simple|50 cm|60 cm|70 cm|85 cm|45 cm|60 cm", "Sèche-serviette|45 cm|60 cm|60 cm|170 cm|10 cm|60 cm", "Dégagement lavabo|70 cm|90 cm|90 cm|0|0|90 cm"],
+    "WC": ["WC standard|80 x 120 cm|90 x 140 cm|60 cm|40 cm|70 cm|90 cm", "WC PMR|150 x 150 cm|170 x 170 cm|150 cm|45 cm|70 cm|170 cm", "Lave-main|22 x 35 cm|30 x 45 cm|60 cm|85 cm|30 cm|45 cm", "Dégagement latéral|80 cm|90 cm|90 cm|0|0|90 cm", "Barre d’appui|60 cm|80 cm|0|75 cm|0|80 cm", "Porte ouvrant extérieur|83 cm|90 cm|90 cm|204 cm|0|90 cm", "Réserve papier|15 cm|25 cm|0|70 cm|12 cm|25 cm"],
+    "Bureau": ["Bureau 120 x 60|120 x 60 cm|140 x 70 cm|90 cm|75 cm|70 cm|140 cm", "Bureau double|160 x 70 cm|180 x 80 cm|100 cm|75 cm|80 cm|180 cm", "Chaise bureau|45 x 45 cm|55 x 55 cm|90 cm|90 cm|55 cm|55 cm", "Recul chaise|80 cm|100 cm|100 cm|0|0|100 cm", "Écran|50 cm recul|70 cm recul|0|axe yeux|0|70 cm", "Caisson|40 x 50 cm|45 x 60 cm|60 cm|65 cm|60 cm|45 cm", "Rangement dossiers|P 35 cm|P 45 cm|80 cm|180 cm|45 cm|120 cm"],
+    "Garage": ["Place voiture standard|250 x 500 cm|300 x 550 cm|70 cm|220 cm|500 cm|300 cm", "Place voiture confortable|300 x 550 cm|330 x 580 cm|90 cm|240 cm|580 cm|330 cm", "Porte garage|240 cm|300 cm|0|220 cm|0|300 cm", "Rangement vélo|60 x 180 cm|80 x 200 cm|90 cm|180 cm|200 cm|80 cm", "Établi garage|120 x 60 cm|180 x 75 cm|100 cm|90 cm|75 cm|180 cm", "Rayonnage|P 45 cm|P 60 cm|80 cm|200 cm|60 cm|120 cm", "Circulation latérale|70 cm|90 cm|90 cm|0|0|90 cm"],
+    "Jardin / Terrasse": ["Table extérieure|160 x 90 cm|220 x 100 cm|100 cm|75 cm|100 cm|220 cm", "Chaise extérieure|55 x 60 cm|65 x 70 cm|70 cm|85 cm|70 cm|65 cm", "Passage terrasse|90 cm|120 cm|120 cm|0|0|120 cm", "Jardinière|P 40 cm|P 60 cm|60 cm|60 cm|60 cm|120 cm", "Barbecue|120 x 80 cm|160 x 90 cm|120 cm|110 cm|90 cm|160 cm", "Bain de soleil|70 x 190 cm|80 x 210 cm|80 cm|35 cm|210 cm|80 cm", "Pergola|250 x 300 cm|300 x 400 cm|120 cm|240 cm|400 cm|300 cm"],
+    "Circulations": ["Couloir standard|90 cm|120 cm|0|0|0|120 cm", "Passage confortable|120 cm|140 cm|0|0|0|140 cm", "Porte standard|83 cm|90 cm|0|204 cm|0|90 cm", "Sas entrée|120 x 120 cm|150 x 150 cm|120 cm|0|150 cm|150 cm", "Dégagement meuble|70 cm|90 cm|90 cm|0|0|90 cm", "Hall commun|140 cm|180 cm|180 cm|0|0|180 cm", "Aire retournement|Ø 150 cm|Ø 170 cm|150 cm|0|0|170 cm"],
+    "Accessibilité PMR": ["Rotation fauteuil Ø150 cm|150 cm|170 cm|150 cm|0|0|170 cm", "Porte 90 cm|90 cm|93 cm|0|204 cm|0|93 cm", "Rampe|5 %|4 %|120 cm|0|0|120 cm", "Interrupteur|90 cm|110 cm|0|110 cm|0|0", "Douche accessible|120 x 90 cm|140 x 120 cm|150 cm|210 cm|120 cm|140 cm", "Plan vasque PMR|70 cm libre|80 cm libre|90 cm|85 cm|50 cm|90 cm", "Transfert WC|80 cm|90 cm|90 cm|45 cm|0|90 cm"],
+    "Escaliers": ["Hauteur marche|16 cm|17 cm|0|17 cm|0|0", "Giron|28 cm|30 cm|0|0|30 cm|0", "Formule Blondel|60 cm|64 cm|0|0|0|0", "Largeur escalier|80 cm|100 cm|0|0|0|100 cm", "Garde-corps|90 cm|100 cm|0|100 cm|0|0", "Palier|90 cm|120 cm|120 cm|0|120 cm|120 cm", "Échappée|190 cm|210 cm|0|210 cm|0|0"],
+    "Portes & fenêtres": ["Porte intérieure|73 cm|83 cm|0|204 cm|0|83 cm", "Porte entrée|90 cm|100 cm|0|215 cm|0|100 cm", "Baie vitrée|180 cm|240 cm|120 cm|215 cm|0|240 cm", "Allège fenêtre|90 cm|100 cm|0|100 cm|0|0", "Poignée porte|90 cm|105 cm|0|105 cm|0|0", "Fenêtre chambre|100 x 120 cm|120 x 135 cm|80 cm|135 cm|0|120 cm", "Imposte|30 cm|45 cm|0|45 cm|0|120 cm"],
+    "Restaurant / café": ["Table 2 personnes|70 x 70 cm|80 x 80 cm|80 cm|75 cm|80 cm|80 cm", "Table 4 personnes|120 x 80 cm|140 x 90 cm|90 cm|75 cm|90 cm|140 cm", "Allée service|90 cm|120 cm|120 cm|0|0|120 cm", "Comptoir bar|60 cm prof.|70 cm prof.|100 cm|110 cm|70 cm|200 cm", "Banquette|45 cm prof.|55 cm prof.|80 cm|90 cm|55 cm|180 cm", "Cuisine café|120 cm passage|150 cm passage|150 cm|0|0|150 cm", "Attente entrée|120 x 180 cm|180 x 220 cm|120 cm|0|220 cm|180 cm"],
+    "Hôtel": ["Chambre compacte|12 m²|16 m²|90 cm|0|0|0", "Chambre double|18 m²|24 m²|100 cm|0|0|0", "Lit hôtel 160|160 x 200 cm|180 x 200 cm|80 cm|60 cm|200 cm|180 cm", "Couloir hôtel|120 cm|150 cm|0|0|0|150 cm", "Bagagerie|P 60 cm|P 80 cm|90 cm|90 cm|80 cm|120 cm", "Salle d'eau hôtel|90 x 160 cm|120 x 220 cm|90 cm|210 cm|220 cm|120 cm", "Desk accueil|180 cm|240 cm|120 cm|110 cm|70 cm|240 cm"],
+    "Bibliothèque / espace d’étude": ["Table étude|120 x 70 cm|140 x 80 cm|90 cm|75 cm|80 cm|140 cm", "Place lecture|80 cm|100 cm|80 cm|0|80 cm|100 cm", "Rayonnage livres|P 30 cm|P 35 cm|90 cm|220 cm|35 cm|100 cm", "Allée rayonnage|90 cm|120 cm|120 cm|0|0|120 cm", "Carrel individuel|90 x 120 cm|100 x 140 cm|90 cm|140 cm|140 cm|100 cm", "Banque prêt|160 cm|220 cm|120 cm|105 cm|70 cm|220 cm", "Espace groupe|240 x 240 cm|320 x 320 cm|120 cm|0|320 cm|320 cm"],
+    "Atelier / espace créatif": ["Table maquette|180 x 90 cm|240 x 120 cm|100 cm|90 cm|120 cm|240 cm", "Plan découpe|160 x 80 cm|220 x 100 cm|100 cm|92 cm|100 cm|220 cm", "Établi|140 x 70 cm|200 x 80 cm|100 cm|90 cm|80 cm|200 cm", "Stockage cartons|P 60 cm|P 80 cm|100 cm|220 cm|80 cm|180 cm", "Mur affichage|180 cm|300 cm|120 cm|220 cm|0|300 cm", "Zone critique projet|240 x 180 cm|360 x 240 cm|120 cm|0|240 cm|360 cm", "Circulation atelier|100 cm|140 cm|140 cm|0|0|140 cm"]
+  };
+
+  const DATA_TOOLS_DIMENSIONS = Object.entries(TOOLS_DIMENSION_CATALOG).flatMap(([categorie, rows]) =>
+    rows.map((row, index) => {
+      const [nom, dimensionMin, dimensionConfort, degagement, hauteur, profondeur, largeur] = row.split("|");
+      const id = `${normalizeText(categorie)}-${normalizeText(nom)}`
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+      return {
+        id,
+        catégorie: categorie,
+        categorie,
+        nom,
+        dimensionMin,
+        dimensionConfort,
+        dégagement: degagement,
+        degagement,
+        hauteur,
+        profondeur,
+        largeur,
+        valeur: dimensionConfort || dimensionMin,
+        dir: /hauteur|rampe|garde|interrupteur|allège|échappée/i.test(nom) ? "v" : "h",
+        note: `Repère ${categorie.toLowerCase()} à vérifier avec le programme, l'ergonomie et les normes locales.`,
+        usage: categorie,
+        tags: [categorie.toLowerCase(), normalizeText(nom).split(" ")[0] || "dimension", index < 2 ? "essentiel" : "référence"]
+      };
+    })
+  );
+
+  DATA_NORMES = getUniqueValues(DATA_TOOLS_DIMENSIONS, "categorie").map(label => ({
+    id: normalizeText(label).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+    label,
+    kicker: "Dimensions, dégagements et normes d'usage",
+    items: DATA_TOOLS_DIMENSIONS.filter(item => item.categorie === label)
+  }));
+
   /* ── Schéma SVG de cote architecturale ──────────────────────── */
   const _svgCote = dir => dir === "v"
     ? /* cote verticale */
@@ -3049,6 +5024,11 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
           ${_svgCote(item.dir)}
           <p class="tm-normes-dim">${_esc(item.valeur)}</p>
           <p class="tm-normes-nom">${_esc(item.nom)}</p>
+          <div class="tm-dim-meta">
+            <span>Min. ${_esc(item.dimensionMin || "—")}</span>
+            <span>Confort ${_esc(item.dimensionConfort || item.valeur || "—")}</span>
+            <span>Dégagement ${_esc(item.degagement || item.dégagement || "—")}</span>
+          </div>
           <p class="tm-normes-note">${_esc(item.note)}</p>
           ${item.tags?.length
             ? `<div class="tm-normes-tags">${item.tags.map(tag => `<span class="tm-normes-tag">${_esc(tag)}</span>`).join("")}</div>`
@@ -3062,7 +5042,10 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
   const _renderScaleCalculator = () => `
     <article class="card" id="tools-scale-card">
       <p style="margin:0 0 .18rem;text-transform:uppercase;letter-spacing:.17em;font-size:.58rem;font-weight:500;color:var(--gold)">Convention d'échelle</p>
-      <h3 style="font-family:var(--serif);font-size:1.7rem;font-weight:300;line-height:1;color:var(--ink);margin:0 0 1rem">Échelle exacte</h3>
+      <h3 style="font-family:var(--serif);font-size:1.7rem;font-weight:300;line-height:1;color:var(--ink);margin:0 0 .45rem">Du réel vers la feuille</h3>
+      <p style="margin:0 0 1rem;color:var(--muted);font-size:.76rem;line-height:1.6">
+        Entrez une mesure réelle, choisissez une échelle standard, puis obtenez directement la mesure à tracer sur le plan.
+      </p>
       <div class="tm-tools-scale-grid">
         <label class="field">
           <span style="font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.28rem">Mesure réelle</span>
@@ -3076,10 +5059,27 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
           </div>
         </label>
         <label class="field">
-          <span style="font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.28rem">Mesure sur plan en mm</span>
-          <input id="tools-scale-plan" type="number" min="0.001" step="any" placeholder="ex : 50" style="width:100%" />
+          <span style="font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.28rem">Échelle</span>
+          <select id="tools-scale-denom" style="width:100%;background:var(--surface-2);border:var(--border);color:var(--ink);border-radius:var(--r-sm);padding:.62rem .75rem;font-size:.82rem;cursor:pointer">
+            <option value="100" selected>1/100</option>
+            <option value="50">1/50</option>
+            <option value="20">1/20</option>
+            <option value="10">1/10</option>
+            <option value="5">1/5</option>
+            <option value="200">1/200</option>
+          </select>
         </label>
-        <button type="button" id="tools-scale-btn" class="text-btn text-btn--primary" style="white-space:nowrap">Calculer l'échelle</button>
+        <label class="field">
+          <span style="font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.28rem">Mesure sur feuille en mm</span>
+          <input id="tools-scale-plan" type="number" min="0.001" step="any" placeholder="résultat" readonly style="width:100%" />
+        </label>
+        <button type="button" id="tools-scale-btn" class="text-btn text-btn--primary" style="white-space:nowrap">Convertir</button>
+      </div>
+      <div class="tm-tools-scale-chips" aria-label="Échelles rapides">
+        <button type="button" class="tm-tools-scale-chip" data-tools-scale-preset="100">1/100</button>
+        <button type="button" class="tm-tools-scale-chip" data-tools-scale-preset="50">1/50</button>
+        <button type="button" class="tm-tools-scale-chip" data-tools-scale-preset="20">1/20</button>
+        <button type="button" class="tm-tools-scale-chip" data-tools-scale-preset="10">1/10</button>
       </div>
       <div id="tools-scale-result" style="display:none;margin-top:.85rem;padding:.85rem;background:rgba(201,169,110,.07);border:0.5px solid rgba(201,169,110,.32);border-radius:var(--r-sm);text-align:center">
         <p id="tools-scale-main" style="font-family:var(--serif);font-size:2rem;font-weight:300;color:var(--gold);margin:0 0 .2rem"></p>
@@ -3093,45 +5093,36 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     const realEl = root.querySelector("#tools-scale-real");
     const unitEl = root.querySelector("#tools-scale-unit");
     const planEl = root.querySelector("#tools-scale-plan");
+    const denomEl = root.querySelector("#tools-scale-denom");
     const errEl = root.querySelector("#tools-scale-error");
     const resEl = root.querySelector("#tools-scale-result");
     const mainEl = root.querySelector("#tools-scale-main");
     const nearestEl = root.querySelector("#tools-scale-nearest");
 
-    if (!realEl || !unitEl || !planEl || !errEl || !resEl || !mainEl || !nearestEl) return;
+    if (!realEl || !unitEl || !planEl || !denomEl || !errEl || !resEl || !mainEl || !nearestEl) return;
 
     const realRaw = parseFloat(realEl.value);
-    const planRaw = parseFloat(planEl.value);
     const unitMult = parseFloat(unitEl.value);
+    const denom = parseFloat(denomEl.value);
 
     errEl.style.display = "none";
     resEl.style.display = "none";
 
-    if (!realRaw || !planRaw || realRaw <= 0 || planRaw <= 0) {
-      errEl.textContent = "Entre deux valeurs positives.";
+    if (!realRaw || realRaw <= 0 || !denom || denom <= 0) {
+      errEl.textContent = "Entrez une mesure réelle positive et une échelle valide.";
       errEl.style.display = "block";
       return;
     }
 
     const realMm = realRaw * unitMult;
-    const denom = Math.round(realMm / planRaw);
+    const paperMm = realMm / denom;
+    const paperCm = paperMm / 10;
+    const roundedMm = Math.round(paperMm * 100) / 100;
 
-    if (denom < 1) {
-      errEl.textContent = "La mesure sur plan est plus grande que la mesure réelle.";
-      errEl.style.display = "block";
-      return;
-    }
-
-    const standards = [1, 2, 5, 10, 20, 25, 33, 50, 75, 100, 125, 200, 250, 500, 1000, 2000, 5000];
-    const nearest = standards.reduce((a, b) =>
-      Math.abs(b - denom) < Math.abs(a - denom) ? b : a
-    );
-
-    mainEl.textContent = `1 : ${denom.toLocaleString("fr-FR")}`;
+    planEl.value = String(roundedMm);
+    mainEl.textContent = `${roundedMm.toLocaleString("fr-FR")} mm sur feuille`;
     nearestEl.textContent =
-      nearest === denom
-        ? "Échelle standard exacte"
-        : `Échelle standard la plus proche : 1 : ${nearest.toLocaleString("fr-FR")}`;
+      `${realRaw.toLocaleString("fr-FR")} ${unitEl.options[unitEl.selectedIndex]?.text || "mm"} à l'échelle 1/${denom.toLocaleString("fr-FR")} · ${paperCm.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} cm`;
 
     resEl.style.display = "block";
   }
@@ -3209,7 +5200,16 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
 
     root.querySelector("#tools-normes-search")?.addEventListener("input", renderActivePanel);
     root.querySelector("#tools-scale-btn")?.addEventListener("click", () => _calculateScale(root));
-    ["tools-scale-real", "tools-scale-plan"].forEach(id =>
+    root.querySelector("#tools-scale-denom")?.addEventListener("change", () => _calculateScale(root));
+    root.querySelectorAll("[data-tools-scale-preset]").forEach(btn =>
+      btn.addEventListener("click", () => {
+        const select = root.querySelector("#tools-scale-denom");
+        if (!select) return;
+        select.value = btn.dataset.toolsScalePreset;
+        _calculateScale(root);
+      })
+    );
+    ["tools-scale-real"].forEach(id =>
       root.querySelector("#" + id)?.addEventListener("keydown", e => {
         if (e.key === "Enter") _calculateScale(root);
       })
@@ -3225,6 +5225,200 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     }).observe(mod, { attributes: true, attributeFilter: ["class"] });
     if (mod.classList.contains("is-active")) initOutils();
   })();
+
+  /* ── DATA_ECOLOGY — recommandations climat / ressources ─────── */
+  const DATA_ECOLOGY = [
+    { id: "eco-belgique", pays: "Belgique", region: "Bruxelles / Flandre / Wallonie", climat: "Océanique humide", temperature: "Frais à tempéré", humidite: "Élevée", risques: "Humidité, pluie, surchauffe estivale ponctuelle", materiauxRecommandes: ["brique", "bois", "isolants biosourcés", "réemploi"], systemesConstructifs: ["brique + isolation continue", "ossature bois", "rénovation lourde"], strategiesPassives: ["compacité", "protection pluie", "inertie intérieure"], isolationConseillee: "Forte isolation continue, ponts thermiques maîtrisés", ventilationConseillee: "Ventilation contrôlée ou double flux", toitureConseillee: "Toiture isolée et ventilée", erreursAEviter: ["ponts thermiques", "parois non respirantes mal conçues", "ventilation insuffisante"], scoreEcologique: 82, justification: "Le potentiel écologique vient surtout de la rénovation, de l'enveloppe et du réemploi.", tags: ["humidité", "rénovation", "brique"], relatedIds: ["belgique-brique"] },
+    { id: "eco-france", pays: "France", region: "Nord / Méditerranée / Alpes / Atlantique", climat: "Tempéré varié", temperature: "Variable", humidite: "Moyenne", risques: "Canicule, retrait argile, inondation selon région", materiauxRecommandes: ["bois", "pierre", "terre", "béton bas-carbone"], systemesConstructifs: ["réhabilitation", "ITE", "hybride bois-béton"], strategiesPassives: ["orientation", "ombrage", "ventilation nocturne"], isolationConseillee: "Adapter au climat local et au patrimoine", ventilationConseillee: "Naturelle assistée ou double flux", toitureConseillee: "Toiture isolée, claire ou végétalisée selon contexte", erreursAEviter: ["solution unique nationale", "surchauffe négligée"], scoreEcologique: 78, justification: "La diversité climatique impose une approche régionale.", tags: ["réhabilitation", "ombrage", "bas-carbone"], relatedIds: ["france-pierre-beton"] },
+    { id: "eco-maroc", pays: "Maroc", region: "Marrakech / Atlas / littoral", climat: "Aride chaud", temperature: "Très chaude l'été", humidite: "Faible à moyenne", risques: "Chaleur, séisme, rareté de l'eau", materiauxRecommandes: ["terre crue", "pisé", "pierre", "chaux"], systemesConstructifs: ["maison patio", "murs épais", "toitures protégées"], strategiesPassives: ["inertie", "ombre", "patio", "ventilation nocturne"], isolationConseillee: "Masse thermique et protections solaires prioritaires", ventilationConseillee: "Naturelle par patio et tirage thermique", toitureConseillee: "Toiture claire, isolée et ombragée", erreursAEviter: ["grandes surfaces vitrées ouest", "toiture sombre non isolée"], scoreEcologique: 88, justification: "Les systèmes vernaculaires offrent une excellente base passive.", tags: ["terre", "patio", "aride"], relatedIds: ["maroc-terre-patio"] },
+    { id: "eco-japon", pays: "Japon", region: "Honshu / Kyoto / Tokyo", climat: "Tempéré humide", temperature: "Quatre saisons", humidite: "Élevée", risques: "Séisme, typhon, humidité", materiauxRecommandes: ["bois", "bambou", "papier technique", "acier léger"], systemesConstructifs: ["ossature bois", "assemblages secs", "préfabrication légère"], strategiesPassives: ["débords", "ventilation croisée", "réparabilité"], isolationConseillee: "Isolation respirante et gestion vapeur", ventilationConseillee: "Traversante + extraction humide", toitureConseillee: "Toiture légère à grands débords", erreursAEviter: ["masse lourde non ductile", "détails sensibles à l'humidité"], scoreEcologique: 84, justification: "La légèreté, la préfabrication et la réparabilité sont centrales.", tags: ["séisme", "bois", "humidité"], relatedIds: ["japon-bois"] },
+    { id: "eco-norvege", pays: "Norvège", region: "Oslo / fjords / nord", climat: "Froid humide", temperature: "Froide", humidite: "Moyenne à élevée", risques: "Neige, gel, vent", materiauxRecommandes: ["bois massif", "CLT", "laine de bois", "triple vitrage"], systemesConstructifs: ["enveloppe très isolée", "bois massif", "préfabrication"], strategiesPassives: ["compacité", "apports solaires", "sas thermiques"], isolationConseillee: "Très forte isolation et étanchéité à l'air", ventilationConseillee: "Double flux avec récupération", toitureConseillee: "Toiture inclinée neige, très isolée", erreursAEviter: ["ponts thermiques", "vitrages faibles", "absence de sas"], scoreEcologique: 86, justification: "Le bois local et la performance d'enveloppe réduisent la demande énergétique.", tags: ["froid", "bois", "neige"], relatedIds: ["scandinavie-massif"] },
+    { id: "eco-suede", pays: "Suède", region: "Stockholm / Göteborg / nord", climat: "Froid tempéré", temperature: "Froide", humidite: "Moyenne", risques: "Neige, gel", materiauxRecommandes: ["bois", "CLT", "cellulose", "réemploi"], systemesConstructifs: ["ossature bois", "CLT", "quartier bas-carbone"], strategiesPassives: ["compacité", "lumière contrôlée", "ventilation performante"], isolationConseillee: "Isolation élevée biosourcée", ventilationConseillee: "Double flux", toitureConseillee: "Toiture isolée neige", erreursAEviter: ["faible étanchéité", "matériaux à fort carbone sans raison"], scoreEcologique: 85, justification: "La filière bois et la préfabrication sont très adaptées.", tags: ["CLT", "froid", "préfabrication"], relatedIds: ["scandinavie-massif"] },
+    { id: "eco-finlande", pays: "Finlande", region: "Helsinki / lacs / nord", climat: "Froid continental", temperature: "Très froide en hiver", humidite: "Moyenne", risques: "Neige, gel, faible lumière", materiauxRecommandes: ["bois", "laine de bois", "triple vitrage"], systemesConstructifs: ["bois massif", "enveloppe compacte", "sauna / zones tampons"], strategiesPassives: ["compacité", "orientation solaire", "espaces tampons"], isolationConseillee: "Très forte isolation", ventilationConseillee: "Double flux", toitureConseillee: "Toiture inclinée isolée", erreursAEviter: ["surface déperditive excessive", "ventilation non récupérée"], scoreEcologique: 84, justification: "Le climat impose sobriété formelle et enveloppe robuste.", tags: ["froid", "bois", "compact"], relatedIds: ["scandinavie-massif"] },
+    { id: "eco-espagne", pays: "Espagne", region: "Andalousie / Madrid / Catalogne", climat: "Méditerranéen à chaud sec", temperature: "Chaude l'été", humidite: "Faible à moyenne", risques: "Canicule, sécheresse", materiauxRecommandes: ["brique", "céramique", "terre", "chaux"], systemesConstructifs: ["patio", "brise-soleil", "murs inertiels"], strategiesPassives: ["ombre", "ventilation nocturne", "compacité"], isolationConseillee: "Toiture et façades exposées", ventilationConseillee: "Traversante + nocturne", toitureConseillee: "Claire, ventilée, parfois végétalisée", erreursAEviter: ["façades vitrées non protégées", "climatisation comme seule stratégie"], scoreEcologique: 83, justification: "Les stratégies d'ombre et d'inertie sont déterminantes.", tags: ["ombre", "patio", "canicule"], relatedIds: ["espagne-patio"] },
+    { id: "eco-italie", pays: "Italie", region: "Toscane / Rome / Sicile", climat: "Méditerranéen", temperature: "Chaude l'été", humidite: "Moyenne", risques: "Séisme, chaleur", materiauxRecommandes: ["pierre", "brique", "bois", "chaux"], systemesConstructifs: ["maçonnerie renforcée", "cour", "réhabilitation"], strategiesPassives: ["inertie", "ombre", "ventilation traversante"], isolationConseillee: "Compatible patrimoine et séisme", ventilationConseillee: "Naturelle + extraction", toitureConseillee: "Toiture claire ou ventilée", erreursAEviter: ["renforts qui piègent l'humidité", "survitrage solaire"], scoreEcologique: 79, justification: "Réhabiliter et renforcer avec finesse évite beaucoup de carbone.", tags: ["séisme", "pierre", "réhabilitation"], relatedIds: ["italie-maconnerie"] },
+    { id: "eco-egypte", pays: "Égypte", region: "Le Caire / vallée du Nil", climat: "Désertique", temperature: "Très chaude", humidite: "Faible", risques: "Chaleur extrême, poussière", materiauxRecommandes: ["terre", "pierre", "béton bas-carbone", "chaux"], systemesConstructifs: ["murs massifs", "cours ombrées", "façades filtrantes"], strategiesPassives: ["inertie", "moucharabieh", "ventilation haute"], isolationConseillee: "Protection toiture et masse", ventilationConseillee: "Tirage thermique contrôlé", toitureConseillee: "Claire, isolée, ombragée", erreursAEviter: ["vitrage plein sud-ouest", "toiture non protégée"], scoreEcologique: 81, justification: "Masse, filtre et ombre peuvent réduire fortement les besoins.", tags: ["désert", "inertie", "filtre"], relatedIds: ["egypte-inertie"] },
+    { id: "eco-inde", pays: "Inde", region: "Ahmedabad / Kerala / Delhi", climat: "Tropical et mousson", temperature: "Chaude", humidite: "Élevée selon régions", risques: "Mousson, chaleur, pollution", materiauxRecommandes: ["brique", "terre", "béton ventilé", "pierre"], systemesConstructifs: ["jali", "véranda", "toiture ventilée"], strategiesPassives: ["ombrage profond", "ventilation", "filtration"], isolationConseillee: "Toiture prioritaire, parois selon région", ventilationConseillee: "Traversante filtrée", toitureConseillee: "Double toiture ventilée", erreursAEviter: ["façade vitrée non protégée", "toiture plate sombre"], scoreEcologique: 82, justification: "Les dispositifs filtrants sont performants et culturellement adaptés.", tags: ["mousson", "jali", "ventilation"], relatedIds: ["inde-jali"] },
+    { id: "eco-bresil", pays: "Brésil", region: "Rio / Brasília / São Paulo", climat: "Tropical à subtropical", temperature: "Chaude", humidite: "Élevée", risques: "Surchauffe, pluies intenses", materiauxRecommandes: ["béton", "bois certifié", "brique", "bambou"], systemesConstructifs: ["pilotis", "brise-soleil", "toiture ventilée"], strategiesPassives: ["ombre", "ventilation naturelle", "sol libre"], isolationConseillee: "Toiture et façades exposées", ventilationConseillee: "Naturelle traversante", toitureConseillee: "Débordante, ventilée", erreursAEviter: ["climatisation sans ombrage", "mauvais drainage"], scoreEcologique: 80, justification: "Le climat favorise l'architecture ventilée et ombragée.", tags: ["tropical", "pilotis", "ombre"], relatedIds: ["bresil-modernisme"] },
+    { id: "eco-canada", pays: "Canada", region: "Québec / Ontario / Vancouver", climat: "Froid continental à océanique", temperature: "Froide", humidite: "Variable", risques: "Neige, gel, pluie côtière", materiauxRecommandes: ["bois", "CLT", "cellulose", "triple vitrage"], systemesConstructifs: ["ossature bois", "CLT", "enveloppe très étanche"], strategiesPassives: ["compacité", "apports solaires", "sas"], isolationConseillee: "Très forte, pare-air continu", ventilationConseillee: "Double flux", toitureConseillee: "Toiture neige très isolée", erreursAEviter: ["condensation interstitielle", "faible étanchéité"], scoreEcologique: 85, justification: "Le bois et l'enveloppe performante sont cohérents avec le climat.", tags: ["froid", "CLT", "enveloppe"], relatedIds: ["canada-envelope"] },
+    { id: "eco-etats-unis", pays: "États-Unis", region: "Californie / Nord-Est / Sud", climat: "Très varié", temperature: "Variable", humidite: "Variable", risques: "Feu, cyclone, séisme, chaleur", materiauxRecommandes: ["bois", "acier", "béton bas-carbone", "isolants biosourcés"], systemesConstructifs: ["light frame", "parasismique", "résistant feu selon zone"], strategiesPassives: ["zonage climatique", "ombrage", "résilience"], isolationConseillee: "Selon zone climatique", ventilationConseillee: "Mécanique ou naturelle selon climat", toitureConseillee: "Réfléchissante, résistante vent/feu", erreursAEviter: ["copier une solution d'un État à l'autre", "ignorer le risque feu"], scoreEcologique: 74, justification: "Le pays exige une stratégie locale, pas un standard unique.", tags: ["risques", "light-frame", "résilience"], relatedIds: ["usa-light-frame"] },
+    { id: "eco-kenya", pays: "Kenya", region: "Nairobi / Mombasa", climat: "Tropical d'altitude à humide", temperature: "Chaude modérée", humidite: "Variable", risques: "Pluies intenses, chaleur", materiauxRecommandes: ["terre", "pierre locale", "bois", "métal léger"], systemesConstructifs: ["double toiture", "murs ventilés", "matériaux locaux"], strategiesPassives: ["ventilation", "ombrage", "toiture ventilée"], isolationConseillee: "Toiture prioritaire", ventilationConseillee: "Naturelle permanente", toitureConseillee: "Débordante et ventilée", erreursAEviter: ["tôle non ventilée", "faible protection solaire"], scoreEcologique: 86, justification: "Les ressources locales et la ventilation passive sont efficaces.", tags: ["local", "ventilation", "toiture"], relatedIds: ["kenya-climat-social"] },
+    { id: "eco-afrique-du-sud", pays: "Afrique du Sud", region: "Le Cap / Johannesburg", climat: "Semi-aride à méditerranéen", temperature: "Chaude", humidite: "Variable", risques: "Sécheresse, feu, vent", materiauxRecommandes: ["brique", "terre", "bois protégé", "acier"], systemesConstructifs: ["murs inertiels", "ombrage", "collecte eau"], strategiesPassives: ["ombre", "inertie", "gestion eau"], isolationConseillee: "Toiture et façades exposées", ventilationConseillee: "Traversante protégée", toitureConseillee: "Claire, isolée, récupération eau", erreursAEviter: ["surfaces noires exposées", "absence de stratégie eau"], scoreEcologique: 78, justification: "L'eau et la protection solaire doivent guider le projet.", tags: ["sécheresse", "eau", "ombre"], relatedIds: ["afrique-du-sud-hybride"] },
+    { id: "eco-indonesie", pays: "Indonésie", region: "Bali / Java", climat: "Tropical humide", temperature: "Chaude", humidite: "Très élevée", risques: "Séisme, mousson, humidité", materiauxRecommandes: ["bambou", "bois", "terre stabilisée", "pierre"], systemesConstructifs: ["pilotis", "toiture très ventilée", "structures légères"], strategiesPassives: ["ventilation permanente", "débord", "surélévation"], isolationConseillee: "Toiture légère protégée", ventilationConseillee: "Naturelle permanente", toitureConseillee: "Très débordante et respirante", erreursAEviter: ["matériaux piégeant l'humidité", "structure lourde non ductile"], scoreEcologique: 87, justification: "La légèreté ventilée répond au climat humide et aux séismes.", tags: ["bambou", "humide", "pilotis"], relatedIds: ["bambou-tropical"] },
+    { id: "eco-australie", pays: "Australie", region: "Sydney / Melbourne / intérieur", climat: "Chaud sec à tempéré", temperature: "Chaude", humidite: "Faible à moyenne", risques: "Feu, chaleur, sécheresse", materiauxRecommandes: ["bois protégé", "acier", "terre", "isolants résistants feu"], systemesConstructifs: ["maison légère ventilée", "véranda", "détails anti-feu"], strategiesPassives: ["ombrage", "ventilation", "protection incendie"], isolationConseillee: "Toiture prioritaire + déphasage", ventilationConseillee: "Traversante contrôlée", toitureConseillee: "Claire, ventilée, résistante feu", erreursAEviter: ["végétation combustible collée au bâti", "toiture sombre"], scoreEcologique: 76, justification: "La résilience feu-chaleur conditionne les choix écologiques.", tags: ["feu", "ombre", "sécheresse"], relatedIds: ["australie-bushfire"] },
+    { id: "eco-allemagne", pays: "Allemagne", region: "Berlin / Freiburg / Bavière", climat: "Tempéré froid", temperature: "Froide à tempérée", humidite: "Moyenne", risques: "Canicule croissante, pluie", materiauxRecommandes: ["bois", "brique", "isolants biosourcés", "réemploi"], systemesConstructifs: ["Passivhaus", "préfabrication bois", "rénovation énergétique"], strategiesPassives: ["compacité", "orientation", "protection solaire"], isolationConseillee: "Très forte isolation", ventilationConseillee: "Double flux", toitureConseillee: "Isolée, solaire ou végétalisée", erreursAEviter: ["performance sans confort d'été", "systèmes trop complexes"], scoreEcologique: 84, justification: "La culture de l'enveloppe performante est un levier fort.", tags: ["passif", "bois", "énergie"], relatedIds: ["allemagne-passivhaus"] },
+    { id: "eco-pays-bas", pays: "Pays-Bas", region: "Amsterdam / Rotterdam / polders", climat: "Océanique humide", temperature: "Tempérée", humidite: "Élevée", risques: "Inondation, vent, sol humide", materiauxRecommandes: ["bois", "brique", "acier galvanisé", "réemploi"], systemesConstructifs: ["fondations adaptées", "surélévation", "façades légères"], strategiesPassives: ["gestion eau", "compacité", "ventilation contrôlée"], isolationConseillee: "Forte et résistante humidité", ventilationConseillee: "Contrôlée", toitureConseillee: "Toiture pluie, rétention ou solaire", erreursAEviter: ["ignorer le niveau d'eau", "détails sensibles à la corrosion"], scoreEcologique: 81, justification: "La gestion de l'eau est indissociable du choix constructif.", tags: ["eau", "polder", "humidité"], relatedIds: ["pays-bas-pilotis"] }
+  ].map(item => ({
+    ...item,
+    matériauxRecommandés: item.materiauxRecommandes,
+    stratégiesPassives: item.strategiesPassives,
+    isolationConseillée: item.isolationConseillee,
+    ventilationConseillée: item.ventilationConseillee,
+    toitureConseillée: item.toitureConseillee,
+    erreursÀÉviter: item.erreursAEviter
+  }));
+
+  const _ecoState = { selectedId: DATA_ECOLOGY[0]?.id || null, compareId: "" };
+
+  function _renderEcologieDetail(item, label = "Pays actif") {
+    if (!item) return renderEmptyState("Aucune recommandation", "Sélectionnez un pays pour afficher les stratégies.");
+    return `
+      <article class="tm-eco-detail">
+        <p class="tm-tech-kicker">${_esc(label)}</p>
+        <h3>${_esc(item.pays)}</h3>
+        <p class="tm-tech-muted">${_esc(item.region)} · ${_esc(item.climat)} · ${_esc(item.risques)}</p>
+        <div class="tm-eco-score"><span style="width:${Math.max(0, Math.min(100, item.scoreEcologique))}%"></span></div>
+        <strong class="tm-eco-score-label">Score écologique pédagogique : ${_esc(item.scoreEcologique)}/100</strong>
+        <div class="tm-eco-columns">
+          <div><span>Matériaux</span>${renderTagList(item.materiauxRecommandes)}</div>
+          <div><span>Systèmes</span>${renderTagList(item.systemesConstructifs)}</div>
+          <div><span>Stratégies passives</span>${renderTagList(item.strategiesPassives)}</div>
+          <div><span>Erreurs à éviter</span>${renderTagList(item.erreursAEviter)}</div>
+        </div>
+        <div class="tm-tech-rows">
+          <div class="tm-tech-row"><span>Isolation conseillée</span><strong>${_esc(item.isolationConseillee)}</strong></div>
+          <div class="tm-tech-row"><span>Ventilation conseillée</span><strong>${_esc(item.ventilationConseillee)}</strong></div>
+          <div class="tm-tech-row"><span>Toiture conseillée</span><strong>${_esc(item.toitureConseillee)}</strong></div>
+        </div>
+        <p class="tm-tech-lesson">${_esc(item.justification)}</p>
+      </article>
+    `;
+  }
+
+  function initEcologie() {
+    const root = document.getElementById("ecologie-layout");
+    if (!root) return;
+
+    const selected = DATA_ECOLOGY.find(item => item.id === _ecoState.selectedId) || DATA_ECOLOGY[0];
+    const compared = DATA_ECOLOGY.find(item => item.id === _ecoState.compareId);
+
+    root.innerHTML = `
+      <div class="tm-eco tm-shell tm-reveal">
+        <section class="tm-editorial-panel tm-eco-hero">
+          <div>
+            <p class="tm-tech-kicker">Écologie V1</p>
+            <h3>Choisir une stratégie selon climat, ressources et risques.</h3>
+            <p class="tm-tech-muted">Ces recommandations sont pédagogiques et doivent être adaptées à chaque projet réel.</p>
+          </div>
+          <div class="tm-eco-selectors">
+            <label class="field">
+              <span>Pays</span>
+              <select data-eco-select="primary">
+                ${DATA_ECOLOGY.map(item => `<option value="${_esc(item.id)}" ${item.id === selected?.id ? "selected" : ""}>${_esc(item.pays)}</option>`).join("")}
+              </select>
+            </label>
+            <label class="field">
+              <span>Comparer avec</span>
+              <select data-eco-select="compare">
+                <option value="">Aucun</option>
+                ${DATA_ECOLOGY.map(item => `<option value="${_esc(item.id)}" ${item.id === compared?.id ? "selected" : ""}>${_esc(item.pays)}</option>`).join("")}
+              </select>
+            </label>
+          </div>
+        </section>
+        <div class="tm-eco-layout">
+          ${_renderEcologieDetail(selected, "Pays actif")}
+          ${compared ? _renderEcologieDetail(compared, "Comparaison") : `
+            <article class="tm-eco-detail tm-eco-note">
+              <p class="tm-tech-kicker">Lecture</p>
+              <h3>Comparer sans complexifier.</h3>
+              <p class="tm-tech-muted">Choisissez un second pays pour comparer les matériaux, systèmes, stratégies passives et erreurs à éviter.</p>
+            </article>
+          `}
+        </div>
+      </div>
+    `;
+
+    if (root.dataset.ecologieBound === "true") return;
+    root.dataset.ecologieBound = "true";
+    root.addEventListener("change", e => {
+      const select = e.target.closest("[data-eco-select]");
+      if (!select) return;
+      if (select.dataset.ecoSelect === "primary") _ecoState.selectedId = select.value;
+      if (select.dataset.ecoSelect === "compare") _ecoState.compareId = select.value;
+      initEcologie();
+    });
+  }
+
+  (function hookEcologie() {
+    const mod = document.getElementById("module-ecologie");
+    if (!mod) return;
+    new MutationObserver(() => {
+      if (mod.classList.contains("is-active")) initEcologie();
+    }).observe(mod, { attributes: true, attributeFilter: ["class"] });
+    if (mod.classList.contains("is-active")) initEcologie();
+  })();
+
+  /* ── Auth/Firestore helpers partagés ────────────────────────── */
+  const ADMIN_EMAIL = "teomarchi@teomarchi.com";
+  window.TEOMARCHI_AUTH_STATE = window.TEOMARCHI_AUTH_STATE || {
+    user: null,
+    isAdmin: false,
+    isPremium: false
+  };
+
+  function getFirestoreDb() {
+    try {
+      if (typeof firebase === "undefined" || typeof firebase.firestore !== "function") return null;
+      return firebase.firestore();
+    } catch {
+      return null;
+    }
+  }
+
+  function getFirebaseUser() {
+    try {
+      return window.TEOMARCHI_AUTH_STATE?.user || firebase.auth?.().currentUser || null;
+    } catch {
+      return window.TEOMARCHI_AUTH_STATE?.user || null;
+    }
+  }
+
+  function isTeomarchiAdmin(user = getFirebaseUser()) {
+    return String(user?.email || "").toLowerCase() === ADMIN_EMAIL;
+  }
+
+  function serverTimestamp() {
+    try { return firebase.firestore.FieldValue.serverTimestamp(); }
+    catch { return new Date().toISOString(); }
+  }
+
+  function incrementBy(value) {
+    try { return firebase.firestore.FieldValue.increment(value); }
+    catch { return value; }
+  }
+
+  function openLoginPrompt() {
+    try { window.TEOMARCHI_OPEN_LOGIN?.(); } catch {}
+    const modal = document.querySelector("#login-modal");
+    if (modal) modal.classList.add("is-open");
+  }
+
+  function notifyUser(message) {
+    if (typeof pushNotification === "function") pushNotification(message);
+    else console.log(message);
+  }
+
+  function formatFirestoreDate(value) {
+    try {
+      const date = value?.toDate ? value.toDate() : (value ? new Date(value) : null);
+      if (!date || Number.isNaN(date.getTime())) return "à l'instant";
+      return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(date);
+    } catch {
+      return "à l'instant";
+    }
+  }
+
+  function compactUserName(user) {
+    if (!user) return "";
+    return user.displayName || String(user.email || "").split("@")[0] || "Utilisateur TEOMARCHI";
+  }
+
+  document.addEventListener("click", e => {
+    if (!e.target.closest("[data-open-login]")) return;
+    e.preventDefault();
+    openLoginPrompt();
+  });
 
 /* ── CSS Profil + Premium (injecté une fois) ─────────────────── */
   (function injectProfilCSS() {
@@ -3394,6 +5588,78 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         text-transform: uppercase; color: var(--muted);
       }
       .tm-stripe-secure svg { opacity: .5; flex-shrink: 0; }
+      .tm-profile-editor {
+        display: grid;
+        grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr);
+        gap: 1.2rem;
+        align-items: start;
+      }
+      .tm-profile-card {
+        display: grid;
+        gap: 1rem;
+        padding: 1.4rem;
+        border: var(--border);
+        border-radius: var(--r-xl);
+        background: var(--surface);
+        min-width: 0;
+      }
+      .tm-profile-form {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .8rem;
+      }
+      .tm-profile-field,
+      .tm-feed-field {
+        display: grid;
+        gap: .34rem;
+        min-width: 0;
+      }
+      .tm-profile-field--full,
+      .tm-feed-field--full { grid-column: 1 / -1; }
+      .tm-profile-field label,
+      .tm-feed-field label {
+        color: var(--muted);
+        font-size: .58rem;
+        letter-spacing: .13em;
+        text-transform: uppercase;
+      }
+      .tm-profile-field input,
+      .tm-profile-field select,
+      .tm-profile-field textarea,
+      .tm-feed-field input,
+      .tm-feed-field textarea {
+        width: 100%;
+        border: var(--border);
+        border-radius: var(--r-sm);
+        background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+        color: var(--ink);
+        font: inherit;
+        font-size: .82rem;
+        padding: .72rem .82rem;
+        resize: vertical;
+        min-width: 0;
+      }
+      .tm-profile-field textarea,
+      .tm-feed-field textarea { min-height: 92px; }
+      .tm-profile-field input:focus,
+      .tm-profile-field select:focus,
+      .tm-profile-field textarea:focus,
+      .tm-feed-field input:focus,
+      .tm-feed-field textarea:focus {
+        outline: none;
+        border-color: rgba(201,169,110,.48);
+      }
+      .tm-profile-empty {
+        padding: 2rem;
+        border: var(--border-gold);
+        border-radius: var(--r-xl);
+        background: radial-gradient(ellipse at 0% 100%, rgba(201,169,110,.07), transparent 60%), var(--surface);
+        text-align: center;
+      }
+      @media (max-width: 900px) {
+        .tm-profile-editor,
+        .tm-profile-form { grid-template-columns: 1fr; }
+      }
     `;
     document.head.appendChild(s);
   })();
@@ -3428,133 +5694,199 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     { val: "AMO", lbl: "AMO / Maîtrise d'ouvrage"  }
   ];
 
-  /* ── initProfil : injection dans #profil-social ──────────────── */
-  function initProfil() {
-    const root = document.getElementById("profil-social");
-    if (!root) return;
+  let _profileUnsubscribe = null;
 
-    function _render() {
-      const sess     = (typeof TEOMARCHI_APP !== "undefined") ? TEOMARCHI_APP.session.get() : null;
-      const name     = sess ? _esc(sess.name)  : "Utilisateur invité";
-      const roleText = sess ? _esc(sess.email || sess.role)  : "Non connecté";
-      const grade    = sess ? _esc(sess.grade) : "—";
-      const initials = sess
-        ? sess.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
-        : "T";
-      const avatar = sess?.photoURL
-        ? `<img src="${_esc(sess.photoURL)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
-        : initials;
-      const stats = _profileStats();
+  function profileFallback(user, data = {}) {
+    return {
+      displayName: data.displayName || user.displayName || compactUserName(user),
+      bio: data.bio || "",
+      schoolOrAgency: data.schoolOrAgency || "",
+      level: data.level || "",
+      city: data.city || "",
+      specialties: Array.isArray(data.specialties) ? data.specialties.join(", ") : (data.specialties || ""),
+      avatarUrl: data.avatarUrl || user.photoURL || "",
+      portfolioUrl: data.portfolioUrl || "",
+      role: data.role || (isTeomarchiAdmin(user) ? "admin" : "user"),
+      status: data.status || "active"
+    };
+  }
 
-      root.innerHTML = `
-        <div style="display:grid;gap:1.618rem">
+  function renderProfileEditor(root, user, profile = {}) {
+    if (!root || !user) return;
+    const p = profileFallback(user, profile);
+    const stats = _profileStats();
+    const avatar = p.avatarUrl
+      ? `<img src="${_esc(p.avatarUrl)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+      : _esc(p.displayName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() || "T");
 
-          <div class="tm-profil-hero">
+    root.innerHTML = `
+      <div class="tm-profile-editor">
+        <aside class="tm-profile-card">
+          <div class="tm-profil-hero" style="padding:0;border:0;background:transparent">
             <div class="tm-profil-avatar" aria-hidden="true">${avatar}</div>
             <div>
               <p style="margin:0 0 .22rem;text-transform:uppercase;letter-spacing:.17em;
-                        font-size:.58rem;font-weight:500;color:var(--gold)">Profil utilisateur</p>
-              <h3 style="font-family:var(--serif);font-size:2.2rem;font-weight:300;
-                         line-height:1.04;color:var(--ink);margin:0 0 .38rem">${name}</h3>
-              <div style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center">
-                <span class="badge">${grade}</span>
-                <span style="font-size:.78rem;color:var(--muted)">${roleText}</span>
-              </div>
+                        font-size:.58rem;font-weight:500;color:var(--gold)">Profil Firebase</p>
+              <h3 style="font-family:var(--serif);font-size:2rem;font-weight:300;
+                         line-height:1.04;color:var(--ink);margin:0 0 .38rem">${_esc(p.displayName)}</h3>
+              <p style="margin:0;color:var(--muted);font-size:.78rem;line-height:1.55">${_esc(user.email || "")}</p>
             </div>
           </div>
-
           <div class="tm-profil-stats">
             ${stats.map(s => `
               <div class="tm-profil-stat">
-                <span class="tm-profil-stat__val">${s.val}</span>
-                <span class="tm-profil-stat__lbl">${s.lbl}</span>
+                <span class="tm-profil-stat__val">${_esc(s.val)}</span>
+                <span class="tm-profil-stat__lbl">${_esc(s.lbl)}</span>
               </div>
             `).join("")}
           </div>
+          <div style="display:grid;gap:.5rem">
+            <span class="badge">${_esc(p.role)}</span>
+            <span class="badge">${_esc(p.status)}</span>
+          </div>
+        </aside>
 
-          <article class="card" style="display:grid;gap:1rem">
-            <div>
-              <p style="margin:0 0 .18rem;text-transform:uppercase;letter-spacing:.17em;
-                        font-size:.58rem;font-weight:500;color:var(--gold)">Paramètres</p>
-              <h3 style="font-family:var(--serif);font-size:1.7rem;font-weight:300;
-                         line-height:1;color:var(--ink);margin:0">Compte &amp; affichage</h3>
-            </div>
-            <div style="height:.5px;background:rgba(245,245,241,.08)"></div>
+        <form class="tm-profile-card tm-profile-form" id="profile-editor-form">
+          <div class="tm-profile-field">
+            <label for="profile-displayName">Nom affiché</label>
+            <input id="profile-displayName" name="displayName" maxlength="80" value="${_esc(p.displayName)}" autocomplete="name">
+          </div>
+          <div class="tm-profile-field">
+            <label for="profile-level">Niveau</label>
+            <select id="profile-level" name="level">
+              <option value="">Non renseigné</option>
+              ${["L1","L2","L3","M1","M2","architecte","enseignant","agence"].map(level =>
+                `<option value="${level}" ${p.level === level ? "selected" : ""}>${level}</option>`
+              ).join("")}
+            </select>
+          </div>
+          <div class="tm-profile-field tm-profile-field--full">
+            <label for="profile-bio">Bio courte</label>
+            <textarea id="profile-bio" name="bio" maxlength="240">${_esc(p.bio)}</textarea>
+          </div>
+          <div class="tm-profile-field">
+            <label for="profile-schoolOrAgency">École / agence</label>
+            <input id="profile-schoolOrAgency" name="schoolOrAgency" maxlength="120" value="${_esc(p.schoolOrAgency)}">
+          </div>
+          <div class="tm-profile-field">
+            <label for="profile-city">Ville</label>
+            <input id="profile-city" name="city" maxlength="80" value="${_esc(p.city)}">
+          </div>
+          <div class="tm-profile-field tm-profile-field--full">
+            <label for="profile-specialties">Spécialités</label>
+            <input id="profile-specialties" name="specialties" maxlength="160" value="${_esc(p.specialties)}" placeholder="bois, logement, réhabilitation">
+          </div>
+          <div class="tm-profile-field">
+            <label for="profile-avatarUrl">Photo de profil</label>
+            <input id="profile-avatarUrl" name="avatarUrl" type="url" value="${_esc(p.avatarUrl)}" placeholder="https://...">
+          </div>
+          <div class="tm-profile-field">
+            <label for="profile-portfolioUrl">Portfolio</label>
+            <input id="profile-portfolioUrl" name="portfolioUrl" type="url" value="${_esc(p.portfolioUrl)}" placeholder="https://...">
+          </div>
+          <div class="tm-profile-field tm-profile-field--full">
+            <button class="text-btn text-btn--primary" type="submit">Sauvegarder le profil</button>
+          </div>
+        </form>
+      </div>
+    `;
+  }
 
-            <div style="display:flex;justify-content:space-between;align-items:center;
-                        gap:1rem;flex-wrap:wrap">
-              <div>
-                <p style="margin:0 0 .10rem;font-size:.78rem;color:var(--ink-2)">Niveau d'études / Profession</p>
-                <p style="margin:0;font-size:.68rem;color:var(--muted)">Adapte les contenus et les normes affichées</p>
-              </div>
-              <div class="tm-role-wrap">
-                <select class="tm-role-select" id="profil-role-select" aria-label="Sélecteur de rôle">
-                  ${_PROFIL_ROLES.map(r =>
-                    `<option value="${r.val}" ${grade === r.val ? "selected" : ""}>${_esc(r.lbl)}</option>`
-                  ).join("")}
-                </select>
-              </div>
-            </div>
+  async function saveProfile(form) {
+    const user = getFirebaseUser();
+    const db = getFirestoreDb();
+    if (!user) {
+      openLoginPrompt();
+      return;
+    }
+    if (!db || !form) {
+      notifyUser("Firestore indisponible pour le moment.");
+      return;
+    }
 
-            <div style="height:.5px;background:rgba(245,245,241,.08)"></div>
-            <div class="tm-profil-actions">
-              <button class="text-btn" id="profil-theme-btn" type="button">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
-                     style="width:13px;height:13px;flex-shrink:0" aria-hidden="true">
-                  <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.8 6.8 0 0 0 9.8 9.8Z"/>
-                </svg>
-                <span>Basculer le thème</span>
-              </button>
-              <button class="text-btn ${sess ? "" : "text-btn--primary"}"
-                      id="profil-session-btn" type="button">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
-                     style="width:12px;height:12px;flex-shrink:0" aria-hidden="true">
-                  <circle cx="12" cy="8" r="4"/>
-                  <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-                </svg>
-                <span>${sess ? "Déconnexion" : "Connexion"}</span>
-              </button>
-            </div>
-          </article>
+    const data = new FormData(form);
+    const profile = {
+      displayName: String(data.get("displayName") || compactUserName(user)).trim().slice(0, 80),
+      bio: String(data.get("bio") || "").trim().slice(0, 240),
+      schoolOrAgency: String(data.get("schoolOrAgency") || "").trim().slice(0, 120),
+      level: String(data.get("level") || "").trim().slice(0, 32),
+      city: String(data.get("city") || "").trim().slice(0, 80),
+      specialties: String(data.get("specialties") || "")
+        .split(",").map(item => item.trim()).filter(Boolean).slice(0, 12),
+      avatarUrl: String(data.get("avatarUrl") || "").trim().slice(0, 500),
+      portfolioUrl: String(data.get("portfolioUrl") || "").trim().slice(0, 500),
+      role: isTeomarchiAdmin(user) ? "admin" : "user",
+      status: "active",
+      email: user.email || "",
+      photoURL: user.photoURL || "",
+      updatedAt: serverTimestamp()
+    };
 
-        </div>
-      `;
+    const ref = db.collection("users").doc(user.uid);
+    const snap = await ref.get();
+    await ref.set({
+      ...profile,
+      ...(snap.exists ? {} : { createdAt: serverTimestamp() })
+    }, { merge: true });
+    notifyUser("Profil sauvegardé.");
+  }
 
-      root.querySelector("#profil-theme-btn")?.addEventListener("click", () => {
-        const cur  = document.documentElement.getAttribute("data-theme");
-        const next = cur === "dark" ? "light" : "dark";
-        document.documentElement.setAttribute("data-theme", next);
-        if (typeof TEOMARCHI_APP !== "undefined") TEOMARCHI_APP.theme.set(next);
-      });
+  function initProfileEditor() {
+    const root = document.getElementById("profil-social");
+    if (!root) return;
+    const user = getFirebaseUser();
 
-      root.querySelector("#profil-session-btn")?.addEventListener("click", () => {
-        if (typeof TEOMARCHI_APP !== "undefined") {
-          if (TEOMARCHI_APP.session.get()) {
-            TEOMARCHI_APP.session.clear();
-          } else {
-            window.TEOMARCHI_OPEN_LOGIN?.();
-          }
+    if (!root.dataset.profileBound) {
+      root.dataset.profileBound = "1";
+      root.addEventListener("submit", async e => {
+        const form = e.target.closest("#profile-editor-form");
+        if (!form) return;
+        e.preventDefault();
+        const btn = form.querySelector("button[type='submit']");
+        if (btn) btn.disabled = true;
+        try { await saveProfile(form); }
+        catch (err) {
+          console.error("Erreur profil :", err);
+          notifyUser("Erreur lors de la sauvegarde du profil.");
+        } finally {
+          if (btn) btn.disabled = false;
         }
-        const sess2 = (typeof TEOMARCHI_APP !== "undefined") ? TEOMARCHI_APP.session.get() : null;
-        const lbl   = document.getElementById("session-label");
-        if (lbl) lbl.textContent = sess2 ? sess2.grade + " connecté" : "Session";
-        _render();
-      });
-
-      root.querySelector("#profil-role-select")?.addEventListener("change", e => {
-        if (typeof TEOMARCHI_APP === "undefined") return;
-        const s2 = TEOMARCHI_APP.session.get();
-        if (!s2) return;
-        s2.grade = e.target.value;
-        s2.role  = _PROFIL_ROLES.find(r => r.val === e.target.value)?.lbl || s2.role;
-        TEOMARCHI_APP.session.set(s2);
-        _render();
       });
     }
 
-    _render();
+    if (_profileUnsubscribe) {
+      try { _profileUnsubscribe(); } catch {}
+      _profileUnsubscribe = null;
+    }
+
+    if (!user) {
+      root.innerHTML = `
+        <div class="tm-profile-empty">
+          <p style="margin:0 0 .28rem;text-transform:uppercase;letter-spacing:.16em;font-size:.58rem;color:var(--gold)">Profil</p>
+          <h3 style="font-family:var(--serif);font-size:2rem;font-weight:300;margin:0 0 .7rem;color:var(--ink)">Connectez-vous pour compléter votre profil</h3>
+          <p style="margin:0 auto 1.2rem;max-width:44ch;color:var(--muted);font-size:.82rem;line-height:1.65">
+            Vos publications du Feed utiliseront uniquement les informations de votre compte Firebase et de votre profil Firestore.
+          </p>
+          <button class="text-btn text-btn--primary" type="button" data-open-login>Connexion</button>
+        </div>
+      `;
+      return;
+    }
+
+    renderProfileEditor(root, user, {});
+    const db = getFirestoreDb();
+    if (!db) return;
+    _profileUnsubscribe = db.collection("users").doc(user.uid).onSnapshot(doc => {
+      renderProfileEditor(root, user, doc.exists ? doc.data() : {});
+    }, err => {
+      console.error("Erreur profil Firestore :", err);
+      renderProfileEditor(root, user, {});
+    });
+  }
+
+  /* ── initProfil : compatibilité avec l'ancien hook ───────────── */
+  function initProfil() {
+    initProfileEditor();
   }
 
   /* ── Données : plans tarifaires ──────────────────────────────── */
@@ -3566,7 +5898,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       features: [
         { ok: true,  text: "Atlas mondial (lecture seule)"   },
         { ok: true,  text: "Panthéon — 5 architectes"        },
-        { ok: true,  text: "Fiches matières de base"         },
+        { ok: true,  text: "Normes & villes de base"         },
         { ok: true,  text: "Chronos — frise lecture"         },
         { ok: false, text: "Journal de bord illimité"        },
         { ok: false, text: "Modules Outils &amp; Normes"     },
@@ -3614,79 +5946,311 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
     aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
 
-  /* ── initPremium : injection dans #showroom-grid ─────────────── */
-  function initPremium() {
+  const SHOWROOM_GROUPS = [
+    {
+      id: "mobilier",
+      title: "Mobilier",
+      subtitle: "Objets, usages, assises, systèmes et pièces d'habitat.",
+      description: "Une bibliothèque visuelle pour préparer produits, designers, fabricants et sponsors autour du mobilier architectural.",
+      categories: ["salon", "chambre", "cuisine", "salle de bain", "bureau", "extérieur", "mobilier urbain", "mobilier minimaliste", "mobilier contemporain", "mobilier expérimental"],
+      slots: ["produits", "designers", "fabricants", "sponsors"]
+    },
+    {
+      id: "materiaux",
+      title: "Matériaux",
+      subtitle: "Textures, performances, usages et fournisseurs.",
+      description: "Chaque matériau pourra accueillir caractéristiques techniques, usages, textures, projets associés, fournisseurs et liens externes.",
+      categories: ["béton", "bois", "acier", "pierre", "verre", "aluminium", "matériaux recyclés", "matériaux biosourcés", "composites", "terre crue"],
+      slots: ["caractéristiques", "textures", "projets associés", "fournisseurs"]
+    },
+    {
+      id: "agences",
+      title: "Agences & Studios",
+      subtitle: "Pratiques professionnelles et bureaux créatifs.",
+      description: "Espace premium pour architecture, urbanisme, architecture intérieure, design produit, paysage, scénographie et architecture expérimentale.",
+      categories: ["agences d'architecture", "urbanisme", "architecture intérieure", "design produit", "paysage", "scénographie", "architecture expérimentale"],
+      slots: ["pages dédiées", "projets", "liens externes", "contenus sponsorisés"]
+    },
+    {
+      id: "createurs",
+      title: "Jeunes créateurs / designers",
+      subtitle: "Étudiants, jeunes studios et pratiques émergentes.",
+      description: "Une section plus artistique pour accueillir portfolios, rendus, maquettes, concepts, concours et projets expérimentaux.",
+      categories: ["étudiants", "jeunes designers", "créateurs émergents", "projets expérimentaux", "portfolios", "rendus", "maquettes", "concepts", "concours"],
+      slots: ["portfolios", "rendus", "maquettes", "concours"]
+    }
+  ];
+
+  const SHOWROOM_SPONSORS = [
+    { name: "Logiciels BIM", kind: "Outils numériques", text: "Promouvoir des workflows, plugins, moteurs de rendu et services de conception." },
+    { name: "Fabricants de mobilier", kind: "Objets & pièces", text: "Présenter collections, dimensions, matériaux et usages dans une galerie non intrusive." },
+    { name: "Fournisseurs matériaux", kind: "Matière & technique", text: "Associer fiches, textures, performances, fournisseurs et projets inspirants." },
+    { name: "Écoles d'architecture", kind: "Formation", text: "Valoriser concours, studios, ateliers, recherches et jeunes créateurs." }
+  ];
+
+  function injectShowroomCSS() {
+    if (document.getElementById("tm-showroom-css")) return;
+    const s = document.createElement("style");
+    s.id = "tm-showroom-css";
+    s.textContent = `
+      .tm-showroom { display:grid; gap:1.45rem; min-width:0; }
+      .tm-showroom-gallery { display:grid; gap:1.2rem; }
+      .tm-showroom-material-plaque {
+        background:
+          linear-gradient(135deg, rgba(168,173,178,.08), transparent 38%),
+          linear-gradient(90deg, rgba(201,169,110,.06), transparent 60%),
+          var(--surface);
+      }
+      .tm-showroom-material-plaque h3 {
+        font-family:var(--serif); font-size:2rem; font-weight:300;
+        line-height:1.05; color:var(--ink);
+      }
+      .tm-showroom-material-plaque p:last-child {
+        color:var(--muted); max-width:68ch;
+      }
+      .tm-showroom-hero {
+        min-height:320px; display:grid; grid-template-columns:minmax(0,1.05fr) minmax(280px,.95fr);
+        gap:1.4rem; align-items:end; padding:2rem;
+        border:var(--border-gold); border-radius:var(--r-xl);
+        background:linear-gradient(120deg, rgba(201,169,110,.11), transparent 38%),
+                   radial-gradient(ellipse at 88% 12%, rgba(245,245,241,.045), transparent 44%),
+                   var(--surface);
+        overflow:hidden; position:relative;
+      }
+      .tm-showroom-hero::before {
+        content:""; position:absolute; inset:0; pointer-events:none;
+        background-image:linear-gradient(rgba(245,245,241,.032) .5px, transparent .5px),
+                         linear-gradient(90deg, rgba(245,245,241,.032) .5px, transparent .5px);
+        background-size:64px 64px;
+      }
+      .tm-showroom-hero > * { position:relative; z-index:1; }
+      .tm-showroom-title {
+        font-family:var(--serif); font-size:clamp(2.5rem,7vw,5.6rem);
+        font-weight:300; line-height:.92; color:var(--ink); max-width:10ch;
+      }
+      .tm-showroom-lede { color:var(--muted); font-size:.88rem; line-height:1.75; max-width:66ch; }
+      .tm-showroom-access { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1rem; }
+      .tm-showroom-access-card,
+      .tm-showroom-section,
+      .tm-showroom-sponsor,
+      .tm-showroom-category {
+        border:var(--border); border-radius:var(--r-md);
+        background:color-mix(in srgb,var(--surface) 88%,transparent);
+        min-width:0;
+      }
+      .tm-showroom-access-card { display:grid; gap:.58rem; padding:1.2rem; }
+      .tm-showroom-section { padding:1.25rem; display:grid; gap:1rem; }
+      .tm-showroom-section-head {
+        display:flex; justify-content:space-between; gap:1rem; align-items:end; flex-wrap:wrap;
+      }
+      .tm-showroom-section h3,
+      .tm-showroom-access-card h3,
+      .tm-showroom-sponsor h4 {
+        font-family:var(--serif); font-size:1.65rem; font-weight:300; color:var(--ink); line-height:1.05;
+      }
+      .tm-showroom-section p,
+      .tm-showroom-access-card p,
+      .tm-showroom-sponsor p { color:var(--muted); font-size:.76rem; line-height:1.6; }
+      .tm-showroom-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.9rem; }
+      .tm-showroom-category { overflow:hidden; display:grid; align-content:start; }
+      .tm-show-cover {
+        height:138px; border-bottom:var(--border);
+        background:linear-gradient(135deg, color-mix(in srgb, var(--cover, #C9A96E) 42%, transparent), transparent 54%),
+                   repeating-linear-gradient(90deg, rgba(245,245,241,.045) 0 1px, transparent 1px 28px),
+                   #0b0b09;
+      }
+      .tm-showroom-category-body { display:grid; gap:.72rem; padding:1rem; }
+      .tm-showroom-slots,
+      .tm-showroom-tags { display:flex; gap:.38rem; flex-wrap:wrap; }
+      .tm-showroom-tag,
+      .tm-showroom-slot {
+        display:inline-flex; align-items:center; min-height:24px; padding:.18rem .52rem;
+        border:var(--border); border-radius:999px; color:var(--muted);
+        font-size:.54rem; letter-spacing:.09em; text-transform:uppercase;
+      }
+      .tm-showroom-slot { color:var(--gold); border-color:rgba(201,169,110,.25); background:rgba(201,169,110,.06); }
+      .tm-showroom-sponsors { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:.9rem; }
+      .tm-showroom-sponsor { display:grid; gap:.65rem; padding:1rem; }
+      @media (max-width:900px) { .tm-showroom-hero { grid-template-columns:1fr; padding:1.35rem; } }
+    `;
+    document.head.appendChild(s);
+  }
+
+  function renderShowroomPricing() {
+    return `
+      <section class="tm-showroom-section" id="showroom-premium">
+        <div class="tm-showroom-section-head">
+          <div>
+            <p class="landing-kicker">Offres premium</p>
+            <h3>Publication & visibilité</h3>
+          </div>
+          <p>visiteur gratuit = consultation limitée · premium = publication et visibilité</p>
+        </div>
+        <div class="tm-pricing-grid">
+          ${DATA_PRICING.filter(plan => plan.id !== "gratuit").map(plan => `
+            <article class="tm-plan ${plan.featured ? "tm-plan--studio" : ""}">
+              ${plan.featured ? `<span class="tm-plan__badge">Studio premium</span>` : `<span class="tm-plan__badge">Agence</span>`}
+              <h4 class="tm-plan__name">${_esc(plan.nom)}</h4>
+              <div class="tm-plan__price">
+                <span class="tm-plan__currency" aria-hidden="true">€</span>
+                <span class="tm-plan__amount">${_esc(plan.prix)}</span>
+                <span class="tm-plan__period">${_esc(plan.periode)}</span>
+              </div>
+              <p style="font-size:.80rem;color:var(--muted);line-height:1.55;margin:0">${_esc(plan.desc)}</p>
+              <div class="tm-plan__divider"></div>
+              <ul class="tm-plan__features" role="list">
+                ${plan.features.slice(0, 6).map(f => `
+                  <li class="tm-plan__feature ${f.ok ? "" : "tm-plan__feature--off"}">
+                    ${f.ok ? _svgOk : _svgNo}
+                    <span>${f.text}</span>
+                  </li>
+                `).join("")}
+              </ul>
+              <button
+                ${plan.id === "studio" ? 'id="checkout-btn"' : ""}
+                type="button"
+                class="tm-plan__cta tm-plan__cta--checkout"
+                data-checkout-plan="${plan.id}">
+                ${_esc(plan.cta)}
+              </button>
+            </article>
+          `).join("")}
+        </div>
+      </section>
+    `;
+  }
+
+  function handleShowroomPublish() {
+    const user = getFirebaseUser();
+    if (!user) {
+      openLoginPrompt();
+      return;
+    }
+    if (!window.TEOMARCHI_AUTH_STATE?.isPremium && !isTeomarchiAdmin(user)) {
+      document.getElementById("showroom-premium")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      notifyUser("Publication Showroom réservée aux comptes premium.");
+      return;
+    }
+    notifyUser("Espace publication Showroom prêt pour la prochaine phase.");
+  }
+
+  /* ── initShowroom : galerie marketplace premium ─────────────── */
+  function initShowroom() {
     const root = document.getElementById("showroom-grid");
     if (!root) return;
-    if (root.dataset.loaded === "premium") return;
-    root.dataset.loaded = "premium";
+    if (root.dataset.loaded === "showroom") return;
+    root.dataset.loaded = "showroom";
+    injectShowroomCSS();
 
     root.className     = "";
-    root.style.cssText = "display:grid;gap:1.618rem";
+    root.style.cssText = "";
 
     root.innerHTML = `
-      <div style="text-align:center;padding-bottom:1rem">
-        <p style="margin:0 0 .22rem;text-transform:uppercase;letter-spacing:.17em;
-                  font-size:.58rem;font-weight:500;color:var(--gold)">Offres Haute Couture</p>
-        <h3 style="font-family:var(--serif);font-size:clamp(2rem,5vw,3.8rem);font-weight:300;
-                   line-height:.96;color:var(--ink);margin:0 0 .6rem">Choisissez votre atelier</h3>
-        <p style="color:var(--muted);font-size:.85rem;max-width:54ch;margin-inline:auto;margin-top:.5rem">
-          Accédez à l'intégralité des modules TEOMARCHI selon votre pratique.
-        </p>
-      </div>
-
-      <div class="tm-pricing-grid">
-        ${DATA_PRICING.map(plan => `
-          <article class="tm-plan ${plan.featured ? "tm-plan--studio" : ""}">
-            ${plan.featured
-              ? `<span class="tm-plan__badge">Recommandé</span>`
-              : `<div style="height:1.4rem"></div>`}
-            <h4 class="tm-plan__name">${_esc(plan.nom)}</h4>
-            <div class="tm-plan__price">
-              ${plan.prix !== "0" ? `<span class="tm-plan__currency" aria-hidden="true">€</span>` : ""}
-              <span class="tm-plan__amount">${plan.prix === "0" ? "Gratuit" : _esc(plan.prix)}</span>
-              ${plan.periode ? `<span class="tm-plan__period">${_esc(plan.periode)}</span>` : ""}
+      <div class="tm-showroom tm-showroom-gallery tm-shell tm-reveal">
+        <section class="tm-editorial-panel tm-showroom-material-plaque">
+          <p class="tm-tech-kicker">Galerie architecturale premium</p>
+          <h3>Matériaux, créateurs, agences et partenaires.</h3>
+          <p>Une place architecturale haut de gamme, préparée pour les portfolios, produits, sponsors et futures pages dédiées.</p>
+        </section>
+        <section class="tm-showroom-hero">
+          <div>
+            <p class="landing-kicker">Galerie architecturale intelligente</p>
+            <h3 class="tm-showroom-title">Showroom premium</h3>
+          </div>
+          <div style="display:grid;gap:1rem">
+            <p class="tm-showroom-lede">
+              Une place architecturale dédiée aux meubles, matériaux, agences, designers,
+              créateurs, studios, sponsors et produits liés à l'architecture, à l'habitat
+              et à la conception spatiale.
+            </p>
+            <div style="display:flex;gap:.62rem;flex-wrap:wrap">
+              <button type="button" class="text-btn text-btn--primary" data-showroom-publish>Publier dans le Showroom</button>
+              <button type="button" class="text-btn" data-nav="feed">Voir la communauté</button>
             </div>
-            <p style="font-size:.80rem;color:var(--muted);line-height:1.55;margin:0">${_esc(plan.desc)}</p>
-            <div class="tm-plan__divider"></div>
-            <ul class="tm-plan__features" role="list">
-              ${plan.features.map(f => `
-                <li class="tm-plan__feature ${f.ok ? "" : "tm-plan__feature--off"}">
-                  ${f.ok ? _svgOk : _svgNo}
-                  <span>${f.text}</span>
-                </li>
-              `).join("")}
-            </ul>
-            ${plan.id === "studio" || plan.id === "agence" ? `
-              <div class="tm-stripe-wrap">
-                <button
-                  ${plan.id === "studio" ? 'id="checkout-btn"' : ""}
-                  type="button"
-                  class="tm-plan__cta tm-plan__cta--checkout"
-                  data-checkout-plan="${plan.id}"
-                  aria-label="Payer l'offre ${_esc(plan.nom)} avec Stripe">
-                  ${_esc(plan.cta)}
-                </button>
-                <span class="tm-stripe-secure">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-                       stroke-linecap="round" stroke-linejoin="round"
-                       style="width:11px;height:11px" aria-hidden="true">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                  </svg>
-                  Paiement sécurisé · Stripe
-                </span>
-              </div>` : `
-              <button type="button" class="tm-plan__cta" data-plan="${plan.id}">
-                ${_esc(plan.cta)}
-              </button>`}
+          </div>
+        </section>
+
+        <section class="tm-showroom-access">
+          <article class="tm-showroom-access-card">
+            <p class="landing-kicker">Accès gratuit</p>
+            <h3>Consultation limitée</h3>
+            <p>Les visiteurs gratuits découvrent la galerie, les catégories et les premiers espaces partenaires.</p>
           </article>
+          <article class="tm-showroom-access-card">
+            <p class="landing-kicker">Premium</p>
+            <h3>Publication et visibilité</h3>
+            <p>Les comptes Studio et Agence préparent la publication, les pages dédiées et les mises en avant sponsorisées.</p>
+          </article>
+          <article class="tm-showroom-access-card">
+            <p class="landing-kicker">Sponsor</p>
+            <h3>Présence non intrusive</h3>
+            <p>Les marques apparaissent comme une galerie partenaire haut de gamme, pas comme de la publicité agressive.</p>
+          </article>
+        </section>
+
+        ${SHOWROOM_GROUPS.map((group, index) => `
+          <section class="tm-showroom-section">
+            <div class="tm-showroom-section-head">
+              <div>
+                <p class="landing-kicker">${_esc(group.subtitle)}</p>
+                <h3>${_esc(group.title)}</h3>
+              </div>
+              <p>${_esc(group.description)}</p>
+            </div>
+            <div class="tm-showroom-grid">
+              ${group.categories.map((cat, i) => `
+                <article class="tm-showroom-category">
+                  <div class="tm-show-cover" style="--cover:${["#C9A96E","#8C8F86","#B7B0A1","#A9A37A"][index % 4]}"></div>
+                  <div class="tm-showroom-category-body">
+                    <p class="landing-kicker">${String(i + 1).padStart(2, "0")}</p>
+                    <h4 style="font-family:var(--serif);font-size:1.45rem;font-weight:300;color:var(--ink);margin:0">${_esc(cat)}</h4>
+                    <p style="color:var(--muted);font-size:.74rem;line-height:1.6;margin:0">Carte premium prête pour futurs produits, créateurs et partenaires.</p>
+                    <div class="tm-showroom-slots">
+                      ${group.slots.map(slot => `<span class="tm-showroom-slot">${_esc(slot)}</span>`).join("")}
+                    </div>
+                  </div>
+                </article>
+              `).join("")}
+            </div>
+          </section>
         `).join("")}
+
+        <section class="tm-showroom-section">
+          <div class="tm-showroom-section-head">
+            <div>
+              <p class="landing-kicker">Sponsors & partenaires</p>
+              <h3>Galerie partenaire haut de gamme</h3>
+            </div>
+            <button type="button" class="text-btn" data-showroom-publish>Proposer une marque</button>
+          </div>
+          <div class="tm-showroom-sponsors">
+            ${SHOWROOM_SPONSORS.map(sponsor => `
+              <article class="tm-showroom-sponsor">
+                <p class="landing-kicker">${_esc(sponsor.kind)}</p>
+                <h4>${_esc(sponsor.name)}</h4>
+                <p>${_esc(sponsor.text)}</p>
+                <button type="button" class="text-btn" data-showroom-publish>Préparer l'espace</button>
+              </article>
+            `).join("")}
+          </div>
+        </section>
+
+        ${renderShowroomPricing()}
       </div>
     `;
 
-    /* Les clics sur [data-plan] sont gérés par le script Firebase (Script 9)
-       via un listener capture-phase — pas de doublon ici. */
+    if (!root.dataset.showroomBound) {
+      root.dataset.showroomBound = "1";
+      root.addEventListener("click", e => {
+        if (!e.target.closest("[data-showroom-publish]")) return;
+        e.preventDefault();
+        handleShowroomPublish();
+      });
+    }
+  }
+
+  function initPremium() {
+    initShowroom();
   }
 
   /* ── Hooks MutationObserver ──────────────────────────────────── */
@@ -3703,9 +6267,9 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     const mod = document.getElementById("module-showroom");
     if (!mod) return;
     new MutationObserver(() => {
-      if (mod.classList.contains("is-active")) initPremium();
+      if (mod.classList.contains("is-active")) initShowroom();
     }).observe(mod, { attributes: true, attributeFilter: ["class"] });
-    if (mod.classList.contains("is-active")) initPremium();
+    if (mod.classList.contains("is-active")) initShowroom();
   })();
 
 /* ── CSS Messagerie (injecté une fois) ─────────────────────── */
@@ -4236,10 +6800,10 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         background: rgba(3,3,3,.96);
         backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
         display: grid; place-items: center;
-        opacity: 0; pointer-events: none;
-        transition: opacity .26s ease;
+        opacity: 0; visibility: hidden; pointer-events: none;
+        transition: opacity .26s ease, visibility .26s ease;
       }
-      .tm-lb-overlay.is-open { opacity: 1; pointer-events: all; }
+      .tm-lb-overlay.is-open { opacity: 1; visibility: visible; pointer-events: auto; }
       .tm-lb-inner {
         position: relative;
         width: min(760px, 92vw);
@@ -4486,6 +7050,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
 
   /* ── initShowroomGallery : galerie injectée AVANT #showroom-grid ─ */
   function initShowroomGallery() {
+    return;
     if (document.getElementById("tm-gallery-wrap")) return;
     const section = document.getElementById("module-showroom");
     const grid    = document.getElementById("showroom-grid");
@@ -4677,229 +7242,728 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     toast.addEventListener("click", () => { clearTimeout(t); dismiss(); });
   };
 
-  /* ── Feed Like + Save ────────────────────────────────────────── */
-  const _feedState = (() => {
-    try { return JSON.parse(localStorage.getItem("teomarchi.feed")) || {}; } catch { return {}; }
-  })();
+  /* ── Feed social Firestore ──────────────────────────────────── */
+  const FEED_RULES = [
+    "Interdiction de publier un projet qui ne vous appartient pas.",
+    "Obligation de créditer les collaborateurs, enseignants, agences ou sources.",
+    "Interdiction de copier, reprendre ou republier un projet sans autorisation.",
+    "Interdiction d’usurper l’identité d’un étudiant, architecte ou agence.",
+    "Interdiction de harcèlement, insultes, propos discriminatoires ou humiliants.",
+    "Interdiction de publier des documents confidentiels d’agence, de client ou d’école.",
+    "Tout contenu signalé peut être masqué pendant vérification.",
+    "TEOMARCHI peut suspendre ou supprimer un compte en cas d’abus."
+  ];
 
-  function _saveFeedState() {
-    try { localStorage.setItem("teomarchi.feed", JSON.stringify(_feedState)); } catch {}
+  let _feedUnsubscribe = null;
+  let _feedPosts = [];
+
+  function injectFeedCSS() {
+    if (document.getElementById("tm-feed-social-css")) return;
+    const s = document.createElement("style");
+    s.id = "tm-feed-social-css";
+    s.textContent = `
+      .tm-feed { display:grid; grid-template-columns:minmax(0,.72fr) minmax(0,1.28fr); gap:1.2rem; min-width:0; }
+      .tm-feed-wall { align-items:start; }
+      .tm-feed-editorial { margin-bottom:1rem; }
+      .tm-feed-editorial h3 {
+        font-family:var(--serif); font-size:1.8rem; font-weight:300;
+        line-height:1.05; color:var(--ink);
+      }
+      .tm-feed-editorial p:last-child {
+        color:var(--muted); font-size:.78rem; line-height:1.6;
+      }
+      .tm-feed-panel,
+      .tm-feed-post {
+        display:grid; gap:1rem; padding:1.2rem;
+        border:var(--border); border-radius:var(--r-xl);
+        background:var(--surface); min-width:0;
+      }
+      .tm-feed-composer { display:grid; gap:.8rem; }
+      .tm-feed-cert { display:flex; align-items:flex-start; gap:.55rem; color:var(--ink-2); font-size:.74rem; line-height:1.45; }
+      .tm-feed-cert input { margin-top:.18rem; accent-color:var(--gold); }
+      .tm-feed-rules { display:grid; gap:.5rem; padding-left:1rem; color:var(--muted); font-size:.68rem; line-height:1.55; }
+      .tm-feed-rules li::marker { color:var(--gold); }
+      .tm-feed-timeline { display:grid; gap:1rem; min-width:0; }
+      .tm-feed-author { display:flex; gap:.72rem; align-items:center; min-width:0; }
+      .tm-feed-avatar {
+        width:42px; height:42px; border-radius:50%; display:grid; place-items:center; flex-shrink:0;
+        border:0.5px solid rgba(201,169,110,.42); background:rgba(201,169,110,.10);
+        color:var(--gold); font-size:.72rem; letter-spacing:.05em; overflow:hidden;
+      }
+      .tm-feed-avatar img { width:100%; height:100%; object-fit:cover; }
+      .tm-feed-author strong { display:block; color:var(--ink); font-size:.86rem; font-weight:500; }
+      .tm-feed-author span { display:block; color:var(--muted); font-size:.68rem; }
+      .tm-feed-text { color:var(--ink-2); font-size:.86rem; line-height:1.65; white-space:pre-wrap; overflow-wrap:anywhere; }
+      .tm-feed-images { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:.6rem; }
+      .tm-feed-images img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:var(--r-md); border:var(--border); background:var(--surface-2); }
+      .tm-feed-actions { display:flex; gap:.48rem; flex-wrap:wrap; padding-top:.8rem; border-top:var(--border); }
+      .tm-feed-btn:disabled { opacity:.5; cursor:not-allowed; }
+      .tm-feed-comments { display:grid; gap:.6rem; }
+      .tm-feed-comment-form { display:flex; gap:.55rem; align-items:center; min-width:0; }
+      .tm-feed-comment-form input { flex:1; min-width:0; border:var(--border); border-radius:var(--r-pill); background:var(--surface-2); color:var(--ink); padding:.55rem .8rem; }
+      .tm-feed-empty { padding:2.2rem; text-align:center; border:var(--border); border-radius:var(--r-xl); color:var(--muted); background:color-mix(in srgb,var(--surface) 78%,transparent); }
+      @media (max-width:900px) { .tm-feed { grid-template-columns:1fr; } }
+    `;
+    document.head.appendChild(s);
   }
 
-  function initFeedInteractions() {
-    const wall = document.getElementById("feed-wall");
-    if (!wall) return;
-    wall.querySelectorAll(".tm-card").forEach((card, i) => {
-      if (card.querySelector(".tm-feed-actions")) return;
-      const st = _feedState[i] || { liked: false, saved: false };
-
-      const bar = document.createElement("div");
-      bar.className = "tm-feed-actions";
-      bar.innerHTML = `
-        <button class="tm-feed-btn ${st.liked ? "is-on" : ""}"
-                data-ff="like" data-fi="${i}"
-                aria-label="${st.liked ? "Retirer le like" : "Aimer"}"
-                aria-pressed="${st.liked}">
-          <svg viewBox="0 0 24 24" fill="${st.liked ? "currentColor" : "none"}" stroke="currentColor"
-               stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-          </svg>
-          <span>${st.liked ? "Aimé" : "Aimer"}</span>
-        </button>
-        <button class="tm-feed-btn ${st.saved ? "is-on" : ""}"
-                data-ff="save" data-fi="${i}"
-                aria-label="${st.saved ? "Retiré" : "Sauvegarder"}"
-                aria-pressed="${st.saved}">
-          <svg viewBox="0 0 24 24" fill="${st.saved ? "currentColor" : "none"}" stroke="currentColor"
-               stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
-          </svg>
-          <span>${st.saved ? "Sauvegardé" : "Sauvegarder"}</span>
-        </button>
-      `;
-      card.querySelector(".tm-card__body")?.appendChild(bar);
-
-      bar.querySelectorAll("[data-ff]").forEach(btn => {
-        btn.addEventListener("click", e => {
-          e.stopPropagation();
-          const isLike = btn.dataset.ff === "like";
-          const idx    = +btn.dataset.fi;
-          if (!_feedState[idx]) _feedState[idx] = { liked: false, saved: false };
-          const key    = isLike ? "liked" : "saved";
-          const newVal = !_feedState[idx][key];
-          _feedState[idx][key] = newVal;
-
-          btn.classList.toggle("is-on", newVal);
-          btn.setAttribute("aria-pressed", newVal);
-          btn.querySelector("svg").setAttribute("fill", newVal ? "currentColor" : "none");
-          btn.querySelector("span").textContent = isLike
-            ? (newVal ? "Aimé" : "Aimer")
-            : (newVal ? "Sauvegardé" : "Sauvegarder");
-
-          pushNotification(isLike
-            ? (newVal ? "Rendu ajouté à vos coups de cœur" : "Like retiré")
-            : (newVal ? "Rendu sauvegardé dans votre collection" : "Sauvegarde retirée"));
-          _saveFeedState();
-        });
-      });
-    });
-  }
-
-  /* ── Feed — En cours de construction ────────────────────────── */
-  (function initFeedWall() {
-    function renderFeedWall() {
-      const wall = document.getElementById("feed-wall");
-      if (!wall || wall.dataset.loaded) return;
-      wall.dataset.loaded = "1";
-      wall.innerHTML = `
-        <div style="display:grid;place-items:center;min-height:340px;text-align:center;padding:3rem 1rem">
+  function renderFeedComposer() {
+    const user = getFirebaseUser();
+    if (!user) {
+      return `
+        <div class="tm-feed-panel">
+          <p style="margin:0;text-transform:uppercase;letter-spacing:.16em;font-size:.58rem;color:var(--gold)">Publication</p>
+          <h3 style="margin:0;font-family:var(--serif);font-size:1.8rem;font-weight:300;color:var(--ink)">Connectez-vous pour publier</h3>
+          <p style="margin:0;color:var(--muted);font-size:.82rem;line-height:1.6">
+            Vous pouvez lire le Feed public, mais la publication, les likes, commentaires et signalements nécessitent une session Firebase.
+          </p>
+          <button class="text-btn text-btn--primary" type="button" data-open-login>Connexion</button>
           <div>
-            <svg style="width:52px;height:52px;stroke:rgba(201,169,110,.4);margin:0 auto 1.4rem;display:block"
-                 viewBox="0 0 24 24" fill="none" stroke-width="1"
-                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <rect x="3" y="3" width="18" height="18" rx="2"/>
-              <path d="M3 9h18M9 21V9"/>
-            </svg>
-            <p style="font-family:var(--serif);font-size:2rem;font-weight:300;color:var(--ink);margin:0 0 .5rem">
-              Feed en cours de construction
-            </p>
-            <p style="font-size:.78rem;color:var(--muted);max-width:360px;line-height:1.6;margin:0 auto 1.4rem">
-              Le réseau social des architectes arrive bientôt.<br>
-              Partage de rendus, coupes habitées, retours chantier.
-            </p>
-            <span style="display:inline-block;padding:.35rem 1rem;border-radius:99px;
-                         background:rgba(201,169,110,.08);border:0.5px solid rgba(201,169,110,.32);
-                         font-size:.65rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)">
-              Bientôt disponible
-            </span>
+            <p style="margin:0 0 .62rem;text-transform:uppercase;letter-spacing:.16em;font-size:.58rem;color:var(--gold)">Règles anti-plagiat</p>
+            <ol class="tm-feed-rules">
+              ${FEED_RULES.map(rule => `<li>${_esc(rule)}</li>`).join("")}
+            </ol>
           </div>
         </div>
       `;
     }
 
+    return `
+      <div class="tm-feed-panel">
+        <form class="tm-feed-composer" id="feed-composer-form">
+          <div>
+            <p style="margin:0 0 .22rem;text-transform:uppercase;letter-spacing:.16em;font-size:.58rem;color:var(--gold)">Composer</p>
+            <h3 style="margin:0;font-family:var(--serif);font-size:1.8rem;font-weight:300;color:var(--ink)">Publier un rendu</h3>
+          </div>
+          <div class="tm-feed-field tm-feed-field--full">
+            <label for="feed-post-text">Texte court</label>
+            <textarea id="feed-post-text" name="text" maxlength="560" placeholder="Partagez une idée, un rendu, une coupe, une intention constructive..."></textarea>
+          </div>
+          <div class="tm-feed-field tm-feed-field--full">
+            <label for="feed-image-urls">Images de projet</label>
+            <input id="feed-image-urls" name="imageUrls" placeholder="URLs séparées par des virgules ou des retours ligne">
+            <button class="tm-feed-btn" type="button" data-feed-image-focus>Ajouter une image</button>
+          </div>
+          <label class="tm-feed-cert">
+            <input id="feed-certify" data-feed-certify type="checkbox" name="certify">
+            <span>Je certifie être l’auteur de ce contenu ou disposer des droits nécessaires.</span>
+          </label>
+          <button class="text-btn text-btn--primary" id="feed-submit-btn" type="submit" disabled>Publier</button>
+        </form>
+        <div>
+          <p style="margin:0 0 .62rem;text-transform:uppercase;letter-spacing:.16em;font-size:.58rem;color:var(--gold)">Règles anti-plagiat</p>
+          <ol class="tm-feed-rules">
+            ${FEED_RULES.map(rule => `<li>${_esc(rule)}</li>`).join("")}
+          </ol>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderPost(post) {
+    const user = getFirebaseUser();
+    const isOwner = user?.uid && user.uid === post.authorId;
+    const canModerate = isTeomarchiAdmin(user);
+    const avatar = post.authorAvatar
+      ? `<img src="${_esc(post.authorAvatar)}" alt="">`
+      : _esc(String(post.authorName || "T").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase());
+    const images = Array.isArray(post.imageUrls) ? post.imageUrls.filter(Boolean).slice(0, 4) : [];
+    const statusBadge = post.status === "hidden" ? `<span class="badge">Masqué</span>` : "";
+
+    return `
+      <article class="tm-feed-post" data-post-id="${_esc(post.id)}">
+        <header class="tm-feed-author">
+          <div class="tm-feed-avatar" aria-hidden="true">${avatar}</div>
+          <div style="min-width:0;flex:1">
+            <strong>${_esc(post.authorName || "Utilisateur TEOMARCHI")}</strong>
+            <span>${formatFirestoreDate(post.createdAt)} · ${_esc(post.plagiarismStatus || "clear")}</span>
+          </div>
+          ${statusBadge}
+        </header>
+        <div class="tm-feed-text">${_esc(post.text || "")}</div>
+        ${images.length ? `
+          <div class="tm-feed-images">
+            ${images.map(url => `<img src="${_esc(url)}" alt="Image de projet publiée sur TEOMARCHI" loading="lazy">`).join("")}
+          </div>
+        ` : ""}
+        <div class="tm-feed-actions" aria-label="Actions de publication">
+          <button class="tm-feed-btn" type="button" data-feed-like="${_esc(post.id)}">Like · ${Number(post.likeCount || 0)}</button>
+          <button class="tm-feed-btn" type="button" data-feed-repost="${_esc(post.id)}">Republier · ${Number(post.repostCount || 0)}</button>
+          <button class="tm-feed-btn" type="button" data-feed-report="${_esc(post.id)}">Signaler · ${Number(post.reportCount || 0)}</button>
+          ${(isOwner || canModerate) ? `<button class="tm-feed-btn" type="button" data-feed-delete="${_esc(post.id)}">Supprimer</button>` : ""}
+        </div>
+        <form class="tm-feed-comments tm-feed-comment-form" data-feed-comment-form="${_esc(post.id)}">
+          <input name="comment" maxlength="240" placeholder="Commenter ce rendu">
+          <button class="tm-feed-btn" type="submit">Commenter · ${Number(post.commentCount || 0)}</button>
+        </form>
+      </article>
+    `;
+  }
+
+  function renderFeedTimeline(posts) {
+    const timeline = document.getElementById("feed-timeline");
+    if (!timeline) return;
+    if (!posts.length) {
+      timeline.innerHTML = `
+        <div class="tm-feed-empty">
+          <p style="font-family:var(--serif);font-size:1.9rem;font-weight:300;margin:0 0 .4rem;color:var(--ink)">Aucun rendu publié</p>
+          <p style="margin:0;color:var(--muted);font-size:.82rem">Le Feed est vide pour le moment.</p>
+        </div>
+      `;
+      return;
+    }
+    timeline.innerHTML = posts.map(renderPost).join("");
+  }
+
+  function subscribeToFeed() {
+    const db = getFirestoreDb();
+    const timeline = document.getElementById("feed-timeline");
+    if (!timeline) return;
+    if (_feedUnsubscribe) {
+      try { _feedUnsubscribe(); } catch {}
+      _feedUnsubscribe = null;
+    }
+    if (!db) {
+      timeline.innerHTML = `<div class="tm-feed-empty">Firestore indisponible. Le Feed temps réel ne peut pas être chargé.</div>`;
+      return;
+    }
+
+    _feedUnsubscribe = db.collection("posts")
+      .orderBy("createdAt", "desc")
+      .limit(50)
+      .onSnapshot(snapshot => {
+        const canModerate = isTeomarchiAdmin();
+        _feedPosts = [];
+        snapshot.forEach(doc => {
+          const data = { id: doc.id, ...doc.data() };
+          if (data.status === "deleted") return;
+          if (data.status === "hidden" && !canModerate) return;
+          _feedPosts.push(data);
+        });
+        renderFeedTimeline(_feedPosts);
+      }, err => {
+        console.error("Erreur Feed Firestore :", err);
+        timeline.innerHTML = `<div class="tm-feed-empty">Erreur de chargement du Feed.</div>`;
+      });
+  }
+
+  async function resolveFeedProfile(user) {
+    const db = getFirestoreDb();
+    const fallback = {
+      authorId: user.uid,
+      authorName: compactUserName(user),
+      authorAvatar: user.photoURL || ""
+    };
+    if (!db) return fallback;
+    try {
+      const doc = await db.collection("users").doc(user.uid).get();
+      const data = doc.exists ? doc.data() : {};
+      return {
+        authorId: user.uid,
+        authorName: data.displayName || fallback.authorName,
+        authorAvatar: data.avatarUrl || fallback.authorAvatar
+      };
+    } catch {
+      return fallback;
+    }
+  }
+
+  async function createPost(form) {
+    const user = getFirebaseUser();
+    const db = getFirestoreDb();
+    if (!user) { openLoginPrompt(); return; }
+    if (!db || !form) { notifyUser("Firestore indisponible."); return; }
+
+    const data = new FormData(form);
+    const text = String(data.get("text") || "").trim();
+    const certify = data.get("certify") === "on";
+    const imageUrls = String(data.get("imageUrls") || "")
+      .split(/[\n,]+/).map(url => url.trim()).filter(Boolean).slice(0, 4);
+
+    if (!certify) { notifyUser("Certification anti-plagiat obligatoire."); return; }
+    if (text.length < 2) { notifyUser("Ajoutez un texte avant de publier."); return; }
+    if (text.length > 560) { notifyUser("Texte limité à 560 caractères."); return; }
+
+    const author = await resolveFeedProfile(user);
+    await db.collection("posts").add({
+      ...author,
+      text,
+      imageUrls,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      likeCount: 0,
+      commentCount: 0,
+      repostCount: 0,
+      reportCount: 0,
+      status: "active",
+      plagiarismStatus: "clear"
+    });
+    form.reset();
+    const btn = form.querySelector("#feed-submit-btn");
+    if (btn) btn.disabled = true;
+    notifyUser("Publication envoyée.");
+  }
+
+  async function toggleLike(postId) {
+    const user = getFirebaseUser();
+    const db = getFirestoreDb();
+    if (!user) { openLoginPrompt(); return; }
+    if (!db || !postId) return;
+    const postRef = db.collection("posts").doc(postId);
+    const likeRef = postRef.collection("likes").doc(user.uid);
+    await db.runTransaction(async tx => {
+      const like = await tx.get(likeRef);
+      if (like.exists) {
+        tx.delete(likeRef);
+        tx.update(postRef, { likeCount: incrementBy(-1), updatedAt: serverTimestamp() });
+      } else {
+        tx.set(likeRef, { userId: user.uid, createdAt: serverTimestamp() });
+        tx.update(postRef, { likeCount: incrementBy(1), updatedAt: serverTimestamp() });
+      }
+    });
+  }
+
+  async function addComment(postId, text) {
+    const user = getFirebaseUser();
+    const db = getFirestoreDb();
+    if (!user) { openLoginPrompt(); return; }
+    if (!db || !postId) return;
+    const clean = String(text || "").trim().slice(0, 240);
+    if (!clean) return;
+    const author = await resolveFeedProfile(user);
+    const postRef = db.collection("posts").doc(postId);
+    await postRef.collection("comments").add({
+      authorId: author.authorId,
+      authorName: author.authorName,
+      authorAvatar: author.authorAvatar,
+      text: clean,
+      createdAt: serverTimestamp(),
+      status: "active"
+    });
+    await postRef.update({ commentCount: incrementBy(1), updatedAt: serverTimestamp() });
+  }
+
+  async function repostPost(postId) {
+    const user = getFirebaseUser();
+    const db = getFirestoreDb();
+    if (!user) { openLoginPrompt(); return; }
+    if (!db || !postId) return;
+    const postRef = db.collection("posts").doc(postId);
+    const repostRef = postRef.collection("reposts").doc(user.uid);
+    await db.runTransaction(async tx => {
+      const repost = await tx.get(repostRef);
+      if (repost.exists) return;
+      tx.set(repostRef, { userId: user.uid, createdAt: serverTimestamp() });
+      tx.update(postRef, { repostCount: incrementBy(1), updatedAt: serverTimestamp() });
+    });
+    notifyUser("Publication repartagée.");
+  }
+
+  async function reportPost(postId) {
+    const user = getFirebaseUser();
+    const db = getFirestoreDb();
+    if (!user) { openLoginPrompt(); return; }
+    if (!db || !postId) return;
+    await db.collection("reports").add({
+      postId,
+      reporterId: user.uid,
+      reporterEmail: user.email || "",
+      reason: "plagiarism_or_abuse",
+      status: "open",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    await db.collection("posts").doc(postId).update({
+      reportCount: incrementBy(1),
+      plagiarismStatus: "reported",
+      updatedAt: serverTimestamp()
+    });
+    notifyUser("Signalement transmis à la modération.");
+  }
+
+  async function deleteOwnPost(postId) {
+    const user = getFirebaseUser();
+    const db = getFirestoreDb();
+    if (!user) { openLoginPrompt(); return; }
+    if (!db || !postId) return;
+    const post = _feedPosts.find(item => item.id === postId);
+    if (!post || (post.authorId !== user.uid && !isTeomarchiAdmin(user))) return;
+    await db.collection("posts").doc(postId).update({
+      status: "deleted",
+      updatedAt: serverTimestamp()
+    });
+    notifyUser("Publication supprimée.");
+  }
+
+  function bindFeedEvents(root) {
+    if (!root || root.dataset.feedBound) return;
+    root.dataset.feedBound = "1";
+
+    root.addEventListener("change", e => {
+      if (!e.target.matches("[data-feed-certify]")) return;
+      const form = e.target.closest("#feed-composer-form");
+      const btn = form?.querySelector("#feed-submit-btn");
+      if (btn) btn.disabled = !e.target.checked;
+    });
+
+    root.addEventListener("submit", async e => {
+      const composer = e.target.closest("#feed-composer-form");
+      const commentForm = e.target.closest("[data-feed-comment-form]");
+      if (!composer && !commentForm) return;
+      e.preventDefault();
+      try {
+        if (composer) await createPost(composer);
+        if (commentForm) {
+          await addComment(commentForm.dataset.feedCommentForm, commentForm.elements.comment?.value);
+          commentForm.reset();
+        }
+      } catch (err) {
+        console.error("Erreur Feed :", err);
+        notifyUser("Action impossible pour le moment.");
+      }
+    });
+
+    root.addEventListener("click", async e => {
+      const imageFocus = e.target.closest("[data-feed-image-focus]");
+      const like = e.target.closest("[data-feed-like]");
+      const repost = e.target.closest("[data-feed-repost]");
+      const report = e.target.closest("[data-feed-report]");
+      const del = e.target.closest("[data-feed-delete]");
+      if (!imageFocus && !like && !repost && !report && !del) return;
+      e.preventDefault();
+      if (imageFocus) {
+        root.querySelector("#feed-image-urls")?.focus();
+        return;
+      }
+      try {
+        if (like) await toggleLike(like.dataset.feedLike);
+        if (repost) await repostPost(repost.dataset.feedRepost);
+        if (report) await reportPost(report.dataset.feedReport);
+        if (del) await deleteOwnPost(del.dataset.feedDelete);
+      } catch (err) {
+        console.error("Erreur action Feed :", err);
+        notifyUser("Action impossible pour le moment.");
+      }
+    });
+  }
+
+  function initFeed() {
+    const root = document.getElementById("feed-wall");
+    if (!root) return;
+    injectFeedCSS();
+    root.innerHTML = `
+      <div class="tm-feed tm-feed-wall tm-shell tm-reveal">
+        <aside>
+          <section class="tm-feed-editorial tm-editorial-panel">
+            <p class="tm-tech-kicker">Mur d’évolution architecturale</p>
+            <h3>Publier des étapes, pas du bruit.</h3>
+            <p>Plans, maquettes, rendus, croquis, essais de matière et progression de projet.</p>
+          </section>
+          ${renderFeedComposer()}
+        </aside>
+        <section class="tm-feed-timeline" id="feed-timeline" aria-live="polite">
+          <div class="tm-feed-empty">Chargement du Feed…</div>
+        </section>
+      </div>
+    `;
+    bindFeedEvents(root);
+    subscribeToFeed();
+  }
+
+  (function hookFeed() {
     const mod = document.getElementById("module-feed");
     if (!mod) return;
     new MutationObserver(() => {
-      if (mod.classList.contains("is-active")) renderFeedWall();
+      if (mod.classList.contains("is-active")) initFeed();
+      else if (_feedUnsubscribe) {
+        try { _feedUnsubscribe(); } catch {}
+        _feedUnsubscribe = null;
+      }
     }).observe(mod, { attributes: true, attributeFilter: ["class"] });
-    if (mod.classList.contains("is-active")) renderFeedWall();
+    if (mod.classList.contains("is-active")) initFeed();
   })();
 
-  /* ── Feed Pinterest — CSS + renderer (activé quand le Feed est prêt) ── */
-  (function _feedPinterestReserve() {
-    /* CSS injecté une fois */
-    if (!document.getElementById("tm-feed-css")) {
-      const s = document.createElement("style");
-      s.id = "tm-feed-css";
-      s.textContent = `
-        #feed-wall { columns: 3 260px; column-gap: 1rem; }
-        .tm-post {
-          break-inside: avoid; margin-bottom: 1rem;
-          border: 0.5px solid rgba(201,169,110,.22);
-          border-radius: 16px; overflow: hidden;
-          background: #0C0C0A;
-          transition: border-color .22s, box-shadow .22s, transform .22s;
-          cursor: pointer;
+  /* ── Modération Admin Firestore ─────────────────────────────── */
+  let _adminUnsubscribers = [];
+
+  function injectAdminModerationCSS() {
+    if (document.getElementById("tm-admin-css")) return;
+    const s = document.createElement("style");
+    s.id = "tm-admin-css";
+    s.textContent = `
+      .tm-adm { display:grid; gap:1.2rem; min-width:0; }
+      .tm-adm-kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:1rem; }
+      .tm-adm-kpi {
+        background:var(--surface); border:var(--border); border-radius:var(--r-md);
+        padding:1.1rem 1.2rem; display:grid; gap:.28rem; min-width:0;
+      }
+      .tm-adm-kpi__val {
+        font-family:var(--serif); font-size:2.1rem; font-weight:300; color:var(--gold); line-height:1;
+        overflow-wrap:anywhere;
+      }
+      .tm-adm-kpi__lbl { font-size:.62rem; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+      .tm-adm-section {
+        background:var(--surface); border:var(--border); border-radius:var(--r-xl);
+        padding:1.2rem; min-width:0; overflow-x:auto;
+      }
+      .tm-adm-section h3 {
+        font-family:var(--serif); font-size:1.45rem; font-weight:300; color:var(--ink);
+        margin:0 0 1rem; padding-bottom:.72rem; border-bottom:var(--border);
+      }
+      .tm-adm-table { width:100%; border-collapse:collapse; min-width:720px; }
+      .tm-adm-table th, .tm-adm-table td {
+        text-align:left; padding:.55rem .6rem; font-size:.72rem; border-bottom:var(--border);
+        vertical-align:top;
+      }
+      .tm-adm-table th { color:var(--muted); font-weight:500; letter-spacing:.1em; text-transform:uppercase; }
+      .tm-adm-table td { color:var(--ink); }
+      .tm-adm-badge {
+        display:inline-block; padding:.18rem .55rem; border-radius:99px; font-size:.58rem;
+        font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+        background:rgba(201,169,110,.10); color:var(--gold); border:0.5px solid rgba(201,169,110,.28);
+      }
+      .tm-adm-actions { display:flex; gap:.5rem; flex-wrap:wrap; }
+      .tm-adm-btn {
+        padding:.45rem .78rem; border-radius:var(--r-sm); font-size:.68rem; font-weight:500;
+        cursor:pointer; border:0.5px solid rgba(201,169,110,.38);
+        background:rgba(201,169,110,.08); color:var(--gold); transition:background .15s;
+      }
+      .tm-adm-btn:hover { background:rgba(201,169,110,.18); }
+      .tm-adm-btn--danger { border-color:rgba(220,80,80,.38); background:rgba(220,80,80,.08); color:#dc8080; }
+      .tm-adm-btn--danger:hover { background:rgba(220,80,80,.18); }
+      .tm-feed-empty {
+        padding:1.2rem; border:var(--border); border-radius:var(--r-md);
+        color:var(--muted); background:color-mix(in srgb,var(--surface-2) 55%,transparent);
+      }
+    `;
+    document.head.appendChild(s);
+  }
+
+  function clearAdminSubscriptions() {
+    _adminUnsubscribers.forEach(unsub => {
+      try { unsub(); } catch {}
+    });
+    _adminUnsubscribers = [];
+  }
+
+  function renderAdminUsers(target, users) {
+    if (!target) return;
+    target.innerHTML = users.length ? `
+      <table class="tm-adm-table">
+        <thead><tr><th>Utilisateur</th><th>Profil</th><th>Statut</th><th>Action</th></tr></thead>
+        <tbody>
+          ${users.map(u => `
+            <tr>
+              <td>${_esc(u.displayName || u.email || u.id)}</td>
+              <td>${_esc([u.level, u.schoolOrAgency, u.city].filter(Boolean).join(" · ") || "—")}</td>
+              <td><span class="tm-adm-badge">${_esc(u.status || "active")}</span></td>
+              <td>
+                <button class="tm-adm-btn tm-adm-btn--danger" type="button" data-admin-suspend-user="${_esc(u.id)}">
+                  Suspendre
+                </button>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    ` : `<p class="tm-feed-empty">Aucun utilisateur</p>`;
+  }
+
+  function renderAdminReports(target, reports) {
+    if (!target) return;
+    target.innerHTML = reports.length ? `
+      <table class="tm-adm-table">
+        <thead><tr><th>Post</th><th>Signalé par</th><th>Motif</th><th>Statut</th><th>Actions</th></tr></thead>
+        <tbody>
+          ${reports.map(r => `
+            <tr>
+              <td>${_esc(r.postId || "—")}</td>
+              <td>${_esc(r.reporterEmail || r.reporterId || "—")}</td>
+              <td>${_esc(r.reason || "plagiarism_or_abuse")}</td>
+              <td><span class="tm-adm-badge">${_esc(r.status || "open")}</span></td>
+              <td>
+                <div class="tm-adm-actions">
+                  <button class="tm-adm-btn" type="button" data-admin-hide-post="${_esc(r.postId || "")}">Masquer</button>
+                  <button class="tm-adm-btn tm-adm-btn--danger" type="button" data-admin-delete-post="${_esc(r.postId || "")}">Supprimer</button>
+                  <button class="tm-adm-btn" type="button" data-admin-resolve-report="${_esc(r.id)}">Traité</button>
+                </div>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    ` : `<p class="tm-feed-empty">Aucun signalement</p>`;
+  }
+
+  function renderAdminReportedPosts(target, posts) {
+    if (!target) return;
+    target.innerHTML = posts.length ? `
+      <table class="tm-adm-table">
+        <thead><tr><th>Auteur</th><th>Contenu</th><th>Signalements</th><th>Plagiat</th><th>Actions</th></tr></thead>
+        <tbody>
+          ${posts.map(p => `
+            <tr>
+              <td>${_esc(p.authorName || p.authorId || "—")}</td>
+              <td>${_esc(String(p.text || "").slice(0, 90))}</td>
+              <td>${Number(p.reportCount || 0)}</td>
+              <td><span class="tm-adm-badge">${_esc(p.plagiarismStatus || "clear")}</span></td>
+              <td>
+                <div class="tm-adm-actions">
+                  <button class="tm-adm-btn" type="button" data-admin-hide-post="${_esc(p.id)}">Masquer</button>
+                  <button class="tm-adm-btn tm-adm-btn--danger" type="button" data-admin-delete-post="${_esc(p.id)}">Supprimer</button>
+                </div>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    ` : `<p class="tm-feed-empty">Aucun contenu signalé</p>`;
+  }
+
+  function bindModerationEvents(root) {
+    if (!root || root.dataset.adminBound) return;
+    root.dataset.adminBound = "1";
+    root.addEventListener("click", async e => {
+      const hide = e.target.closest("[data-admin-hide-post]");
+      const del = e.target.closest("[data-admin-delete-post]");
+      const suspend = e.target.closest("[data-admin-suspend-user]");
+      const resolve = e.target.closest("[data-admin-resolve-report]");
+      if (!hide && !del && !suspend && !resolve) return;
+      const db = getFirestoreDb();
+      const user = getFirebaseUser();
+      if (!db || !isTeomarchiAdmin(user)) return;
+      e.preventDefault();
+      try {
+        if (hide?.dataset.adminHidePost) {
+          await db.collection("posts").doc(hide.dataset.adminHidePost).update({
+            status: "hidden",
+            plagiarismStatus: "under_review",
+            moderatedBy: user.uid,
+            updatedAt: serverTimestamp()
+          });
         }
-        .tm-post:hover {
-          border-color: rgba(201,169,110,.62);
-          box-shadow: 0 16px 48px rgba(0,0,0,.6);
-          transform: translateY(-2px);
+        if (del?.dataset.adminDeletePost) {
+          await db.collection("posts").doc(del.dataset.adminDeletePost).update({
+            status: "deleted",
+            moderatedBy: user.uid,
+            updatedAt: serverTimestamp()
+          });
         }
-        .tm-post__img {
-          width: 100%; aspect-ratio: 4/3; position: relative; overflow: hidden;
+        if (suspend?.dataset.adminSuspendUser) {
+          await db.collection("users").doc(suspend.dataset.adminSuspendUser).set({
+            status: "suspended",
+            suspendedBy: user.uid,
+            updatedAt: serverTimestamp()
+          }, { merge: true });
         }
-        .tm-post__img--tall  { aspect-ratio: 3/4; }
-        .tm-post__img--wide  { aspect-ratio: 16/7; }
-        .tm-post__tag {
-          position: absolute; top: .65rem; left: .65rem;
-          font-size: .52rem; font-weight: 600; letter-spacing: .14em;
-          text-transform: uppercase; padding: .22rem .55rem;
-          background: rgba(5,5,5,.78); color: var(--gold);
-          border: 0.5px solid rgba(201,169,110,.38); border-radius: 99px;
+        if (resolve?.dataset.adminResolveReport) {
+          await db.collection("reports").doc(resolve.dataset.adminResolveReport).update({
+            status: "resolved",
+            resolvedBy: user.uid,
+            resolvedAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          });
         }
-        .tm-post__body { padding: .9rem; display: grid; gap: .5rem; }
-        .tm-post__title {
-          font-family: var(--serif); font-size: 1.18rem; font-weight: 300;
-          color: var(--ink); line-height: 1.25; margin: 0;
-        }
-        .tm-post__desc {
-          font-size: .7rem; color: var(--muted); line-height: 1.55;
-          margin: 0; display: -webkit-box; -webkit-line-clamp: 3;
-          -webkit-box-orient: vertical; overflow: hidden;
-        }
-        .tm-post__author {
-          display: flex; align-items: center; gap: .55rem;
-          padding-top: .6rem; border-top: 0.5px solid rgba(245,245,241,.07);
-          margin-top: .1rem;
-        }
-        .tm-post__avatar {
-          width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
-          background: rgba(201,169,110,.18);
-          border: 0.5px solid rgba(201,169,110,.35);
-          display: grid; place-items: center;
-          font-size: .6rem; font-weight: 600; color: var(--gold);
-          letter-spacing: .04em;
-        }
-        .tm-post__author-info { min-width: 0; }
-        .tm-post__author-name {
-          font-size: .72rem; font-weight: 500; color: var(--ink);
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        }
-        .tm-post__author-role {
-          font-size: .62rem; color: var(--muted); white-space: nowrap;
-          overflow: hidden; text-overflow: ellipsis;
-        }
-        @media (max-width: 600px) { #feed-wall { columns: 1; } }
-        @media (max-width: 900px) { #feed-wall { columns: 2; } }
-      `;
-      document.head.appendChild(s);
+        notifyUser("Action de modération enregistrée.");
+      } catch (err) {
+        console.error("Erreur modération :", err);
+        notifyUser("Action admin impossible.");
+      }
+    });
+  }
+
+  function initModerationPanel(root = document.getElementById("admin-layout"), user = getFirebaseUser()) {
+    if (!root) return;
+    injectAdminModerationCSS();
+    clearAdminSubscriptions();
+    bindModerationEvents(root);
+
+    if (!isTeomarchiAdmin(user)) {
+      root.innerHTML = `<p class="tm-feed-empty">Accès réservé à la modération TEOMARCHI.</p>`;
+      return;
     }
 
-    /* Renderer */
-    const RATIOS = ["", "tm-post__img--tall", "", "tm-post__img--wide", "tm-post__img--tall", ""];
-
-    function renderFeedWall() {
-      const wall = document.getElementById("feed-wall");
-      if (!wall || wall.querySelector(".tm-post")) return;
-      wall.innerHTML = DATA_FEED.map((p, i) => `
-        <article class="tm-post" data-slug="${p.slug}" role="button" tabindex="0"
-                 aria-label="Voir le post de ${p.auteur}">
-          <div class="tm-post__img ${RATIOS[i] || ""}"
-               style="background:${p._bg}">
-            <span class="tm-post__tag">${p.tag}</span>
-          </div>
-          <div class="tm-post__body">
-            <h3 class="tm-post__title">${p.titre}</h3>
-            <p class="tm-post__desc">${p.sous_titre}</p>
-            <div class="tm-post__author">
-              <div class="tm-post__avatar">${p.initiales}</div>
-              <div class="tm-post__author-info">
-                <p class="tm-post__author-name">${p.auteur}</p>
-                <p class="tm-post__author-role">${p.role}</p>
-              </div>
-            </div>
-          </div>
-        </article>
-      `).join("");
-
-      /* Clic → profil public */
-      wall.querySelectorAll(".tm-post").forEach(card => {
-        const go = () => {
-          window.open(`profil-public.html?user=${card.dataset.slug}`, "_blank");
-        };
-        card.addEventListener("click", go);
-        card.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") go(); });
-      });
-
-      /* Injecter actions like/save après rendu */
-      setTimeout(initFeedInteractions, 0);
+    const db = getFirestoreDb();
+    if (!db) {
+      root.innerHTML = `<p class="tm-feed-empty">Firestore indisponible.</p>`;
+      return;
     }
-    /* hook désactivé — réactiver quand le feed est prêt */
-  })(); /* fin _feedPinterestReserve */
+
+    /* Sécurité :
+       Ce panneau front prépare l'UX admin, mais l'autorité réelle doit être
+       imposée par Firestore Rules et Cloud Functions. Ne jamais exposer de clé
+       admin Firebase, service account, webhook secret ou token privé côté client. */
+    root.innerHTML = `
+      <div class="tm-adm">
+        <div class="tm-adm-kpis">
+          <div class="tm-adm-kpi"><span class="tm-adm-kpi__val" id="adm-users-count">0</span><span class="tm-adm-kpi__lbl">Utilisateurs</span></div>
+          <div class="tm-adm-kpi"><span class="tm-adm-kpi__val" id="adm-reports-count">0</span><span class="tm-adm-kpi__lbl">Signalements</span></div>
+          <div class="tm-adm-kpi"><span class="tm-adm-kpi__val" id="adm-posts-count">0</span><span class="tm-adm-kpi__lbl">Posts à vérifier</span></div>
+          <div class="tm-adm-kpi"><span class="tm-adm-kpi__val">Rules</span><span class="tm-adm-kpi__lbl">Droits serveur requis</span></div>
+        </div>
+        <section class="tm-adm-section">
+          <h3>Posts signalés / plagiat</h3>
+          <div id="admin-reported-posts"><p class="tm-feed-empty">Chargement…</p></div>
+        </section>
+        <section class="tm-adm-section">
+          <h3>Signalements</h3>
+          <div id="admin-reports"><p class="tm-feed-empty">Chargement…</p></div>
+        </section>
+        <section class="tm-adm-section">
+          <h3>Utilisateurs</h3>
+          <div id="admin-users"><p class="tm-feed-empty">Chargement…</p></div>
+        </section>
+      </div>
+    `;
+
+    const usersUnsub = db.collection("users").limit(100).onSnapshot(snap => {
+      const users = [];
+      snap.forEach(doc => users.push({ id: doc.id, ...doc.data() }));
+      const kpi = document.getElementById("adm-users-count");
+      if (kpi) kpi.textContent = String(users.length);
+      renderAdminUsers(document.getElementById("admin-users"), users);
+    }, err => {
+      console.error("Erreur admin users :", err);
+      const box = document.getElementById("admin-users");
+      if (box) box.innerHTML = `<p class="tm-feed-empty">Impossible de charger les utilisateurs.</p>`;
+    });
+
+    const reportsUnsub = db.collection("reports").orderBy("createdAt", "desc").limit(80).onSnapshot(snap => {
+      const reports = [];
+      snap.forEach(doc => reports.push({ id: doc.id, ...doc.data() }));
+      const kpi = document.getElementById("adm-reports-count");
+      if (kpi) kpi.textContent = String(reports.length);
+      renderAdminReports(document.getElementById("admin-reports"), reports);
+    }, err => {
+      console.error("Erreur admin reports :", err);
+      const box = document.getElementById("admin-reports");
+      if (box) box.innerHTML = `<p class="tm-feed-empty">Impossible de charger les signalements.</p>`;
+    });
+
+    const postsUnsub = db.collection("posts").where("reportCount", ">", 0).orderBy("reportCount", "desc").limit(80).onSnapshot(snap => {
+      const posts = [];
+      snap.forEach(doc => posts.push({ id: doc.id, ...doc.data() }));
+      const kpi = document.getElementById("adm-posts-count");
+      if (kpi) kpi.textContent = String(posts.length);
+      renderAdminReportedPosts(document.getElementById("admin-reported-posts"), posts);
+    }, err => {
+      console.error("Erreur admin posts :", err);
+      const box = document.getElementById("admin-reported-posts");
+      if (box) box.innerHTML = `<p class="tm-feed-empty">Impossible de charger les posts signalés.</p>`;
+    });
+
+    _adminUnsubscribers.push(usersUnsub, reportsUnsub, postsUnsub);
+  }
+
+  document.addEventListener("teomarchi:auth-changed", () => {
+    if (document.getElementById("module-feed")?.classList.contains("is-active")) initFeed();
+    if (document.getElementById("module-profil")?.classList.contains("is-active")) initProfileEditor();
+    if (document.getElementById("module-admin")?.classList.contains("is-active")) initModerationPanel();
+  });
 
   /* ── Export PDF / DWG Simulator ─────────────────────────────── */
   function initExport() {
+    return;
     if (document.getElementById("tm-export-wrap")) return;
     const section = document.getElementById("module-showroom");
     if (!section) return;
@@ -5022,15 +8086,13 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
   })();
 
   /* ── Toast de bienvenue au démarrage ─────────────────────────── */
-  setTimeout(() => pushNotification("TEOMARCHI — 10 modules actifs"), 1400);
+  setTimeout(() => pushNotification("TEOMARCHI — 11 modules actifs"), 1400);
 
 (function initTeomarchiAuth() {
 
     const FIREBASE_CONFIG = window.TEOMARCHI_CONFIG.firebase;
     const STRIPE_PUBLIC_KEY = window.TEOMARCHI_CONFIG.stripe.publishableKey;
-    const STRIPE_PRICE_IDS = window.TEOMARCHI_CONFIG.stripe.priceIds;
-    const STRIPE_PAYMENT_LINK = window.TEOMARCHI_CONFIG.stripe.paymentLinks.studio;
-    const STRIPE_AGENCE_LINK  = window.TEOMARCHI_CONFIG.stripe.paymentLinks.agence;
+    const STRIPE_PAYMENT_LINKS = window.TEOMARCHI_CONFIG.stripe.paymentLinks;
 
     /* Modules nécessitant une connexion. Outils reste consultable librement. */
     const GATED = new Set([]);
@@ -5046,6 +8108,14 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       typeof firebase !== "undefined" &&
       FIREBASE_CONFIG.apiKey !== "VOTRE_API_KEY";
 
+    /*
+      Checklist Firebase Auth:
+      - Ajouter le domaine personnalisé dans Firebase Authorized Domains.
+      - Ajouter aussi le domaine Vercel temporaire si utilisé.
+      - Vérifier que Google Provider est activé dans Firebase Console.
+      - Vérifier que l'email de support OAuth est configuré.
+    */
+
     /* ── CSS ────────────────────────────────────────────────────── */
     if (!document.getElementById("tm-auth-css")) {
       const s = document.createElement("style");
@@ -5056,10 +8126,10 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
           background:rgba(3,3,3,.92);
           backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
           display:grid;place-items:center;
-          opacity:0;pointer-events:none;
-          transition:opacity .28s ease;
+          opacity:0;visibility:hidden;pointer-events:none;
+          transition:opacity .28s ease,visibility .28s ease;
         }
-        .tm-auth-ov.is-open{opacity:1;pointer-events:all;}
+        .tm-auth-ov.is-open{opacity:1;visibility:visible;pointer-events:auto;}
         .tm-auth-box {
           width:min(420px,92vw);
           background:var(--surface);
@@ -5155,14 +8225,14 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       el.setAttribute("aria-modal","true");
       el.innerHTML = `
         <div class="tm-auth-box">
-          <button class="tm-auth-x" id="tm-ax" aria-label="Fermer">×</button>
+          <button class="tm-auth-x" id="tm-ax" type="button" aria-label="Fermer">×</button>
           <div class="tm-auth-head">
             <h2>TEOMARCHI</h2>
             <p>Plateforme d'intelligence architecturale</p>
           </div>
           <div class="tm-auth-tabs">
-            <button class="tm-auth-tab is-on" data-t="login">Connexion</button>
-            <button class="tm-auth-tab" data-t="signup">Inscription</button>
+            <button class="tm-auth-tab is-on" type="button" data-t="login">Connexion</button>
+            <button class="tm-auth-tab" type="button" data-t="signup">Inscription</button>
           </div>
           <div class="tm-auth-fields">
             <div class="tm-auth-lbl" id="tm-an" style="display:none">
@@ -5179,9 +8249,9 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
             </div>
           </div>
           <p class="tm-auth-err" id="tm-ae"></p>
-          <button class="tm-auth-btn" id="tm-as">Se connecter</button>
+          <button class="tm-auth-btn" id="tm-as" type="button">Se connecter</button>
           <div class="tm-auth-sep">ou</div>
-          <button class="tm-auth-google" id="tm-ag">
+          <button class="tm-auth-google" id="tm-ag" type="button">
             <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -5278,17 +8348,20 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     }
 
     function _setCheckoutBusy(isBusy) {
-      document.querySelectorAll("#checkout-btn, [data-checkout-plan]").forEach(btn => {
+      document.querySelectorAll("#checkout-btn, [data-checkout-plan], [data-plan='studio'], [data-plan='agence']").forEach(btn => {
         btn.disabled = isBusy;
         btn.classList.toggle("is-loading", isBusy);
         btn.setAttribute("aria-busy", String(isBusy));
       });
     }
 
-    function _checkoutFallbackUrl(planId, user) {
-      const link = planId === "agence" ? STRIPE_AGENCE_LINK : STRIPE_PAYMENT_LINK;
-      const uid = user?.uid ? "?client_reference_id=" + encodeURIComponent(user.uid) : "";
-      return link + uid;
+    function getStripePaymentLink(planId, user) {
+      const safePlan = planId === "agence" ? "agence" : "studio";
+      const base = STRIPE_PAYMENT_LINKS[safePlan] || STRIPE_PAYMENT_LINKS.studio;
+      if (!base) throw new Error("Lien Stripe indisponible.");
+      if (!user?.uid) return base;
+      const separator = base.includes("?") ? "&" : "?";
+      return `${base}${separator}client_reference_id=${encodeURIComponent(user.uid)}`;
     }
 
     async function handleCheckout(planId = "studio") {
@@ -5303,27 +8376,12 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         if (!user) {
           _show(null);
           if (typeof pushNotification === "function") {
-            pushNotification("Connecte-toi pour activer le paiement Stripe.");
+            pushNotification("Connecte-toi pour continuer vers l’abonnement.");
           }
           return;
         }
 
-        if (typeof Stripe !== "function") {
-          window.location.assign(_checkoutFallbackUrl(planId, user));
-          return;
-        }
-
-        const stripe = Stripe(STRIPE_PUBLIC_KEY);
-        const priceId = STRIPE_PRICE_IDS[planId] || STRIPE_PRICE_IDS.studio;
-        const { error } = await stripe.redirectToCheckout({
-          lineItems: [{ price: priceId, quantity: 1 }],
-          mode: "subscription",
-          successUrl: window.location.origin + "/success.html",
-          cancelUrl: window.location.origin + "/cancel.html",
-          customerEmail: user.email || undefined
-        });
-
-        if (error) throw error;
+        window.location.assign(getStripePaymentLink(planId, user));
       } catch (err) {
         const message = err?.message || "Une erreur est survenue lors de la redirection vers Stripe.";
         if (typeof pushNotification === "function") {
@@ -5336,6 +8394,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     }
 
     window.handleCheckout = handleCheckout;
+    window.getStripePaymentLink = getStripePaymentLink;
 
     /* ── Handlers ───────────────────────────────────────────────── */
     const _ERR = {
@@ -5345,15 +8404,15 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       "auth/invalid-credential":       "E-mail ou mot de passe incorrect.",
       "auth/email-already-in-use":     "Cet e-mail est déjà utilisé.",
       "auth/weak-password":            "Mot de passe trop court (min. 6 caractères).",
-      "auth/popup-closed-by-user":     "Fenêtre fermée — réessaie.",
+      "auth/popup-closed-by-user":     "Connexion Google annulée. Tu peux relancer la connexion.",
       "auth/popup-blocked":            "Popup bloquée par le navigateur — autorise les popups pour ce site.",
       "auth/cancelled-popup-request":  "Connexion annulée.",
       "auth/network-request-failed":   "Erreur réseau — vérifie ta connexion.",
       "auth/too-many-requests":        "Trop de tentatives. Attends quelques minutes.",
       "auth/user-disabled":            "Ce compte a été désactivé.",
-      "auth/operation-not-allowed":    "Connexion par e-mail non activée dans Firebase Console.",
-      "auth/unauthorized-domain":      "Domaine non autorisé — ajoute ce domaine dans Firebase Console → Authentication → Authorized domains.",
-      "auth/internal-error":           "Erreur interne Firebase. Réessaie.",
+      "auth/operation-not-allowed":    "Méthode de connexion non activée dans Firebase Console.",
+      "auth/unauthorized-domain":      "Domaine non autorisé dans Firebase. Ajouter ce domaine dans Firebase Console > Authentication > Settings > Authorized domains.",
+      "auth/internal-error":           "Erreur interne Firebase. Vérifie la configuration OAuth puis réessaie.",
       "auth/requires-recent-login":    "Reconnecte-toi pour continuer."
     };
 
@@ -5386,13 +8445,32 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       } finally { _busy(false); }
     }
 
+    function _msg(error, fallback = "Erreur inattendue. Réessaie.") {
+      return _ERR[error?.code] || error?.message || fallback;
+    }
+
     async function _google() {
-      if (!_auth) { _err("Firebase non configuré."); return; }
+      if (!_ready() || !_auth || !firebase?.auth?.GoogleAuthProvider) {
+        _err("Firebase Auth indisponible. Vérifie la configuration Firebase.");
+        return;
+      }
+      const btn = document.getElementById("tm-ag");
+      if (btn) btn.disabled = true;
+      _err("");
       try {
-        await _auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.setCustomParameters?.({ prompt: "select_account" });
+        await _auth.signInWithPopup(provider);
         _hide();
         if (typeof pushNotification === "function") pushNotification("Bienvenue sur TEOMARCHI");
-      } catch(e) { _err(_ERR[e.code] || "Erreur Google."); }
+      } catch(e) {
+        const message = _msg(e, "Erreur Google. Réessaie.");
+        _err(message);
+        console.warn("TEOMARCHI Google login:", e?.code || e);
+        if (typeof pushNotification === "function") pushNotification(message);
+      } finally {
+        if (btn) btn.disabled = false;
+      }
     }
 
     /* ── Vérifier isPremium depuis Firestore ────────────────────── */
@@ -5407,8 +8485,6 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     }
 
     /* ── Sync UI après changement d'état ────────────────────────── */
-    const ADMIN_EMAIL = "teomarchi@teomarchi.com";
-
     function _syncUI(user) {
       const lbl = document.getElementById("session-label");
       if (lbl) lbl.textContent = user
@@ -5419,6 +8495,10 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       const adminTab     = document.getElementById("tab-admin");
       const adminDashBtn = document.getElementById("btn-admin-dash");
       const isAdmin      = user?.email === ADMIN_EMAIL;
+      window.TEOMARCHI_AUTH_STATE = { user: user || null, isAdmin, isPremium: _isPremium };
+      document.dispatchEvent(new CustomEvent("teomarchi:auth-changed", {
+        detail: window.TEOMARCHI_AUTH_STATE
+      }));
       if (adminTab)     adminTab.style.display     = isAdmin ? "" : "none";
       if (adminDashBtn) adminDashBtn.style.display = isAdmin ? "" : "none";
       if (isAdmin && document.getElementById("module-admin")?.classList.contains("is-active")) {
@@ -5442,6 +8522,9 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     /* ── Panneau Admin ──────────────────────────────────────────── */
     async function _initAdmin() {
       const root = document.getElementById("admin-layout");
+      if (!root) return;
+      initModerationPanel(root, _user);
+      return;
       if (!root || root.dataset.loaded) return;
       root.dataset.loaded = "1";
 
@@ -5607,6 +8690,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       if (!_ready()) return;
       if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
       _auth = firebase.auth();
+      window.auth = _auth;
       _auth.onAuthStateChanged(async user => {
         _user = user;
         await _checkPremium(user);
@@ -5655,7 +8739,6 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       const btn = e.target.closest("#checkout-btn, [data-checkout-plan]");
       if (!btn) return;
       e.preventDefault();
-      e.stopImmediatePropagation();
       handleCheckout(btn.dataset.checkoutPlan || "studio");
     }, true);
 
@@ -5663,11 +8746,8 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     document.addEventListener("click", e => {
       const btn = e.target.closest("[data-plan='studio'], [data-plan='agence']");
       if (!btn) return;
-      e.stopImmediatePropagation();
-      if (_ready() && !_user) { _show(null); return; }
-      const uid  = _user?.uid || "";
-      const link = btn.dataset.plan === "agence" ? STRIPE_AGENCE_LINK : STRIPE_PAYMENT_LINK;
-      window.open(link + (uid ? "?client_reference_id=" + uid : ""), "_blank");
+      e.preventDefault();
+      handleCheckout(btn.dataset.plan || "studio");
     }, true);
 
     /* ── Retour Stripe : recharge isPremium depuis Firestore ────────

@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=20260513-ai-security6" />
 
   <!-- Firebase Auth + Firestore -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -47,7 +47,7 @@
     </button>
 
     <!-- Marque (gauche) -->
-    <a class="brand" href="#atlas" data-nav="atlas" aria-label="TEOMARCHI — Accueil">
+    <a class="brand" href="#accueil" data-nav="accueil" aria-label="TEOMARCHI — Accueil">
       <svg class="brand__logo" viewBox="0 0 64 64" fill="none"
            role="img" aria-labelledby="logo-title">
         <title id="logo-title">Logo TEOMARCHI</title>
@@ -88,6 +88,24 @@
 
     <!-- Outils droite -->
     <div class="nav-tools">
+
+      <!-- IA TEOMARCHI -->
+      <button class="icon-btn icon-btn--ai" id="ai-panel-btn" type="button" data-ai-open
+              aria-label="Ouvrir l’IA TEOMARCHI">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true" class="ai-mark">
+          <path d="M4 20h16"/>
+          <path d="M7 20 12 4l5 16"/>
+          <path d="M8 20v-8.8L12 8l4 3.2V20"/>
+          <path d="M9.1 14.5 12 12l2.9 2.5"/>
+          <path d="M12 13.4v3.2"/>
+          <circle cx="12" cy="12" r="1.35" fill="currentColor" stroke="none"/>
+          <circle cx="8.6" cy="15" r=".8" fill="currentColor" stroke="none"/>
+          <circle cx="15.4" cy="15" r=".8" fill="currentColor" stroke="none"/>
+        </svg>
+        <span>IA</span>
+      </button>
 
       <!-- Messagerie -->
       <button class="icon-btn" type="button" data-nav="messagerie"
@@ -160,14 +178,17 @@
       <p class="sidebar__label">Modules</p>
       <nav class="sidebar-nav" id="sidebar-nav"
            role="tablist" aria-label="Modules de la plateforme">
-        <button class="sidebar-item nav-tab is-active" type="button" role="tab" id="tab-atlas"      data-nav="atlas"      aria-selected="true"  aria-controls="module-atlas"><span>Atlas</span></button>
+        <button class="sidebar-item nav-tab is-active" type="button" role="tab" id="tab-accueil"    data-nav="accueil"    aria-selected="true"  aria-controls="module-accueil"><span>Accueil</span></button>
+        <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-atlas"      data-nav="atlas"      aria-selected="false" aria-controls="module-atlas"><span>Atlas</span></button>
         <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-chronos"    data-nav="chronos"    aria-selected="false" aria-controls="module-chronos"><span>Chronos</span></button>
         <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-pantheon"   data-nav="pantheon"   aria-selected="false" aria-controls="module-pantheon"><span>Panthéon</span></button>
-        <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-fiches"     data-nav="fiches"     aria-selected="false" aria-controls="module-fiches"><span>Fiches</span></button>
+        <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-fiches"     data-nav="fiches"     aria-selected="false" aria-controls="module-fiches"><span>Normes</span></button>
         <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-etudes"     data-nav="etudes"     aria-selected="false" aria-controls="module-etudes"><span>Études</span></button>
         <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-outils"     data-nav="outils"     aria-selected="false" aria-controls="module-outils"><span>Outils</span></button>
+        <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-ecologie"   data-nav="ecologie"   aria-selected="false" aria-controls="module-ecologie"><span>Écologie</span></button>
         <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-journalier" data-nav="journalier" aria-selected="false" aria-controls="module-journalier"><span>Journalier</span></button>
         <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-showroom"   data-nav="showroom"   aria-selected="false" aria-controls="module-showroom"><span>Showroom</span></button>
+        <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-contact"    data-nav="contact"    aria-selected="false" aria-controls="module-contact"><span>Contact</span></button>
         <button class="sidebar-item nav-tab"           type="button" role="tab" id="tab-feed"       data-nav="feed"       aria-selected="false" aria-controls="module-feed"><span>Feed</span></button>
       </nav>
     </aside>
@@ -180,31 +201,79 @@
   ============================================================ -->
   <main class="app" id="main-app">
 
-    <!-- Hero — affiché uniquement sur Atlas via JS -->
-    <section class="hero" id="hero" aria-labelledby="hero-title">
-      <div>
-        <p class="hero__kicker">Minimalisme structurel — Puissance technique</p>
-        <h1 class="hero__title" id="hero-title">TEOMARCHI</h1>
-      </div>
-      <div class="hero__copy">
-        <p class="hero__desc">
-          Plateforme full-stack autonome pour étudiants, architectes et ateliers de projet :
-          atlas, chronologie, panthéon, fiches constructives, normes, calculs, journal de bord,
-          feed, profil et messagerie.
-        </p>
-        <!-- Métriques — injectées par JS -->
-        <div class="metrics" id="metrics-bar"></div>
-      </div>
-    </section>
-
     <!-- ============================================================
          ZONE DE VUE SPA
          Modules · identifiants prêts pour l'injection JS
     ============================================================ -->
     <div class="view" id="view" aria-live="polite">
 
+      <!-- ── MODULE 00 · ACCUEIL ── -->
+      <section class="module is-active" id="module-accueil"
+               role="tabpanel" aria-labelledby="tab-accueil" data-module="accueil">
+        <section class="hero" id="hero" aria-labelledby="hero-title">
+          <div class="hero__main">
+            <p class="hero__kicker">Plateforme d’intelligence architecturale</p>
+            <h1 class="hero__title" id="hero-title">TEOMARCHI</h1>
+            <p class="hero__slogan">Un monde meilleur commence par un habitat mieux pensé.</p>
+            <p class="hero__desc">
+              TEOMARCHI est une plateforme d’intelligence architecturale créée par Jonathan YAV.
+              Son objectif est de faciliter, structurer et optimiser l’apprentissage et la pratique
+              de l’architecture.
+            </p>
+            <p class="hero__creator">
+              Pensée pour les étudiants, architectes et ateliers, elle réunit atlas mondial,
+              chronologie des systèmes, panthéon des architectes, outils techniques, journal de projet,
+              feed communautaire, profil et messagerie.
+            </p>
+            <div class="hero__actions" aria-label="Actions principales">
+              <button class="text-btn text-btn--primary" type="button" data-nav="atlas">Explorer l’Atlas</button>
+              <button class="text-btn" type="button" data-open-login>Créer un compte</button>
+              <button class="text-btn" type="button" data-nav="showroom">Voir les modules</button>
+            </div>
+          </div>
+          <div class="hero__copy">
+            <article class="hero__card">
+              <p class="hero__card-kicker">Vision</p>
+              <h2>Penser mieux l’habitat, construire mieux le monde.</h2>
+              <p>
+                La vision : rendre l’architecture plus accessible, plus claire, plus technique
+                et plus humaine.
+              </p>
+            </article>
+            <article class="hero__card">
+              <p class="hero__card-kicker">Pourquoi TEOMARCHI</p>
+              <p>
+                Centraliser les références, les méthodes, les outils de projet et les échanges
+                pour travailler avec plus de précision.
+              </p>
+            </article>
+            <article class="hero__card hero__card--modules">
+              <p class="hero__card-kicker">Modules</p>
+              <div class="hero__modules" aria-label="Modules TEOMARCHI">
+                <span>Atlas</span>
+                <span>Chronos</span>
+                <span>Panthéon</span>
+                <span>Outils</span>
+                <span>Journalier</span>
+                <span>Feed</span>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="landing-sections" id="landing-sections" aria-label="Présentation TEOMARCHI">
+          <div class="module-empty">
+            <p class="module-empty__title">TEOMARCHI</p>
+            <p class="module-empty__sub">
+              Jonathan YAV, étudiant en architecture, développe TEOMARCHI comme une Plateforme en développement actif.
+              Collaboration, Sponsors, Communauté.
+            </p>
+          </div>
+        </section>
+      </section>
+
       <!-- ── MODULE 01 · ATLAS ── -->
-      <section class="module is-active" id="module-atlas"
+      <section class="module" id="module-atlas"
                role="tabpanel" aria-labelledby="tab-atlas" data-module="atlas">
         <header class="section-head">
           <div>
@@ -291,16 +360,15 @@
                role="tabpanel" aria-labelledby="tab-fiches" data-module="fiches">
         <header class="section-head">
           <div>
-            <p class="section-head__kicker">Fiches constructives</p>
-            <h2 class="section-head__title">Matières, R et carbone</h2>
+            <p class="section-head__kicker">Normothèque urbaine</p>
+            <h2 class="section-head__title">Normes & Villes</h2>
           </div>
           <p class="section-head__desc">
-            Base technique pour choisir vite : résistance thermique, conductivité,
-            impact CO₂, usage et mise en garde constructive.
+            Retrouver les dimensions, contraintes urbaines, règles générales
+            et liens officiels selon le pays, la ville et le type de zone.
           </p>
         </header>
-        <!-- id="fiches-grid" · rempli par JS phase 2 -->
-        <div class="grid grid--auto" id="fiches-grid">
+        <div id="fiches-layout">
           <div class="module-empty">
             <svg class="module-empty__icon" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
@@ -308,8 +376,8 @@
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
               <path d="M14 2v6h6M9 13h6M9 17h4"/>
             </svg>
-            <p class="module-empty__title">Fiches</p>
-            <p class="module-empty__sub">Matières, R, lambda, CO₂ — contenu en préparation</p>
+            <p class="module-empty__title">Normes & Villes</p>
+            <p class="module-empty__sub">Belgique, France, Suisse — contenu réglementaire indicatif en chargement</p>
           </div>
         </div>
       </section>
@@ -319,26 +387,25 @@
                role="tabpanel" aria-labelledby="tab-etudes" data-module="etudes">
         <header class="section-head">
           <div>
-            <p class="section-head__kicker">Arbre des études</p>
-            <h2 class="section-head__title">Carte mentale par semestre</h2>
+            <p class="section-head__kicker">Études</p>
+            <h2 class="section-head__title">Parcours, écoles et débouchés</h2>
           </div>
           <p class="section-head__desc">
-            Licence 1 à Master 2 : chaque semestre est cliquable et révèle atelier,
-            livrables et compétences techniques.
+            Comprendre les filières liées à l'architecture en Belgique et en France :
+            écoles, villes, diplômes, compétences, logiciels et métiers.
           </p>
         </header>
-        <!-- id="etudes-map" + id="etudes-detail" · remplis par JS phase 2 -->
-        <div class="grid" id="etudes-map"></div>
-        <article class="card" id="etudes-detail" style="display:none"></article>
-        <div class="module-empty" id="etudes-empty">
-          <svg class="module-empty__icon" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
-               aria-hidden="true">
-            <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-            <path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/>
-          </svg>
-          <p class="module-empty__title">Études</p>
-          <p class="module-empty__sub">Arbre L1 → M2, semestres et compétences — contenu en préparation</p>
+        <div id="etudes-layout">
+          <div class="module-empty" id="etudes-empty">
+            <svg class="module-empty__icon" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+                 aria-hidden="true">
+              <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+              <path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/>
+            </svg>
+            <p class="module-empty__title">Études</p>
+            <p class="module-empty__sub">Filières, écoles, villes et débouchés — contenu en chargement</p>
+          </div>
         </div>
       </section>
 
@@ -451,17 +518,38 @@
         </div>
       </section>
 
+      <!-- ── MODULE 09B · ÉCOLOGIE ── -->
+      <section class="module" id="module-ecologie"
+               role="tabpanel" aria-labelledby="tab-ecologie" data-module="ecologie">
+        <header class="section-head">
+          <div>
+            <p class="section-head__kicker">Écologie constructive</p>
+            <h2 class="section-head__title">Climat, ressources, systèmes</h2>
+          </div>
+          <p class="section-head__desc">
+            Recommandations pédagogiques de matériaux, stratégies passives et systèmes
+            selon pays, humidité, température et risques naturels.
+          </p>
+        </header>
+        <div id="ecologie-layout">
+          <div class="module-empty">
+            <p class="module-empty__title">Écologie</p>
+            <p class="module-empty__sub">Sélectionnez un pays pour lire les recommandations constructives.</p>
+          </div>
+        </div>
+      </section>
+
       <!-- ── MODULE 10 · SHOWROOM ── -->
       <section class="module" id="module-showroom"
                role="tabpanel" aria-labelledby="tab-showroom" data-module="showroom">
         <header class="section-head">
           <div>
-            <p class="section-head__kicker">Showroom Partenaires</p>
-            <h2 class="section-head__title">Produits prescriptibles</h2>
+            <p class="section-head__kicker">Showroom architectural</p>
+            <h2 class="section-head__title">Galerie partenaires & marketplace</h2>
           </div>
           <p class="section-head__desc">
-            Chaque produit sponsorisé affiche dimensions, matériau et intégration directe
-            au journal de bord du projet actif.
+            Mobilier, matériaux, agences, designers, sponsors et jeunes créateurs dans
+            une place architecturale premium prête pour la future marketplace.
           </p>
         </header>
         <!-- id="showroom-grid" · rempli par JS phase 2 -->
@@ -475,6 +563,27 @@
             </svg>
             <p class="module-empty__title">Showroom</p>
             <p class="module-empty__sub">Produits partenaires prescriptibles — contenu en préparation</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── MODULE 11 · CONTACT & SPONSORS ── -->
+      <section class="module" id="module-contact"
+               role="tabpanel" aria-labelledby="tab-contact" data-module="contact">
+        <header class="section-head">
+          <div>
+            <p class="section-head__kicker">Contact & Sponsors</p>
+            <h2 class="section-head__title">Partenariats, écoles, marques et agences</h2>
+          </div>
+          <p class="section-head__desc">
+            Comprendre la vision TEOMARCHI, proposer un partenariat, soutenir le développement
+            ou préparer une présence sponsorisée dans le Showroom.
+          </p>
+        </header>
+        <div id="contact-layout">
+          <div class="module-empty">
+            <p class="module-empty__title">Contact & Sponsors</p>
+            <p class="module-empty__sub">Dossier sponsor et canaux de contact — contenu en chargement</p>
           </div>
         </div>
       </section>
@@ -662,6 +771,20 @@
                 </div>
 
                 <div class="doc-section">
+                  <h3>Règles communautaires anti-plagiat</h3>
+                  <ul>
+                    <li>Interdiction de publier un projet qui ne vous appartient pas.</li>
+                    <li>Obligation de créditer les collaborateurs, enseignants, agences ou sources.</li>
+                    <li>Interdiction de copier, reprendre ou republier un projet sans autorisation.</li>
+                    <li>Interdiction d'usurper l'identité d'un étudiant, architecte ou agence.</li>
+                    <li>Interdiction de harcèlement, insultes, propos discriminatoires ou humiliants.</li>
+                    <li>Interdiction de publier des documents confidentiels d'agence, de client ou d'école.</li>
+                    <li>Tout contenu signalé peut être masqué pendant vérification.</li>
+                    <li>TEOMARCHI peut suspendre ou supprimer un compte en cas d'abus.</li>
+                  </ul>
+                </div>
+
+                <div class="doc-section">
                   <h3>Limitation de responsabilité</h3>
                   <p>
                     Les informations techniques et réglementaires publiées sur TEOMARCHI sont fournies à titre
@@ -702,7 +825,7 @@
                     <li>Un <strong>Atlas mondial</strong> des systèmes constructifs</li>
                     <li>Une <strong>Normothèque</strong> interactive (dimensions, réglementations, matériaux)</li>
                     <li>Un <strong>Panthéon</strong> des architectes fondateurs</li>
-                    <li>Des <strong>Fiches constructives</strong> et un <strong>Journal de bord</strong> de projet</li>
+                    <li>Des <strong>Normes & Villes</strong> et un <strong>Journal de bord</strong> de projet</li>
                     <li>Une <strong>Messagerie</strong> et un <strong>Showroom</strong> de prescriptions</li>
                   </ul>
                 </div>
@@ -969,6 +1092,6 @@
     </aside>
   </div>
 
-  <script src="app.js" defer></script>
+  <script src="app.js?v=20260513-ai-security6" defer></script>
 </body>
 </html>

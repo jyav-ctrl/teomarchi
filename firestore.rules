@@ -1,0 +1,120 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userRole() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : "user";
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && (request.auth.token.email == "teomarchi@teomarchi.com" || userRole() == "admin");
+    }
+
+    function isModerator() {
+      return isAdmin() || userRole() == "moderator";
+    }
+
+    function validRole(role) {
+      return role in ["user", "premium", "agency", "moderator", "admin"];
+    }
+
+    function validStatus(status) {
+      return status in ["active", "suspended", "deleted"];
+    }
+
+    function publicProfileFields() {
+      return [
+        "displayName", "bio", "schoolOrAgency", "level", "city",
+        "specialties", "avatarUrl", "portfolioUrl", "email", "photoURL",
+        "createdAt", "updatedAt"
+      ];
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && validRole(request.resource.data.role)
+        && validStatus(request.resource.data.status)
+        && (
+          request.resource.data.role == "user" ||
+          (request.auth.token.email == "teomarchi@teomarchi.com" && request.resource.data.role == "admin")
+        );
+      allow update: if signedIn() && (
+        (
+          request.auth.uid == userId &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(publicProfileFields())
+        ) ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /posts/{postId} {
+      allow read: if resource.data.status == "active" || isModerator();
+      allow create: if signedIn()
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.status == "active";
+      allow update: if signedIn() && (
+        request.auth.uid == resource.data.authorId ||
+        isModerator()
+      );
+      allow delete: if isModerator();
+
+      match /likes/{userId} {
+        allow read: if signedIn();
+        allow create, delete: if signedIn() && request.auth.uid == userId;
+        allow update: if false;
+      }
+
+      match /comments/{commentId} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && request.resource.data.authorId == request.auth.uid;
+        allow update, delete: if signedIn() && (
+          request.auth.uid == resource.data.authorId ||
+          isModerator()
+        );
+      }
+
+      match /reposts/{userId} {
+        allow read: if signedIn();
+        allow create, delete: if signedIn() && request.auth.uid == userId;
+        allow update: if false;
+      }
+    }
+
+    match /reports/{reportId} {
+      allow create: if signedIn()
+        && request.resource.data.reporterId == request.auth.uid;
+      allow read, update, delete: if isModerator();
+    }
+
+    match /securityLogs/{logId} {
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly([
+          "userId",
+          "email",
+          "eventType",
+          "message",
+          "createdAt",
+          "severity"
+        ])
+        && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if isModerator();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
