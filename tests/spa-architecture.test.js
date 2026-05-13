@@ -831,7 +831,7 @@ test("Contact Sponsors module and sponsor deck are exposed in the SPA", () => {
   [
     "Contact & Sponsors",
     "Proposer un partenariat",
-    "Contacter Jonathan Yav",
+    "Contacter TEOMARCHI",
     "Devenir sponsor",
     "sponsoring showroom",
     "sponsoring module",
@@ -966,4 +966,49 @@ test("admin exposes a simple organic acquisition playbook", () => {
     "ENSAV",
     "ENSA Paris"
   ].forEach(token => assert.match(js, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))));
+});
+
+test("landing section titles use wide editorial layout and no decorative status mark", () => {
+  const js = read("app.js");
+  const css = read("style.css");
+
+  assert.match(js, /landing-band--modules/);
+  assert.match(js, /landing-band__head/);
+  assert.match(js, /landing-title landing-title--wide/);
+  assert.match(js, /Plateforme en développement actif, ouverte aux collaborations\./);
+  assert.doesNotMatch(js, /landing-status__mark/);
+  assert.match(css, /\.landing-title--wide[\s\S]*max-width:\s*min\(100%,\s*34ch\)/);
+  assert.match(css, /\.landing-band--modules[\s\S]*text-align:\s*center/);
+});
+
+test("Chronos and Pantheon controls have optimized module-specific layouts", () => {
+  const js = read("app.js");
+  const css = read("style.css");
+
+  assert.match(js, /tm-chronos-track/);
+  assert.match(js, /data-chronos-era/);
+  assert.match(js, /tm-chronos-spine__stats/);
+  assert.match(js, /controlsClass:\s*"tm-tech-controls--pantheon"/);
+  assert.match(js, /options\.controlsClass/);
+  assert.match(css, /\.tm-tech-controls--pantheon[\s\S]*grid-template-columns/);
+});
+
+test("Feed prioritizes timeline space for connected users and uses clearer editorial copy", () => {
+  const js = read("app.js");
+
+  assert.match(js, /tm-feed--connected/);
+  assert.match(js, /Partager l’avancement réel du projet\./);
+  assert.doesNotMatch(js, /Publier des étapes, pas du bruit\./);
+  assert.match(js, /\.tm-feed--connected[\s\S]*grid-template-columns:\s*minmax\(240px,\s*\.32fr\)\s+minmax\(0,\s*1\.68fr\)/);
+});
+
+test("Contact module uses TEOMARCHI contact details instead of placeholders", () => {
+  const js = read("app.js");
+
+  assert.match(js, /Contacter TEOMARCHI/);
+  assert.doesNotMatch(js, /Contacter Jonathan Yav/);
+  assert.match(js, /@teomarchi\.co/);
+  assert.match(js, /En attente de création/);
+  assert.match(js, /teomarchi\.com/);
+  assert.doesNotMatch(js, /Placeholder officiel à connecter|Placeholder domaine TEOMARCHI/);
 });

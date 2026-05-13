@@ -266,7 +266,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       },
       {
         title: "Contact",
-        body: "Contact direct pour proposer un partenariat, devenir sponsor ou échanger avec Jonathan Yav."
+        body: "Contact direct pour proposer un partenariat, devenir sponsor ou échanger avec TEOMARCHI."
       }
     ];
 
@@ -355,10 +355,10 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
           </div>
         </section>
 
-        <section class="landing-band">
-          <div>
+        <section class="landing-band landing-band--modules">
+          <div class="landing-band__head">
             <p class="landing-kicker">Modules principaux</p>
-            <h2 class="landing-title">Une bibliothèque active pour concevoir.</h2>
+            <h2 class="landing-title landing-title--wide">Une bibliothèque active pour concevoir.</h2>
           </div>
           <div class="landing-modules-grid">
             ${[
@@ -377,10 +377,10 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
           </div>
         </section>
 
-        <section class="landing-band">
-          <div>
+        <section class="landing-band landing-band--premium">
+          <div class="landing-band__head">
             <p class="landing-kicker">Offres premium</p>
-            <h2 class="landing-title">Publier, prescrire, se rendre visible.</h2>
+            <h2 class="landing-title landing-title--wide">Publier les projets, prescrire les ressources, gagner en visibilité.</h2>
             <p class="landing-copy">
               Les abonnements préparent l'accès aux outils avancés, au Showroom, à la publication,
               aux mises en avant et aux futurs espaces professionnels.
@@ -413,15 +413,14 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         </section>
 
         <section class="landing-status">
-          <div>
+          <div class="landing-band__head">
             <p class="landing-kicker">État du projet</p>
-            <h2 class="landing-title">Plateforme en développement actif.</h2>
+            <h2 class="landing-title landing-title--wide">Plateforme en développement actif, ouverte aux collaborations.</h2>
             <p class="landing-copy">
               TEOMARCHI se construit comme une future plateforme architecturale mondiale :
               culturelle, technique, communautaire et ouverte aux collaborations.
             </p>
           </div>
-          <div class="landing-status__mark" aria-hidden="true">A</div>
         </section>
 
         <section class="landing-band">
@@ -478,8 +477,8 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
               <a class="text-btn text-btn--gold" href="mailto:teomarchi@teomarchi.com?subject=Partenariat%20TEOMARCHI">
                 Proposer un partenariat
               </a>
-              <a class="text-btn" href="mailto:teomarchi@teomarchi.com?subject=Contact%20Jonathan%20Yav">
-                Contacter Jonathan Yav
+              <a class="text-btn" href="mailto:teomarchi@teomarchi.com?subject=Contact%20TEOMARCHI">
+                Contacter TEOMARCHI
               </a>
               <a class="text-btn" href="mailto:teomarchi@teomarchi.com?subject=Devenir%20sponsor%20TEOMARCHI">
                 Devenir sponsor
@@ -536,15 +535,15 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
             </article>
             <article>
               <span>Instagram</span>
-              <p>Placeholder officiel à connecter</p>
+              <a href="https://instagram.com/teomarchi.co" target="_blank" rel="noopener">@teomarchi.co</a>
             </article>
             <article>
               <span>LinkedIn</span>
-              <p>Placeholder officiel à connecter</p>
+              <p>En attente de création</p>
             </article>
             <article>
               <span>Site officiel</span>
-              <p>Placeholder domaine TEOMARCHI</p>
+              <a href="https://teomarchi.com" target="_blank" rel="noopener">teomarchi.com</a>
             </article>
           </section>
         </div>
@@ -3431,7 +3430,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     container.innerHTML = `
       <div class="tm-tech tm-tech--${_esc(id)} tm-${_esc(id)} tm-shell tm-reveal" data-tech-shell="${_esc(id)}">
         ${options.visualIntro ? options.visualIntro(visualContext) : ""}
-        <div class="tm-tech-controls">
+        <div class="tm-tech-controls ${_esc(options.controlsClass || "")}">
           <label class="field tm-tech-search">
             <input type="search" data-tech-search placeholder="${_esc(options.searchPlaceholder || "Rechercher...")}"
                    value="${_esc(state.query)}" autocomplete="off" />
@@ -4579,15 +4578,31 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
 
   const _chronosVisualIntro = ({ filtered = [] } = {}) => `
     <section class="tm-editorial-panel tm-chronos-spine tm-chronos-hero" aria-label="Ligne du temps constructive">
-      <p class="tm-tech-kicker">Frise matière-époque</p>
-      <h3>Lire l’histoire par la portée, l’outil et la matière.</h3>
-      <p class="tm-tech-muted">${_esc(filtered.length)} périodes techniques visibles. Sélectionnez une époque, puis comparez deux périodes pour mesurer les ruptures.</p>
-      <div class="tm-chronos-line" aria-hidden="true"></div>
-      <div class="tm-chronos-era-scale" aria-hidden="true">
-        <span>Origines</span>
-        <span>Industrie</span>
-        <span>Numérique</span>
-        <span>Bas-carbone</span>
+      <div class="tm-chronos-spine__head">
+        <p class="tm-tech-kicker">Frise matière-époque</p>
+        <h3>Lire l’histoire par la portée, l’outil et la matière.</h3>
+        <p class="tm-tech-muted">${_esc(filtered.length)} périodes techniques visibles. Sélectionnez une époque, puis comparez deux périodes pour mesurer les ruptures.</p>
+      </div>
+      <div class="tm-chronos-track" aria-label="Repères de la frise matière-époque">
+        ${[
+          ["Origines", "Pierre massive"],
+          ["Antiquité", "Voûtes et ordres"],
+          ["Industrie", "Acier et verre"],
+          ["Moderne", "Béton armé"],
+          ["Numérique", "Paramétrique"],
+          ["Bas-carbone", "Biosourcé"]
+        ].map(([era, matter], index) => `
+          <span class="tm-chronos-era" data-chronos-era="${_esc(era)}" style="--i:${index}">
+            <strong>${_esc(era)}</strong>
+            <small>${_esc(matter)}</small>
+          </span>
+        `).join("")}
+      </div>
+      <div class="tm-chronos-spine__stats" aria-label="Lecture rapide Chronos">
+        <span>${_esc(filtered.length)} périodes</span>
+        <span>matière dominante</span>
+        <span>portée typique</span>
+        <span>rupture technique</span>
       </div>
     </section>
   `;
@@ -4681,6 +4696,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
   const _pantheonOptions = {
     id: "pantheon",
     visualIntro: _pantheonVisualIntro,
+    controlsClass: "tm-tech-controls--pantheon",
     titleKey: "nom",
     subtitleKeys: ["epoque", "pays", "doctrine"],
     searchPlaceholder: "Rechercher architecte, pays, doctrine...",
@@ -7538,6 +7554,8 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     s.id = "tm-feed-social-css";
     s.textContent = `
       .tm-feed { display:grid; grid-template-columns:minmax(0,.72fr) minmax(0,1.28fr); gap:1.2rem; min-width:0; }
+      .tm-feed--connected { grid-template-columns:minmax(240px,.32fr) minmax(0,1.68fr); }
+      .tm-feed--connected .tm-feed-timeline { min-height:calc(100dvh - 150px); }
       .tm-feed-wall { align-items:start; }
       .tm-feed-editorial { margin-bottom:1rem; }
       .tm-feed-editorial h3 {
@@ -7927,12 +7945,12 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     if (!root) return;
     injectFeedCSS();
     root.innerHTML = `
-      <div class="tm-feed tm-feed-wall tm-shell tm-reveal">
+      <div class="tm-feed tm-feed-wall ${getFirebaseUser() ? "tm-feed--connected" : "tm-feed--visitor"} tm-shell tm-reveal">
         <aside>
           <section class="tm-feed-editorial tm-editorial-panel">
             <p class="tm-tech-kicker">Mur d’évolution architecturale</p>
-            <h3>Publier des étapes, pas du bruit.</h3>
-            <p>Plans, maquettes, rendus, croquis, essais de matière et progression de projet.</p>
+            <h3>Partager l’avancement réel du projet.</h3>
+            <p>Plans, maquettes, rendus, croquis, essais de matière et décisions constructives.</p>
           </section>
           ${renderFeedComposer()}
         </aside>
