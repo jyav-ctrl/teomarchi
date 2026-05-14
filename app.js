@@ -408,17 +408,22 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     function renderDemoJournalierPreview() {
       const project = getDemoContent("journalier");
       if (!project) return "";
+      const progress = Math.max(0, Math.min(100, Number(project.progress || 0)));
+      const tasks = Array.isArray(project.tasks) ? project.tasks : [];
       return `
         <section class="tm-demo-preview" data-demo-surface="journalier">
           ${renderDemoBadge(project.label || "Démo")}
           <h3>${escapeHTML(project.title)}</h3>
-          <p>Progression exemple : ${Number(project.progress || 0)}% · ${escapeHTML(project.deadline || "Jalon pédagogique")}</p>
+          <p>Progression exemple : ${progress}% · ${escapeHTML(project.deadline || "Jalon pédagogique")}</p>
+          <div class="tm-demo-progress" aria-hidden="true"><span style="width:${progress}%"></span></div>
+          ${tasks.length ? `<p>${tasks.map(task => escapeHTML(task)).join(" · ")}</p>` : ""}
         </section>
       `;
     }
 
     function renderDemoShowroomPreview() {
       const items = getDemoContent("showroom") || [];
+      if (!items.length) return "";
       return `
         <section class="tm-demo-preview" data-demo-surface="showroom">
           ${renderDemoBadge("Démo")}
@@ -436,11 +441,13 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     function renderDemoProfilePreview() {
       const profile = getDemoContent("profil");
       if (!profile) return "";
+      const specialties = Array.isArray(profile.specialties) ? profile.specialties : [];
       return `
         <section class="tm-demo-preview" data-demo-surface="profil">
           ${renderDemoBadge(profile.label || "Démo")}
           <h3>${escapeHTML(profile.displayName)}</h3>
           <p>${escapeHTML(profile.bio)}</p>
+          ${specialties.length ? `<p>${specialties.map(item => escapeHTML(item)).join(" · ")}</p>` : ""}
         </section>
       `;
     }
@@ -3071,6 +3078,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
 
     const state = _journalierState();
     const project = state.projects[state.activeProjectType] || { ...JOURNALIER_EMPTY_PROJECT };
+    const demoPreview = shouldShowDemoContent("journalier") ? renderDemoJournalierPreview() : "";
 
     root.innerHTML = `
       <div class="tm-journalier tm-journalier-workbench tm-shell tm-reveal" aria-label="Centre de gestion Journalier">
@@ -3088,6 +3096,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
           `).join("")}
         </nav>
 
+        ${demoPreview}
         ${_renderDashboard(state, project)}
 
         <div class="tm-journalier-grid">
@@ -6507,6 +6516,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     }
 
     if (!user) {
+      const demoPreview = shouldShowDemoContent("profil") ? renderDemoProfilePreview() : "";
       root.innerHTML = `
         <div class="tm-profile-empty">
           <p style="margin:0 0 .28rem;text-transform:uppercase;letter-spacing:.16em;font-size:.58rem;color:var(--gold)">Profil</p>
@@ -6514,6 +6524,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
           <p style="margin:0 auto 1.2rem;max-width:44ch;color:var(--muted);font-size:.82rem;line-height:1.65">
             Vos publications du Feed utiliseront uniquement les informations de votre compte connecté et de votre profil sauvegardé.
           </p>
+          ${demoPreview}
           <button class="text-btn text-btn--primary" type="button" data-open-login>Connexion</button>
         </div>
       `;
@@ -6795,6 +6806,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
 
     root.className     = "";
     root.style.cssText = "";
+    const demoPreview = shouldShowDemoContent("showroom") ? renderDemoShowroomPreview() : "";
 
     root.innerHTML = `
       <div class="tm-showroom tm-showroom-gallery tm-shell tm-reveal">
@@ -6820,6 +6832,8 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
             </div>
           </div>
         </section>
+
+        ${demoPreview}
 
         <section class="tm-showroom-access">
           <article class="tm-showroom-access-card">
