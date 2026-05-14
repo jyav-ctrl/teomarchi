@@ -430,6 +430,19 @@ test("Showroom exposes a premium architectural gallery identity", () => {
   ].forEach(token => assert.match(js, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))));
 });
 
+test("empty public modules can show demo previews without overriding real user data", () => {
+  const js = read("app.js");
+
+  assert.match(js, /function\s+renderDemoFeedTimeline\s*\(/);
+  assert.match(js, /function\s+renderDemoJournalierPreview\s*\(/);
+  assert.match(js, /function\s+renderDemoShowroomPreview\s*\(/);
+  assert.match(js, /function\s+renderDemoProfilePreview\s*\(/);
+  assert.match(js, /getFirebaseUser/);
+  assert.match(js, /shouldShowDemoContent\("feed"\)/);
+  assert.match(js, /renderFeedPosts/);
+  assert.match(js, /renderDemoFeedTimeline/);
+});
+
 test("SPA routing and UI actions are handled by delegated click listeners", () => {
   const js = read("app.js");
 
@@ -595,6 +608,30 @@ test("demo user data is disabled by default and never creates a fake local sessi
   assert.match(js, /Aucun rendu publié|Bientôt disponible/);
 });
 
+test("demo content is clearly marked and does not create fake user sessions", () => {
+  const js = read("app.js");
+
+  [
+    "DATA_DEMO_FEED",
+    "DATA_DEMO_PROJECT",
+    "DATA_DEMO_SHOWROOM",
+    "DATA_DEMO_PROFILE",
+    "renderDemoBadge",
+    "getDemoContent",
+    "shouldShowDemoContent"
+  ].forEach(token => {
+    assert.match(js, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  });
+
+  assert.match(js, /isDemo:\s*true/);
+  assert.match(js, /Démo/);
+  assert.doesNotMatch(js, /(?:localStorage\.setItem|store\.set)\((?:STORAGE\.session|"teomarchi\.session")[\s\S]{0,240}DATA_DEMO/);
+  assert.doesNotMatch(js, /DATA_DEMO[\s\S]{0,240}(?:localStorage\.setItem|store\.set)\((?:STORAGE\.session|"teomarchi\.session")/);
+  assert.doesNotMatch(js, /TEOMARCHI_APP\.session\.set\(\{[\s\S]{0,320}DATA_DEMO/);
+  assert.doesNotMatch(js, /DATA_DEMO[\s\S]{0,320}TEOMARCHI_APP\.session\.set\(\{/);
+  assert.doesNotMatch(js, /authorId:\s*"demo-user"/);
+});
+
 test("public client config is isolated and documents secret boundaries", () => {
   const js = read("app.js");
 
@@ -688,6 +725,22 @@ test("home page explains TEOMARCHI identity and exposes clear CTAs", () => {
   assert.match(js, /Trois exemples concrets avant de créer un compte/);
   assert.match(js, /Belgique[\s\S]*Brique[\s\S]*humidité[\s\S]*isolation continue/i);
   assert.match(js, /landing-premium-grid/);
+});
+
+test("landing exposes onboarding actions and start checklist", () => {
+  const js = read("app.js");
+  const css = read("style.css");
+
+  assert.match(js, /function\s+initOnboarding\s*\(/);
+  assert.match(js, /function\s+renderOnboardingWelcome\s*\(/);
+  assert.match(js, /function\s+renderStartChecklist\s*\(/);
+  assert.match(js, /Démarrer avec TEOMARCHI/);
+  assert.match(js, /Lancer la visite guidée/);
+  assert.match(js, /Voir une démo/);
+  assert.match(js, /data-onboarding-start/);
+  assert.match(js, /data-demo-open/);
+  assert.match(css, /\.tm-onboarding/);
+  assert.match(css, /\.tm-start-checklist/);
 });
 
 test("showroom is a premium scalable architectural marketplace shell", () => {
