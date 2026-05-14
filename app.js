@@ -405,6 +405,46 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       return DEMO_SURFACES.includes(normalizedSurface);
     }
 
+    function renderDemoJournalierPreview() {
+      const project = getDemoContent("journalier");
+      if (!project) return "";
+      return `
+        <section class="tm-demo-preview" data-demo-surface="journalier">
+          ${renderDemoBadge(project.label || "Démo")}
+          <h3>${escapeHTML(project.title)}</h3>
+          <p>Progression exemple : ${Number(project.progress || 0)}% · ${escapeHTML(project.deadline || "Jalon pédagogique")}</p>
+        </section>
+      `;
+    }
+
+    function renderDemoShowroomPreview() {
+      const items = getDemoContent("showroom") || [];
+      return `
+        <section class="tm-demo-preview" data-demo-surface="showroom">
+          ${renderDemoBadge("Démo")}
+          ${items.map(item => `
+            <article>
+              <strong>${escapeHTML(item.title)}</strong>
+              <span>${escapeHTML(item.category)}</span>
+              <p>${escapeHTML(item.text)}</p>
+            </article>
+          `).join("")}
+        </section>
+      `;
+    }
+
+    function renderDemoProfilePreview() {
+      const profile = getDemoContent("profil");
+      if (!profile) return "";
+      return `
+        <section class="tm-demo-preview" data-demo-surface="profil">
+          ${renderDemoBadge(profile.label || "Démo")}
+          <h3>${escapeHTML(profile.displayName)}</h3>
+          <p>${escapeHTML(profile.bio)}</p>
+        </section>
+      `;
+    }
+
     /* ── État ─────────────────────────────────────────────────── */
     let currentModule = "atlas";
     let aiBooted = false;
@@ -8013,19 +8053,60 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     `;
   }
 
+  function renderFeedPosts(posts) {
+    const timeline = document.getElementById("feed-timeline");
+    if (!timeline) return;
+    timeline.innerHTML = posts.map(renderPost).join("");
+  }
+
+  function renderDemoFeedTimeline() {
+    const posts = getDemoContent("feed") || [];
+    return `
+      <div class="tm-demo-feed" aria-label="Feed public de démonstration">
+        ${posts.map(post => `
+          <article class="tm-feed-post tm-feed-post--demo" data-demo-post-id="${_esc(post.id)}">
+            <header class="tm-feed-author">
+              <div class="tm-feed-avatar" aria-hidden="true">TM</div>
+              <div style="min-width:0;flex:1">
+                <strong>${_esc(post.authorName || "Atelier TEOMARCHI")}</strong>
+                <span>${renderDemoBadge(post.label || "Démo")} · Exemple public sans utilisateur</span>
+              </div>
+            </header>
+            <div class="tm-feed-text">${_esc(post.text || "")}</div>
+            ${Array.isArray(post.tags) && post.tags.length ? `
+              <div class="tm-feed-tags" aria-label="Tags de démonstration">
+                ${post.tags.map(tag => `<span>${_esc(tag)}</span>`).join("")}
+              </div>
+            ` : ""}
+            <div class="tm-feed-demo-stats" aria-label="Statistiques de démonstration non interactives">
+              <span>Like · ${Number(post.likeCount || 0)}</span>
+              <span>Commentaire · ${Number(post.commentCount || 0)}</span>
+              <span>Republication · ${Number(post.repostCount || 0)}</span>
+            </div>
+          </article>
+        `).join("")}
+        <div class="tm-feed-empty">
+          <p style="font-family:var(--serif);font-size:1.55rem;font-weight:300;margin:0 0 .4rem;color:var(--ink)">Feed de démonstration</p>
+          <p style="margin:0 0 1rem;color:var(--muted);font-size:.82rem">Ces publications sont des exemples statiques. Connectez-vous pour publier, commenter ou signaler un vrai contenu.</p>
+          <button class="text-btn text-btn--primary" type="button" data-open-login>Connexion</button>
+        </div>
+      </div>
+    `;
+  }
+
   function renderFeedTimeline(posts) {
     const timeline = document.getElementById("feed-timeline");
     if (!timeline) return;
-    if (!posts.length) {
-      timeline.innerHTML = `
-        <div class="tm-feed-empty">
-          <p style="font-family:var(--serif);font-size:1.9rem;font-weight:300;margin:0 0 .4rem;color:var(--ink)">Aucun rendu publié</p>
-          <p style="margin:0;color:var(--muted);font-size:.82rem">Le Feed est vide pour le moment.</p>
-        </div>
-      `;
+    if (posts.length) {
+      renderFeedPosts(posts);
       return;
     }
-    timeline.innerHTML = posts.map(renderPost).join("");
+    timeline.innerHTML = `
+      <div class="tm-feed-empty">
+        <p style="font-family:var(--serif);font-size:1.9rem;font-weight:300;margin:0 0 .4rem;color:var(--ink)">Aucun rendu publié</p>
+        <p style="margin:0;color:var(--muted);font-size:.82rem">Le Feed est vide pour le moment.</p>
+      </div>
+    `;
   }
 
   function subscribeToFeed() {
@@ -8037,6 +8118,10 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       _feedUnsubscribe = null;
     }
     if (!db) {
+      if (shouldShowDemoContent("feed")) {
+        timeline.innerHTML = renderDemoFeedTimeline();
+        return;
+      }
       timeline.innerHTML = `<div class="tm-feed-empty">Service temps réel indisponible. Le Feed ne peut pas être chargé pour le moment.</div>`;
       return;
     }
@@ -8053,7 +8138,13 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
           if (data.status === "hidden" && !canModerate) return;
           _feedPosts.push(data);
         });
-        renderFeedTimeline(_feedPosts);
+        if (_feedPosts.length) {
+          renderFeedPosts(_feedPosts);
+        } else if (shouldShowDemoContent("feed")) {
+          timeline.innerHTML = renderDemoFeedTimeline();
+        } else {
+          renderFeedTimeline(_feedPosts);
+        }
       }, err => {
         console.error("Erreur Feed Firestore :", err);
         timeline.innerHTML = `<div class="tm-feed-empty">Erreur de chargement du Feed.</div>`;
