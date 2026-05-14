@@ -679,11 +679,14 @@ test("home page explains TEOMARCHI identity and exposes clear CTAs", () => {
   assert.match(html, /data-nav="atlas"[\s\S]*Explorer l’Atlas/);
   assert.match(html, /data-open-login[\s\S]*Créer un compte/);
   assert.match(html, /Pourquoi TEOMARCHI/);
-  assert.match(html, /Jonathan YAV[\s\S]*étudiant en architecture/i);
-  assert.match(html, /Plateforme en développement actif/);
+  assert.match(html, /créée par Jonathan YAV/i);
+  assert.match(html, /Bibliothèque architecturale, outils de conception/);
   assert.match(html, /Collaboration|Sponsors|Communauté/);
   assert.match(js, /function\s+initLandingSections\s*\(/);
   assert.match(js, /landing-modules-grid/);
+  assert.match(js, /landing-proof-grid/);
+  assert.match(js, /Trois exemples concrets avant de créer un compte/);
+  assert.match(js, /Belgique[\s\S]*Brique[\s\S]*humidité[\s\S]*isolation continue/i);
   assert.match(js, /landing-premium-grid/);
 });
 
@@ -942,6 +945,8 @@ test("legal copy and landing shell do not expose raw placeholders or empty prepa
   assert.doesNotMatch(html, /À compléter avant mise en production/i);
   assert.doesNotMatch(html, /contenu en préparation/i);
   assert.doesNotMatch(html, /Produits partenaires prescriptibles — contenu en préparation/i);
+  assert.doesNotMatch(html, /données chargées dynamiquement|contenu en chargement|flux Firestore|Plateforme en développement actif/i);
+  assert.doesNotMatch(html, /localStorage/);
 });
 
 test("journalier persistence is prepared for Firestore with local fallback and visible save status", () => {
@@ -951,7 +956,7 @@ test("journalier persistence is prepared for Firestore with local fallback and v
   assert.match(js, /function\s+setSaveStatus\s*\(/);
   assert.match(js, /id="journalier-save-status"/);
   assert.match(js, /collection\("users"\)\.doc\(user\.uid\)\.collection\("journalier"\)/);
-  assert.match(js, /Mode local|Sauvegarde cloud|Firestore indisponible/);
+  assert.match(js, /Sauvegarde navigateur|Sauvegarde cloud|cloud indisponible/);
 });
 
 test("admin exposes a simple organic acquisition playbook", () => {
@@ -976,7 +981,7 @@ test("landing section titles use wide editorial layout and no decorative status 
   assert.match(js, /landing-band--modules/);
   assert.match(js, /landing-band__head/);
   assert.match(js, /landing-title landing-title--wide/);
-  assert.match(js, /Plateforme en développement actif, ouverte aux collaborations\./);
+  assert.match(js, /Plateforme évolutive, ouverte aux collaborations sélectives\./);
   assert.doesNotMatch(js, /landing-status__mark/);
   assert.match(css, /\.landing-title--wide[\s\S]*max-width:\s*min\(100%,\s*34ch\)/);
   assert.match(css, /\.landing-band--modules[\s\S]*text-align:\s*center/);

@@ -266,8 +266,8 @@
           <div class="module-empty">
             <p class="module-empty__title">TEOMARCHI</p>
             <p class="module-empty__sub">
-              Jonathan YAV, étudiant en architecture, développe TEOMARCHI comme une Plateforme en développement actif.
-              Collaboration, Sponsors, Communauté.
+              Bibliothèque architecturale, outils de conception, références techniques
+              et espaces de collaboration pour apprendre et structurer les projets.
             </p>
           </div>
         </section>
@@ -296,7 +296,7 @@
               <path d="M3 12h18M12 3c-2.5 3-4 5.5-4 9s1.5 6 4 9M12 3c2.5 3 4 5.5 4 9s-1.5 6-4 9"/>
             </svg>
             <p class="module-empty__title">Atlas</p>
-            <p class="module-empty__sub">Géographie des systèmes constructifs — données chargées dynamiquement.</p>
+            <p class="module-empty__sub">Comparez climats, matières, systèmes constructifs et leçons de projet.</p>
           </div>
         </div>
       </section>
@@ -324,7 +324,7 @@
               <path d="M12 7v5l3 3"/>
             </svg>
             <p class="module-empty__title">Chronos</p>
-            <p class="module-empty__sub">Frise de l'Antiquité au bas-carbone — données chargées dynamiquement.</p>
+            <p class="module-empty__sub">Lisez l'histoire par la matière, la portée, les outils et les ruptures techniques.</p>
           </div>
         </div>
       </section>
@@ -351,7 +351,7 @@
               <path d="M3 20h18M5 20V10M19 20V10M9 20V10M15 20V10M12 4l8 6H4l8-6z"/>
             </svg>
             <p class="module-empty__title">Panthéon</p>
-            <p class="module-empty__sub">Maîtres fondateurs — données chargées dynamiquement.</p>
+            <p class="module-empty__sub">Explorez doctrines, systèmes favoris, matières dominantes et influences.</p>
           </div>
         </div>
       </section>
@@ -378,7 +378,7 @@
               <path d="M14 2v6h6M9 13h6M9 17h4"/>
             </svg>
             <p class="module-empty__title">Normes & Villes</p>
-            <p class="module-empty__sub">Belgique, France, Suisse — contenu réglementaire indicatif en chargement</p>
+            <p class="module-empty__sub">Belgique, France, Suisse — repères pédagogiques à vérifier auprès des sources officielles.</p>
           </div>
         </div>
       </section>
@@ -405,7 +405,7 @@
               <path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/>
             </svg>
             <p class="module-empty__title">Études</p>
-            <p class="module-empty__sub">Filières, écoles, villes et débouchés — contenu en chargement</p>
+            <p class="module-empty__sub">Filières, écoles, villes, logiciels et débouchés pour choisir un parcours.</p>
           </div>
         </div>
       </section>
@@ -433,7 +433,7 @@
               <path d="M3 9h18M9 21V9"/>
             </svg>
             <p class="module-empty__title">Feed</p>
-            <p class="module-empty__sub">Rendus et plans protégés — flux Firestore en temps réel.</p>
+            <p class="module-empty__sub">Connectez-vous pour publier, commenter, aimer et suivre les projets.</p>
           </div>
         </div>
       </section>
@@ -461,7 +461,7 @@
               <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
             </svg>
             <p class="module-empty__title">Profil</p>
-            <p class="module-empty__sub">Page publique et portfolio protégé — profil Firebase/Firestore.</p>
+            <p class="module-empty__sub">Page publique, portfolio protégé et identité de projet connectée.</p>
           </div>
         </div>
       </section>
@@ -584,7 +584,7 @@
         <div id="contact-layout">
           <div class="module-empty">
             <p class="module-empty__title">Contact & Sponsors</p>
-            <p class="module-empty__sub">Dossier sponsor et canaux de contact — contenu en chargement</p>
+            <p class="module-empty__sub">Partenariats, sponsoring, collaborations écoles et contact officiel TEOMARCHI.</p>
           </div>
         </div>
       </section>
@@ -651,8 +651,8 @@
         TEOMARCHI, ses textes, structures, modules, données, interfaces, schémas de navigation,
         fiches et journaux de bord constituent une création originale. Toute reproduction,
         extraction, adaptation, diffusion ou plagiat sans autorisation écrite est interdit.
-        Les données de session, de thème, de messages et de journal sont conservées localement
-        via <code style="font-family:var(--mono);font-size:.92em">localStorage</code>.
+        Les données personnelles et publications connectées ont vocation à être traitées
+        par Firebase ; les préférences locales restent limitées au navigateur.
       </p>
     </div>
   </aside>
@@ -680,8 +680,8 @@
       <div>
         <h3 class="footer__heading">Confidentialité</h3>
         <p class="footer__body">
-          <code style="font-family:var(--mono);font-size:.92em">localStorage</code> :
-          session utilisateur, mode sombre, messages, journal de bord et matériaux sélectionnés.
+          Firebase gère l'authentification et les données connectées. Le navigateur conserve
+          seulement certaines préférences locales non sensibles.
         </p>
       </div>
     </div>
@@ -822,7 +822,8 @@
                   <h3>1. Description du service</h3>
                   <p>
                     TEOMARCHI est une plateforme numérique de ressources professionnelles destinée
-                    aux architectes, étudiants en architecture et ateliers de projet. Elle met à disposition :
+                    en priorité aux étudiants en architecture, jeunes concepteurs, designers d'espace
+                    et créateurs liés à l'habitat. Elle met à disposition :
                   </p>
                   <ul>
                     <li>Un <strong>Atlas mondial</strong> des systèmes constructifs</li>
@@ -836,19 +837,23 @@
                 <div class="doc-section">
                   <h3>2. Offres et tarification</h3>
                   <h4>Offre Gratuit</h4>
-                  <p>Accès limité à certains modules en lecture. Aucun paiement requis.</p>
+                  <p>
+                    Accès de découverte aux bases éditoriales et pédagogiques. Aucun paiement requis.
+                    Cet accès permet d'évaluer la qualité du contenu avant toute souscription.
+                  </p>
 
                   <h4>Offre Studio — 29 € / mois</h4>
                   <p>
-                    Accès complet à l'ensemble des modules, journal de bord illimité, export PDF,
-                    normothèque intégrale et profil public portfolio. Abonnement mensuel sans engagement,
-                    résiliable à tout moment.
+                    Offre destinée aux indépendants, jeunes studios et concepteurs qui utilisent
+                    TEOMARCHI comme outil de travail régulier : outils avancés, journal de projet,
+                    IA TEOMARCHI et sauvegarde cloud selon les fonctionnalités disponibles dans l'interface.
+                    Abonnement mensuel sans engagement, résiliable à tout moment.
                   </p>
 
                   <h4>Offre Agence — 89 € / mois</h4>
                   <p>
-                    Toutes les fonctionnalités Studio, avec en plus la gestion d'équipe, la messagerie
-                    collaborative, le tableau de bord agence et l'archivage sécurisé 5 ans.
+                    Offre destinée aux agences, partenaires et structures qui souhaitent publier,
+                    sponsoriser ou préparer une présence professionnelle dans le Showroom.
                     Abonnement mensuel sans engagement, résiliable à tout moment.
                   </p>
 
@@ -875,9 +880,10 @@
                 <div class="doc-section">
                   <h3>4. Accès au service</h3>
                   <p>
-                    L'accès aux modules selon l'offre souscrite est ouvert <strong>immédiatement</strong>
-                    après confirmation du paiement par Stripe. L'utilisateur reconnaît que le service
-                    est pleinement accessible dès cet instant.
+                    L'accès aux fonctionnalités incluses dans l'offre souscrite est ouvert après
+                    confirmation du paiement par Stripe. Les fonctionnalités expérimentales ou
+                    signalées comme évolutives peuvent être adaptées, complétées ou remplacées
+                    afin d'améliorer la qualité du service.
                   </p>
                 </div>
 
@@ -1015,12 +1021,12 @@
                     votre abonnement et la date de renouvellement.
                   </p>
 
-                  <h4>Données de navigation</h4>
+                  <h4>Données de navigation et préférences locales</h4>
                   <p>
-                    Vos préférences d'affichage (thème sombre/clair), votre journal de bord,
-                    vos messages et votre progression sont stockés localement dans le
-                    <code style="font-family:var(--mono);font-size:.88em">localStorage</code>
-                    de votre navigateur. Ces données ne quittent pas votre appareil.
+                    Vos préférences d'affichage, certains réglages non sensibles et des états
+                    temporaires peuvent être conservés localement dans votre navigateur. Les données
+                    connectées comme le profil, les publications, les commentaires et les sauvegardes
+                    cloud ont vocation à être traitées via Firebase lorsque vous êtes authentifié.
                   </p>
                 </div>
 
@@ -1055,7 +1061,7 @@
                   <ul>
                     <li>Données de compte (Firebase) : conservées tant que le compte est actif, puis supprimées sous 30 jours après demande</li>
                     <li>Données de paiement (Stripe) : selon la politique de Stripe, minimum 5 ans pour obligations légales comptables</li>
-                    <li>Données locales (localStorage) : stockées sur votre appareil, supprimables à tout moment depuis les paramètres de votre navigateur</li>
+                    <li>Préférences locales : conservées sur votre appareil, supprimables à tout moment depuis les paramètres de votre navigateur</li>
                   </ul>
                 </div>
 
@@ -1085,8 +1091,9 @@
                   <h3>7. Cookies</h3>
                   <p>
                     TEOMARCHI n'utilise pas de cookies de traçage ou publicitaires.
-                    Le seul stockage côté navigateur est le <code style="font-family:var(--mono);font-size:.88em">localStorage</code>
-                    utilisé pour vos préférences locales (thème, journal, messages). Aucun cookie tiers n'est déposé.
+                    Le stockage côté navigateur est limité aux préférences locales et aux états
+                    temporaires nécessaires à l'expérience utilisateur. Aucun cookie tiers publicitaire
+                    n'est déposé.
                   </p>
                 </div>
 

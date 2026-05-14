@@ -343,14 +343,15 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
             <h2 class="landing-title">Une infrastructure de conception.</h2>
           </div>
           <div class="landing-card">
-            <h3>Jonathan YAV, étudiant en architecture</h3>
+            <h3>TEOMARCHI, projet issu de l'atelier</h3>
             <p>
-              TEOMARCHI naît d'un besoin concret d'atelier : rendre l'architecture plus lisible,
-              mieux structurée et plus accessible, sans perdre l'exigence technique du projet.
+              TEOMARCHI naît d'un besoin concret d'études et de conception : rendre
+              les références, normes, matériaux et méthodes plus lisibles sans perdre
+              l'exigence technique du projet.
             </p>
             <p>
-              La plateforme connecte références, outils, journal de projet, communauté, profils,
-              partenaires et futurs espaces de publication dans un même environnement sobre.
+              Le service s'adresse d'abord aux étudiants et jeunes concepteurs qui ont
+              besoin d'une base claire pour apprendre, comparer et structurer leurs projets.
             </p>
           </div>
         </section>
@@ -377,30 +378,62 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
           </div>
         </section>
 
+        <section class="landing-band landing-band--proof">
+          <div class="landing-band__head">
+            <p class="landing-kicker">Aperçu gratuit</p>
+            <h2 class="landing-title landing-title--wide">Trois exemples concrets avant de créer un compte.</h2>
+            <p class="landing-copy">
+              TEOMARCHI doit prouver sa valeur par le contenu : références constructives,
+              normes utiles et lecture technique des figures architecturales.
+            </p>
+          </div>
+          <div class="landing-proof-grid">
+            <article class="landing-proof-card" data-nav="atlas" role="button" tabindex="0">
+              <p class="landing-kicker">Atlas · Belgique</p>
+              <h3>Brique, humidité, isolation continue.</h3>
+              <p>Lecture d'un système courant : façade maçonnée, ponts thermiques à maîtriser, ventilation contrôlée et inertie modérée.</p>
+              <span>Voir l'Atlas</span>
+            </article>
+            <article class="landing-proof-card" data-nav="outils" role="button" tabindex="0">
+              <p class="landing-kicker">Outils · Échelle</p>
+              <h3>5 m réels deviennent 100 mm au 1/50.</h3>
+              <p>Conversion immédiate pour passer du réel au plan, comparer une échelle standard et éviter les erreurs de rendu.</p>
+              <span>Tester les outils</span>
+            </article>
+            <article class="landing-proof-card" data-nav="pantheon" role="button" tabindex="0">
+              <p class="landing-kicker">Panthéon · Lina Bo Bardi</p>
+              <h3>Béton, usage social, structure habitée.</h3>
+              <p>Une fiche relie doctrine, matériau dominant, oeuvre repère, apport technique et leçon de projet.</p>
+              <span>Explorer le Panthéon</span>
+            </article>
+          </div>
+        </section>
+
         <section class="landing-band landing-band--premium">
           <div class="landing-band__head">
-            <p class="landing-kicker">Offres premium</p>
-            <h2 class="landing-title landing-title--wide">Publier les projets, prescrire les ressources, gagner en visibilité.</h2>
+            <p class="landing-kicker">Accès premium</p>
+            <h2 class="landing-title landing-title--wide">Payer uniquement quand la plateforme devient utile à votre pratique.</h2>
             <p class="landing-copy">
-              Les abonnements préparent l'accès aux outils avancés, au Showroom, à la publication,
-              aux mises en avant et aux futurs espaces professionnels.
+              L'accès gratuit permet d'évaluer les bases. Les abonnements s'adressent aux
+              indépendants, studios et partenaires qui veulent sauvegarder, publier, utiliser
+              l'IA et gagner en visibilité.
             </p>
           </div>
           <div class="landing-premium-grid">
             <article class="landing-card">
               <p class="landing-kicker">Studio</p>
-              <h3>Créateurs & étudiants</h3>
+              <h3>Indépendants & studios solo</h3>
               <p><span class="landing-price">29€</span> / mois</p>
               <ul>
                 <li>Outils avancés et IA TEOMARCHI</li>
                 <li>Journalier complet et sauvegarde cloud</li>
-                <li>Feed avancé pour suivre les projets</li>
+                <li>Publication et suivi de projet avancés</li>
               </ul>
               <button type="button" class="text-btn text-btn--primary" data-checkout-plan="studio">Choisir Studio</button>
             </article>
             <article class="landing-card">
               <p class="landing-kicker">Agence</p>
-              <h3>Studios & partenaires</h3>
+              <h3>Agences & partenaires</h3>
               <p><span class="landing-price">89€</span> / mois</p>
               <ul>
                 <li>Publication Showroom et sponsor</li>
@@ -415,10 +448,11 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         <section class="landing-status">
           <div class="landing-band__head">
             <p class="landing-kicker">État du projet</p>
-            <h2 class="landing-title landing-title--wide">Plateforme en développement actif, ouverte aux collaborations.</h2>
+            <h2 class="landing-title landing-title--wide">Plateforme évolutive, ouverte aux collaborations sélectives.</h2>
             <p class="landing-copy">
-              TEOMARCHI se construit comme une future plateforme architecturale mondiale :
-              culturelle, technique, communautaire et ouverte aux collaborations.
+              TEOMARCHI se déploie progressivement autour d'un socle clair : contenus
+              pédagogiques, outils techniques, références vérifiables et partenariats
+              utiles aux créateurs de l'habitat.
             </p>
           </div>
         </section>
@@ -2212,7 +2246,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
           <h2 style="margin:0;font-family:var(--serif);font-size:clamp(2rem,5vw,3.4rem);font-weight:300;line-height:.96;color:var(--ink)">
             ${_esc(title)}
           </h2>
-          <p id="journalier-save-status" class="tm-save-status" data-save-state="idle">Mode local prêt — Sauvegarde cloud si Firestore disponible</p>
+          <p id="journalier-save-status" class="tm-save-status" data-save-state="idle">Sauvegarde navigateur prête — cloud si disponible</p>
         </div>
         <div id="journalier-progress" class="tm-journalier-progress-central">
           <div style="display:flex;justify-content:space-between;align-items:baseline;gap:1rem;margin-bottom:.55rem">
@@ -5533,7 +5567,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     const user = getFirebaseUser();
     const db = getFirestoreDb();
     if (!user || !db) {
-      setSaveStatus("Mode local — Firestore indisponible ou utilisateur non connecté", "local");
+      setSaveStatus("Sauvegarde navigateur — connectez-vous pour activer le cloud", "local");
       return Promise.resolve(false);
     }
 
@@ -5551,7 +5585,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
           resolve(true);
         } catch (err) {
           console.warn("Journalier Firestore indisponible :", err);
-          setSaveStatus("Mode local — Firestore indisponible", "local");
+          setSaveStatus("Sauvegarde navigateur — cloud indisponible", "local");
           resolve(false);
         }
       }, 450);
@@ -5576,7 +5610,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         <div class="modal tm-logout-modal" role="dialog" aria-modal="true" aria-labelledby="logout-confirm-title">
           <p class="eyebrow">Session</p>
           <h2 class="modal__title" id="logout-confirm-title">Êtes-vous sûr de vouloir vous déconnecter ?</h2>
-          <p class="muted">Votre session Firebase sera fermée. Les données locales restent conservées sur cet appareil.</p>
+          <p class="muted">Votre session sera fermée. Les préférences locales restent conservées sur cet appareil.</p>
           <div class="tm-logout-actions">
             <button class="text-btn" type="button" data-logout-cancel>Annuler</button>
             <button class="text-btn text-btn--primary" type="button" data-logout-confirm>Déconnexion</button>
@@ -5949,7 +5983,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
             <div class="tm-profil-avatar" aria-hidden="true">${avatar}</div>
             <div>
               <p style="margin:0 0 .22rem;text-transform:uppercase;letter-spacing:.17em;
-                        font-size:.58rem;font-weight:500;color:var(--gold)">Profil Firebase</p>
+                        font-size:.58rem;font-weight:500;color:var(--gold)">Profil connecté</p>
               <h3 style="font-family:var(--serif);font-size:2rem;font-weight:300;
                          line-height:1.04;color:var(--ink);margin:0 0 .38rem">${_esc(p.displayName)}</h3>
               <p style="margin:0;color:var(--muted);font-size:.78rem;line-height:1.55">${_esc(user.email || "")}</p>
@@ -6088,7 +6122,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
 
     if (!db) {
       try { localStorage.setItem(`teomarchi.profile.${user.uid}`, JSON.stringify(profile)); } catch {}
-      notifyUser("Profil sauvegardé en mode local.");
+      notifyUser("Profil sauvegardé sur ce navigateur.");
       return;
     }
 
@@ -6152,7 +6186,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
           <p style="margin:0 0 .28rem;text-transform:uppercase;letter-spacing:.16em;font-size:.58rem;color:var(--gold)">Profil</p>
           <h3 style="font-family:var(--serif);font-size:2rem;font-weight:300;margin:0 0 .7rem;color:var(--ink)">Connectez-vous pour compléter votre profil</h3>
           <p style="margin:0 auto 1.2rem;max-width:44ch;color:var(--muted);font-size:.82rem;line-height:1.65">
-            Vos publications du Feed utiliseront uniquement les informations de votre compte Firebase et de votre profil Firestore.
+            Vos publications du Feed utiliseront uniquement les informations de votre compte connecté et de votre profil sauvegardé.
           </p>
           <button class="text-btn text-btn--primary" type="button" data-open-login>Connexion</button>
         </div>
@@ -6180,11 +6214,11 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
   const DATA_PRICING = [
     {
       id: "gratuit", nom: "Gratuit", prix: "0", periode: "", featured: false,
-      desc: "L'essentiel pour démarrer un projet et explorer la plateforme.",
+      desc: "Un accès de lecture pour vérifier la valeur des bases avant toute souscription.",
       cta: "Commencer",
       features: [
-        { ok: true,  text: "Lecture Atlas, Chronos, Panthéon" },
-        { ok: true,  text: "Normes & villes de base"          },
+        { ok: true,  text: "Aperçus Atlas, Chronos, Panthéon" },
+        { ok: true,  text: "Normes & villes en consultation"  },
         { ok: true,  text: "Écologie pédagogique"             },
         { ok: false, text: "Sauvegarde cloud"                 },
         { ok: false, text: "IA TEOMARCHI complète"            },
@@ -6195,7 +6229,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     },
     {
       id: "studio", nom: "Studio", prix: "29", periode: "/ mois", featured: true,
-      desc: "La suite complète pour l'étudiant en atelier ou l'architecte solo.",
+      desc: "Pour les indépendants, jeunes studios et concepteurs qui utilisent TEOMARCHI au quotidien.",
       cta: "Choisir Studio",
       features: [
         { ok: true, text: "Tout le plan Free"                 },
@@ -6210,7 +6244,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     },
     {
       id: "agence", nom: "Agence", prix: "89", periode: "/ mois", featured: false,
-      desc: "Pour les ateliers collectifs, équipes et structures pédagogiques.",
+      desc: "Pour les agences, partenaires et structures qui veulent publier ou sponsoriser du contenu.",
       cta: "Contacter l'équipe",
       features: [
         { ok: true, text: "Tout le plan Studio"              },
@@ -7608,7 +7642,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
           <p style="margin:0;text-transform:uppercase;letter-spacing:.16em;font-size:.58rem;color:var(--gold)">Publication</p>
           <h3 style="margin:0;font-family:var(--serif);font-size:1.8rem;font-weight:300;color:var(--ink)">Connectez-vous pour publier</h3>
           <p style="margin:0;color:var(--muted);font-size:.82rem;line-height:1.6">
-            Vous pouvez lire le Feed public, mais la publication, les likes, commentaires et signalements nécessitent une session Firebase.
+            Vous pouvez lire le Feed public, mais la publication, les likes, commentaires et signalements nécessitent un compte connecté.
           </p>
           <button class="text-btn text-btn--primary" type="button" data-open-login>Connexion</button>
           <div>
@@ -7717,7 +7751,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       _feedUnsubscribe = null;
     }
     if (!db) {
-      timeline.innerHTML = `<div class="tm-feed-empty">Firestore indisponible. Le Feed temps réel ne peut pas être chargé.</div>`;
+      timeline.innerHTML = `<div class="tm-feed-empty">Service temps réel indisponible. Le Feed ne peut pas être chargé pour le moment.</div>`;
       return;
     }
 
@@ -7765,7 +7799,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     const user = getFirebaseUser();
     const db = getFirestoreDb();
     if (!user) { openLoginPrompt(); return; }
-    if (!db || !form) { notifyUser("Firestore indisponible."); return; }
+    if (!db || !form) { notifyUser("Service de publication indisponible."); return; }
 
     const data = new FormData(form);
     const text = String(data.get("text") || "").trim();
@@ -8178,7 +8212,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
 
     const db = getFirestoreDb();
     if (!db) {
-      root.innerHTML = `<p class="tm-feed-empty">Firestore indisponible.</p>`;
+      root.innerHTML = `<p class="tm-feed-empty">Service de modération indisponible.</p>`;
       return;
     }
 
