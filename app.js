@@ -345,18 +345,20 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         const raw = localStorage.getItem(ONBOARDING_STORAGE_KEY);
         const parsed = raw ? JSON.parse(raw) : {};
         return {
+          started: Boolean(parsed.started),
           dismissed: Boolean(parsed.dismissed),
           completedSteps: Array.isArray(parsed.completedSteps) ? parsed.completedSteps : [],
           lastSeenAt: parsed.lastSeenAt || ""
         };
       } catch {
-        return { dismissed: false, completedSteps: [], lastSeenAt: "" };
+        return { started: false, dismissed: false, completedSteps: [], lastSeenAt: "" };
       }
     }
 
     function saveOnboardingState(state) {
       try {
         localStorage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify({
+          started: Boolean(state?.started),
           dismissed: Boolean(state?.dismissed),
           completedSteps: Array.isArray(state?.completedSteps) ? state.completedSteps : [],
           lastSeenAt: new Date().toISOString()
@@ -496,6 +498,77 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       ).join("");
     }
 
+    function renderStartChecklist() {
+      const state = getOnboardingState();
+      const completed = new Set(state.completedSteps);
+
+      return `
+        <div class="tm-start-checklist" aria-live="polite">
+          ${ONBOARDING_STEPS.map(step => {
+            const done = completed.has(step.id);
+            return `
+              <button class="tm-start-step ${done ? "is-complete" : ""}"
+                      type="button"
+                      data-onboarding-step="${escapeHTML(step.id)}"
+                      data-nav="${escapeHTML(step.nav)}"
+                      aria-pressed="${done ? "true" : "false"}">
+                <span class="tm-start-step__mark" aria-hidden="true">${done ? "✓" : ""}</span>
+                <span class="tm-start-step__body">
+                  <strong>${escapeHTML(step.title)}</strong>
+                  <small>${escapeHTML(step.text)}</small>
+                </span>
+              </button>
+            `;
+          }).join("")}
+        </div>
+      `;
+    }
+
+    function renderOnboardingWelcome() {
+      const state = getOnboardingState();
+      if (state.dismissed) return "";
+
+      return `
+        <section class="landing-band tm-onboarding" id="teomarchi-onboarding" aria-labelledby="teomarchi-onboarding-title">
+          <div class="landing-band__head">
+            <p class="landing-kicker">Démarrer avec TEOMARCHI</p>
+            <h2 class="landing-title landing-title--wide" id="teomarchi-onboarding-title">
+              Comprendre, comparer, organiser et publier un projet architectural.
+            </h2>
+            <p class="landing-copy">
+              Cette visite montre comment utiliser les modules sans créer de faux compte et sans mélanger les exemples avec vos futures données.
+            </p>
+          </div>
+          <div class="tm-onboarding__actions">
+            <button class="text-btn text-btn--primary" type="button" data-onboarding-start data-nav="atlas">
+              Lancer la visite guidée
+            </button>
+            <button class="text-btn" type="button" data-demo-open="feed">
+              Voir une démo
+            </button>
+            <button class="text-btn" type="button" data-onboarding-dismiss>
+              Masquer
+            </button>
+          </div>
+          ${renderStartChecklist()}
+        </section>
+      `;
+    }
+
+    function initOnboarding() {
+      const onboarding = $("#teomarchi-onboarding");
+      if (!onboarding) return;
+
+      const state = getOnboardingState();
+      if (state.dismissed) {
+        onboarding.remove();
+        return;
+      }
+
+      const checklist = $(".tm-start-checklist", onboarding);
+      if (checklist) checklist.outerHTML = renderStartChecklist();
+    }
+
     function initLandingSections () {
       const root = $("#landing-sections");
       if (!root || root.dataset.loaded === "landing") return;
@@ -519,6 +592,8 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
             </p>
           </div>
         </section>
+
+        ${renderOnboardingWelcome()}
 
         <section class="landing-band landing-band--modules">
           <div class="landing-band__head">
@@ -650,6 +725,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
           </div>
         </section>
       `;
+      initOnboarding();
     }
 
     function initContactSponsors () {
@@ -1350,6 +1426,52 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
           e.preventDefault();
           toggleSession();
           if (currentModule === "profil") navigateTo("profil", false);
+          return;
+        }
+
+        const onboardingStart = e.target.closest("[data-onboarding-start]");
+        if (onboardingStart) {
+          e.preventDefault();
+          const state = getOnboardingState();
+          saveOnboardingState({ ...state, started: true });
+          markOnboardingStepDone("atlas-preview");
+          navigateTo(onboardingStart.dataset.nav || "atlas");
+          if (typeof pushNotification === "function") {
+            pushNotification("Visite guidée lancée : commencez par l'Atlas.");
+          }
+          return;
+        }
+
+        const demoOpen = e.target.closest("[data-demo-open]");
+        if (demoOpen) {
+          e.preventDefault();
+          const target = demoOpen.dataset.demoOpen || demoOpen.dataset.nav || "feed";
+          const state = getOnboardingState();
+          saveOnboardingState({ ...state, started: true });
+          navigateTo(target);
+          if (typeof pushNotification === "function") {
+            pushNotification("Démo ouverte : exemples publics clairement marqués.");
+          }
+          return;
+        }
+
+        const onboardingDismiss = e.target.closest("[data-onboarding-dismiss]");
+        if (onboardingDismiss) {
+          e.preventDefault();
+          dismissOnboarding();
+          $("#teomarchi-onboarding")?.remove();
+          if (typeof pushNotification === "function") pushNotification("Onboarding masqué.");
+          return;
+        }
+
+        const onboardingStep = e.target.closest("[data-onboarding-step]");
+        if (onboardingStep) {
+          e.preventDefault();
+          const stepId = onboardingStep.dataset.onboardingStep;
+          const step = ONBOARDING_STEPS.find(item => item.id === stepId);
+          markOnboardingStepDone(stepId);
+          navigateTo(onboardingStep.dataset.nav || step?.nav || "atlas");
+          initOnboarding();
           return;
         }
 
