@@ -939,6 +939,7 @@ test("legal copy and landing shell do not expose raw placeholders or empty prepa
   const html = read("index.html");
 
   assert.doesNotMatch(html, /\[(VOTRE|ADRESSE|NUM[ÉE]RO|SIRET|EI \/ SASU|NOM DE L'H[ÉE]BERGEUR|URL DE L'H[ÉE]BERGEUR)/i);
+  assert.doesNotMatch(html, /À compléter avant mise en production/i);
   assert.doesNotMatch(html, /contenu en préparation/i);
   assert.doesNotMatch(html, /Produits partenaires prescriptibles — contenu en préparation/i);
 });
