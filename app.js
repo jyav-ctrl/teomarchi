@@ -1247,6 +1247,12 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       });
 
       syncTabs(moduleId);
+      document.dispatchEvent(new CustomEvent("teomarchi:navigate", { detail: { moduleId } }));
+      if (moduleId === "feed") {
+        window.setTimeout(() => {
+          if (document.getElementById("module-feed")?.classList.contains("is-active")) initFeed();
+        }, 0);
+      }
       if (moduleId === "contact") initContactSponsors();
 
       if (pushHistory && location.hash !== "#" + moduleId) {
@@ -8123,6 +8129,15 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     `;
   }
 
+  function renderFeedPendingState() {
+    return `
+      <div class="tm-feed-empty" data-feed-pending="true">
+        <p style="font-family:var(--serif);font-size:1.55rem;font-weight:300;margin:0 0 .4rem;color:var(--ink)">Connexion au Feed en attente</p>
+        <p style="margin:0;color:var(--muted);font-size:.82rem">Les publications apparaîtront dès que Firestore répond. Vous pouvez continuer à naviguer dans les autres modules.</p>
+      </div>
+    `;
+  }
+
   function subscribeToFeed() {
     const db = getFirestoreDb();
     const timeline = document.getElementById("feed-timeline");
@@ -8130,6 +8145,9 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     if (_feedUnsubscribe) {
       try { _feedUnsubscribe(); } catch {}
       _feedUnsubscribe = null;
+    }
+    if (shouldShowDemoContent("feed")) {
+      timeline.innerHTML = renderDemoFeedTimeline();
     }
     if (!db) {
       if (shouldShowDemoContent("feed")) {
@@ -8140,10 +8158,16 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       return;
     }
 
+    const pendingFeedTimer = window.setTimeout(() => {
+      if (!timeline.querySelector("[data-feed-pending]")) return;
+      timeline.innerHTML = shouldShowDemoContent("feed") ? renderDemoFeedTimeline() : renderFeedPendingState();
+    }, 1200);
+
     _feedUnsubscribe = db.collection("posts")
       .orderBy("createdAt", "desc")
       .limit(50)
       .onSnapshot(snapshot => {
+        window.clearTimeout(pendingFeedTimer);
         const canModerate = isTeomarchiAdmin();
         _feedPosts = [];
         snapshot.forEach(doc => {
@@ -8160,6 +8184,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
           renderFeedTimeline(_feedPosts);
         }
       }, err => {
+        window.clearTimeout(pendingFeedTimer);
         console.error("Erreur Feed Firestore :", err);
         timeline.innerHTML = `<div class="tm-feed-empty">Erreur de chargement du Feed.</div>`;
       });
@@ -8380,7 +8405,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
           ${renderFeedComposer()}
         </aside>
         <section class="tm-feed-timeline" id="feed-timeline" aria-live="polite">
-          <div class="tm-feed-empty">Chargement du Feed…</div>
+          ${shouldShowDemoContent("feed") ? renderDemoFeedTimeline() : renderFeedPendingState()}
         </section>
       </div>
     `;
@@ -8391,14 +8416,23 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
   (function hookFeed() {
     const mod = document.getElementById("module-feed");
     if (!mod) return;
-    new MutationObserver(() => {
-      if (mod.classList.contains("is-active")) initFeed();
-      else if (_feedUnsubscribe) {
+
+    const run = () => {
+      if (mod.classList.contains("is-active")) {
+        initFeed();
+      } else if (_feedUnsubscribe) {
         try { _feedUnsubscribe(); } catch {}
         _feedUnsubscribe = null;
       }
-    }).observe(mod, { attributes: true, attributeFilter: ["class"] });
-    if (mod.classList.contains("is-active")) initFeed();
+    };
+
+    new MutationObserver(run).observe(mod, { attributes: true, attributeFilter: ["class"] });
+    document.addEventListener("teomarchi:navigate", e => {
+      if (e.detail?.moduleId === "feed") run();
+    });
+    run();
+    window.setTimeout(run, 0);
+    window.setTimeout(run, 300);
   })();
 
   /* ── Modération Admin Firestore ─────────────────────────────── */
