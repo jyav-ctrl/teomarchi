@@ -228,6 +228,154 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       }
     };
 
+    const ONBOARDING_STORAGE_KEY = "teomarchi.onboarding";
+
+    const ONBOARDING_STEPS = Object.freeze([
+      {
+        id: "atlas-preview",
+        title: "Explorer une entrée Atlas",
+        text: "Comparer un pays, un climat, une matière et une leçon constructive.",
+        nav: "atlas"
+      },
+      {
+        id: "scale-tool",
+        title: "Tester une conversion d'échelle",
+        text: "Passer d'une mesure réelle à une mesure sur plan.",
+        nav: "outils"
+      },
+      {
+        id: "pantheon-preview",
+        title: "Lire une fiche Panthéon",
+        text: "Relier architecte, doctrine, matière et apport technique.",
+        nav: "pantheon"
+      },
+      {
+        id: "journalier-preview",
+        title: "Comprendre le Journalier",
+        text: "Voir comment un projet se structure en tâches, jalons et progression.",
+        nav: "journalier"
+      }
+    ]);
+
+    const DATA_DEMO_FEED = Object.freeze([
+      {
+        id: "demo-feed-coupe-brique",
+        isDemo: true,
+        label: "Démo",
+        authorName: "Atelier TEOMARCHI",
+        text: "Étude d'une façade en brique isolée : continuité thermique, ventilation et gestion de l'humidité.",
+        tags: ["brique", "isolation", "façade"],
+        likeCount: 18,
+        commentCount: 4,
+        repostCount: 2
+      },
+      {
+        id: "demo-feed-maquette-bois",
+        isDemo: true,
+        label: "Démo",
+        authorName: "Atelier TEOMARCHI",
+        text: "Maquette de trame bois : structure répétitive, préfabrication et réduction des chutes.",
+        tags: ["bois", "trame", "bas-carbone"],
+        likeCount: 23,
+        commentCount: 6,
+        repostCount: 3
+      },
+      {
+        id: "demo-feed-patio",
+        isDemo: true,
+        label: "Démo",
+        authorName: "Atelier TEOMARCHI",
+        text: "Maison patio en climat chaud : inertie, ombrage, ventilation traversante et seuils protégés.",
+        tags: ["patio", "climat chaud", "inertie"],
+        likeCount: 15,
+        commentCount: 3,
+        repostCount: 1
+      }
+    ]);
+
+    const DATA_DEMO_PROJECT = Object.freeze({
+      id: "demo-project-atelier",
+      isDemo: true,
+      label: "Démo",
+      title: "Logement compact et traversant",
+      progress: 42,
+      tasks: ["Programme", "Références", "Plan 1/100", "Coupe constructive"],
+      deadline: "Jury intermédiaire"
+    });
+
+    const DATA_DEMO_SHOWROOM = Object.freeze([
+      {
+        id: "demo-showroom-clt",
+        isDemo: true,
+        label: "Démo",
+        title: "Panneau CLT bas-carbone",
+        category: "Matériaux",
+        text: "Exemple de fiche sponsorisable : usage, portée, fournisseur et projet associé."
+      },
+      {
+        id: "demo-showroom-chaise",
+        isDemo: true,
+        label: "Démo",
+        title: "Assise bois minimaliste",
+        category: "Mobilier",
+        text: "Exemple de carte produit pour designers, fabricants ou jeunes créateurs."
+      }
+    ]);
+
+    const DATA_DEMO_PROFILE = Object.freeze({
+      id: "demo-profile",
+      isDemo: true,
+      label: "Démo",
+      displayName: "Profil architectural exemple",
+      bio: "Un profil TEOMARCHI peut présenter une approche, des spécialités, des logiciels et des projets.",
+      specialties: ["logement", "bois", "réhabilitation"]
+    });
+
+    const DEMO_CONTENT = Object.freeze({
+      feed: DATA_DEMO_FEED,
+      journalier: DATA_DEMO_PROJECT,
+      showroom: DATA_DEMO_SHOWROOM,
+      profil: DATA_DEMO_PROFILE
+    });
+
+    const DEMO_SURFACES = Object.freeze(["public", "publique", "accueil", "landing", "feed", "journalier", "showroom", "profil"]);
+
+    function getOnboardingState() {
+      try {
+        const raw = localStorage.getItem(ONBOARDING_STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : {};
+        return {
+          dismissed: Boolean(parsed.dismissed),
+          completedSteps: Array.isArray(parsed.completedSteps) ? parsed.completedSteps : [],
+          lastSeenAt: parsed.lastSeenAt || ""
+        };
+      } catch {
+        return { dismissed: false, completedSteps: [], lastSeenAt: "" };
+      }
+    }
+
+    function saveOnboardingState(state) {
+      try {
+        localStorage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify({
+          dismissed: Boolean(state?.dismissed),
+          completedSteps: Array.isArray(state?.completedSteps) ? state.completedSteps : [],
+          lastSeenAt: new Date().toISOString()
+        }));
+      } catch {}
+    }
+
+    function markOnboardingStepDone(stepId) {
+      if (!stepId) return;
+      const state = getOnboardingState();
+      const completedSteps = Array.from(new Set([...state.completedSteps, stepId]));
+      saveOnboardingState({ ...state, completedSteps });
+    }
+
+    function dismissOnboarding() {
+      const state = getOnboardingState();
+      saveOnboardingState({ ...state, dismissed: true });
+    }
+
     const normalize = str =>
       String(str ?? "").toLowerCase()
         .normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -238,6 +386,22 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
+
+    function getDemoContent(key) {
+      const normalizedKey = normalize(key);
+      return DEMO_CONTENT[normalizedKey] || null;
+    }
+
+    function renderDemoBadge(label = "Démo") {
+      return `<span class="tm-demo-badge" aria-label="Contenu de démonstration">${escapeHTML(label)}</span>`;
+    }
+
+    function shouldShowDemoContent(surface) {
+      const normalizedSurface = normalize(surface);
+      if (!normalizedSurface) return false;
+      if (getFirebaseUser()) return false;
+      return DEMO_SURFACES.includes(normalizedSurface);
+    }
 
     /* ── État ─────────────────────────────────────────────────── */
     let currentModule = "atlas";
