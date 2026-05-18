@@ -9593,3 +9593,52 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     }, 250);
 
   })();
+
+/* ── Récupération routes directes file:// / hash ─────────────────
+   Quand l'utilisateur ouvre directement index.html#journalier ou
+   index.html#showroom, le HTML placeholder ne doit jamais rester affiché. */
+(function recoverDirectRichModules() {
+  function activeModuleId() {
+    const active = document.querySelector(".module.is-active");
+    if (active?.dataset.module) return active.dataset.module;
+    const hash = location.hash.replace("#", "").trim();
+    return hash || "";
+  }
+
+  function run() {
+    const moduleId = activeModuleId();
+
+    try {
+      if (moduleId === "journalier") {
+        const root = document.getElementById("journalier-layout");
+        if (root && !root.querySelector(".tm-journalier")) initJournalier();
+      }
+
+      if (moduleId === "showroom") {
+        const root = document.getElementById("showroom-grid");
+        if (root && !root.querySelector(".tm-showroom")) {
+          root.dataset.loaded = "";
+          initShowroom();
+        }
+      }
+
+      if (moduleId === "feed") {
+        const root = document.getElementById("feed-wall");
+        if (root && !root.querySelector("#feed-timeline")) initFeed();
+      }
+    } catch (err) {
+      console.warn("Initialisation du module actif impossible :", err);
+    }
+  }
+
+  window.TEOMARCHI_BOOT_ACTIVE_MODULES = run;
+  document.addEventListener("teomarchi:navigate", () => window.setTimeout(run, 0));
+  window.addEventListener("hashchange", () => window.setTimeout(run, 0));
+  window.addEventListener("load", run);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", run, { once: true });
+  }
+  window.setTimeout(run, 0);
+  window.setTimeout(run, 250);
+  window.setTimeout(run, 900);
+})();

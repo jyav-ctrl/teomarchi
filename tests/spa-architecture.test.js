@@ -814,11 +814,16 @@ test("feed initializes safely when opened directly from the URL hash", () => {
 
 test("journalier and showroom initialize safely when opened directly from the URL hash", () => {
   const js = read("app.js");
+  const html = read("index.html");
 
   assert.match(js, /moduleId === "journalier"[\s\S]{0,260}initJournalier\(\)/);
   assert.match(js, /moduleId === "showroom"[\s\S]{0,260}initShowroom\(\)/);
   assert.match(js, /document\.getElementById\("module-journalier"\)\?\.classList\.contains\("is-active"\)/);
   assert.match(js, /document\.getElementById\("module-showroom"\)\?\.classList\.contains\("is-active"\)/);
+  assert.match(js, /function\s+recoverDirectRichModules|recoverDirectRichModules/);
+  assert.match(js, /TEOMARCHI_BOOT_ACTIVE_MODULES/);
+  assert.match(js, /root\.dataset\.loaded\s*=\s*""/);
+  assert.match(html, /app\.js\?v=20260518-direct-modules/);
 });
 
 test("profile editor persists real Firebase profile data in Firestore", () => {
