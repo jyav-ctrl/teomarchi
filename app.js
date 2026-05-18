@@ -1248,9 +1248,11 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
 
       syncTabs(moduleId);
       document.dispatchEvent(new CustomEvent("teomarchi:navigate", { detail: { moduleId } }));
-      if (moduleId === "feed") {
+      if (moduleId === "feed" || moduleId === "journalier" || moduleId === "showroom") {
         window.setTimeout(() => {
-          if (document.getElementById("module-feed")?.classList.contains("is-active")) initFeed();
+          if (moduleId === "feed" && document.getElementById("module-feed")?.classList.contains("is-active")) initFeed();
+          if (moduleId === "journalier" && document.getElementById("module-journalier")?.classList.contains("is-active")) initJournalier();
+          if (moduleId === "showroom" && document.getElementById("module-showroom")?.classList.contains("is-active")) initShowroom();
         }, 0);
       }
       if (moduleId === "contact") initContactSponsors();

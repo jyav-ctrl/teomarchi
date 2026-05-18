@@ -812,6 +812,15 @@ test("feed initializes safely when opened directly from the URL hash", () => {
   assert.doesNotMatch(js, /<div class="tm-feed-empty">Chargement du Feed/);
 });
 
+test("journalier and showroom initialize safely when opened directly from the URL hash", () => {
+  const js = read("app.js");
+
+  assert.match(js, /moduleId === "journalier"[\s\S]{0,260}initJournalier\(\)/);
+  assert.match(js, /moduleId === "showroom"[\s\S]{0,260}initShowroom\(\)/);
+  assert.match(js, /document\.getElementById\("module-journalier"\)\?\.classList\.contains\("is-active"\)/);
+  assert.match(js, /document\.getElementById\("module-showroom"\)\?\.classList\.contains\("is-active"\)/);
+});
+
 test("profile editor persists real Firebase profile data in Firestore", () => {
   const js = read("app.js");
 
