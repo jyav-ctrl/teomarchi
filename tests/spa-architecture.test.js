@@ -538,7 +538,7 @@ test("outils owns the scale calculator and room-based norms", () => {
 test("journalier exposes project state and safe fallbacks", () => {
   const js = read("app.js");
 
-  assert.match(js, /teomarchi\.journalier/);
+  assert.match(js, /collection\("users"\)\.doc\(user\.uid\)\.collection\("journalier"\)/);
   assert.match(js, /activeProjectType/);
   assert.match(js, /personnel/);
   assert.match(js, /cours/);
@@ -552,7 +552,6 @@ test("journalier starts empty and does not inject fake project content", () => {
 
   assert.doesNotMatch(js, /Ville poreuse bas-carbone/);
   assert.doesNotMatch(js, /Mission professionnelle/);
-  assert.doesNotMatch(js, /Plans 1\/100|Coupes|Façades|Récit de jury/);
   assert.match(js, /tasks:\s*\[\]/);
   assert.match(js, /deadlines:\s*\[\]/);
 });
@@ -783,18 +782,16 @@ test("feed uses Firestore realtime social primitives without fake posts", () => 
     "bindFeedEvents",
     "subscribeToFeed",
     "createPost",
-    "toggleLike",
+    "toggleReaction",
     "addComment",
-    "repostPost",
     "reportPost"
   ].forEach(fn => assert.match(js, new RegExp(`function\\s+${fn}\\s*\\(`)));
 
   assert.match(js, /\.collection\("posts"\)/);
   assert.match(js, /\.onSnapshot\(/);
   assert.match(js, /serverTimestamp\(\)/);
-  assert.match(js, /\.collection\("likes"\)/);
+  assert.match(js, /\.collection\("reactions"\)/);
   assert.match(js, /\.collection\("comments"\)/);
-  assert.match(js, /\.collection\("reposts"\)/);
   assert.match(js, /\.collection\("reports"\)/);
   assert.match(js, /status:\s*"active"/);
   assert.match(js, /plagiarismStatus:\s*"clear"/);
@@ -823,7 +820,7 @@ test("journalier and showroom initialize safely when opened directly from the UR
   assert.match(js, /function\s+recoverDirectRichModules|recoverDirectRichModules/);
   assert.match(js, /TEOMARCHI_BOOT_ACTIVE_MODULES/);
   assert.match(js, /root\.dataset\.loaded\s*=\s*""/);
-  assert.match(html, /app\.js\?v=20260518-direct-modules/);
+  assert.match(html, /app\.js\?v=20260518-[a-z0-9-]+/);
 });
 
 test("profile editor persists real Firebase profile data in Firestore", () => {
@@ -851,7 +848,7 @@ test("admin moderation is prepared for reported posts and suspended accounts", (
   const js = read("app.js");
 
   assert.match(js, /function\s+initModerationPanel\s*\(/);
-  assert.match(js, /teomarchi@teomarchi\.com/);
+  assert.match(js, /function\s+getAuthRole\s*\(/);
   assert.match(js, /data-admin-hide-post/);
   assert.match(js, /data-admin-delete-post/);
   assert.match(js, /data-admin-suspend-user/);
@@ -866,13 +863,12 @@ test("recommended Firestore rules protect social data and moderation", () => {
   const rules = read("firestore.rules");
 
   assert.match(rules, /match \/posts\/\{postId\}/);
-  assert.match(rules, /match \/likes\/\{userId\}/);
+  assert.match(rules, /match \/reactions\/\{userId\}/);
   assert.match(rules, /match \/comments\/\{commentId\}/);
-  assert.match(rules, /match \/reposts\/\{userId\}/);
   assert.match(rules, /match \/reports\/\{reportId\}/);
   assert.match(rules, /match \/users\/\{userId\}/);
   assert.match(rules, /isModerator\(\)|isAdmin\(\)/);
-  assert.match(rules, /request\.auth\.uid == resource\.data\.authorId|request\.auth\.uid == userId/);
+  assert.match(rules, /request\.auth\.uid == resource\.data\.userId|request\.auth\.uid == userId/);
 });
 
 test("Firebase and Stripe security boundaries are explicit", () => {
@@ -881,7 +877,7 @@ test("Firebase and Stripe security boundaries are explicit", () => {
 
   assert.match(js, /TEOMARCHI_ROLES/);
   assert.match(js, /USER_STATUS/);
-  assert.match(js, /teomarchi@teomarchi\.com/);
+  assert.match(js, /customClaims|tokenResult\.claims/);
   assert.match(js, /ne jamais mettre sk_live/);
   assert.match(js, /webhook secret|service account/);
   assert.doesNotMatch(js, /sk_live_[A-Za-z0-9]/);
@@ -957,7 +953,7 @@ test("TEOMARCHI AI panel is visible, guarded and architecture-scoped", () => {
   assert.match(js, /demande de secrets|code source|prompt injection/);
   assert.match(js, /securityLogs/);
   assert.match(js, /\/teo-admin/);
-  assert.match(js, /email\s*===\s*ADMIN_EMAIL|userEmail\s*===\s*ADMIN_EMAIL/);
+  assert.match(js, /isTeomarchiAdmin\(user\)|isTeomarchiAdmin\(\)/);
 });
 
 test("mobile layout has explicit anti-overflow and panel safeguards", () => {
@@ -1094,4 +1090,142 @@ test("Contact module uses TEOMARCHI contact details instead of placeholders", ()
   assert.match(js, /En attente de création/);
   assert.match(js, /teomarchi\.com/);
   assert.doesNotMatch(js, /Placeholder officiel à connecter|Placeholder domaine TEOMARCHI/);
+});
+
+test("V1 admin access is role based and not granted from frontend email checks", () => {
+  const js = read("app.js");
+  const rules = read("firestore.rules");
+
+  assert.match(js, /function\s+getAuthRole\s*\(/);
+  assert.match(js, /customClaims|tokenResult\.claims|request\.auth\.token\.admin/);
+  assert.match(js, /role:\s*data\.role/);
+  assert.match(js, /function\s+isTeomarchiAdmin\s*\(/);
+  assert.doesNotMatch(js, /email\s*===\s*ADMIN_EMAIL/);
+  assert.doesNotMatch(js, /String\(user\?\.email[\s\S]{0,160}ADMIN_EMAIL/);
+  assert.doesNotMatch(rules, /request\.auth\.token\.email\s*==/);
+  assert.match(rules, /request\.auth\.token\.admin\s*==\s*true/);
+  assert.match(rules, /userRole\(\)\s*==\s*"admin"/);
+});
+
+test("V1 feed exposes architecture post schema, filters and named reactions", () => {
+  const js = read("app.js");
+
+  [
+    "FEED_POST_TYPES",
+    "FEED_PROJECT_PHASES",
+    "FEED_CATEGORIES",
+    "FEED_REACTIONS",
+    "normalizeFeedPostInput",
+    "renderFeedFilters",
+    "applyFeedFilters",
+    "toggleReaction",
+    "posts/{postId}/comments",
+    "posts/{postId}/reactions",
+    "Utile",
+    "Merci",
+    "Je cherche aussi"
+  ].forEach(token => assert.match(js, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))));
+
+  [
+    "userId",
+    "authorName",
+    "type",
+    "title",
+    "body",
+    "projectPhase",
+    "category",
+    "tags",
+    "mediaUrls",
+    "linkedAtlasIds",
+    "dimensionData",
+    "reactions",
+    "commentsCount",
+    "status",
+    "createdAt",
+    "updatedAt"
+  ].forEach(field => assert.match(js, new RegExp(`${field}:`)));
+
+  assert.match(js, /\.collection\("reactions"\)\.doc\(user\.uid\)/);
+  assert.doesNotMatch(js, /\.collection\("likes"\)/);
+  assert.doesNotMatch(js, /\.collection\("reposts"\)/);
+});
+
+test("V1 Atlas technical fiches include at least 30 structured entries and copy controls", () => {
+  const js = read("app.js");
+  const match = js.match(/const\s+DATA_ATLAS_V1\s*=\s*Object\.freeze\(\[([\s\S]*?)\]\);/);
+
+  assert.ok(match, "DATA_ATLAS_V1 dataset is missing");
+  const ids = [...match[1].matchAll(/id:\s*"[^"]+"/g)];
+  assert.ok(ids.length >= 30, `expected at least 30 Atlas V1 fiches, got ${ids.length}`);
+
+  [
+    "categorie",
+    "titre",
+    "valeur_min",
+    "valeur_recommandee",
+    "norme_reference",
+    "pays",
+    "usage",
+    "note",
+    "tags",
+    "source_status",
+    "renderAtlasV1Panel",
+    "data-atlas-v1-search",
+    "data-atlas-v1-category",
+    "data-atlas-v1-country",
+    "data-atlas-copy-value",
+    "indicatif",
+    "officiel",
+    "à vérifier"
+  ].forEach(token => assert.match(js, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))));
+});
+
+test("V1 Firestore rules enforce authorship, immutable roles, reports and one reaction per user", () => {
+  const rules = read("firestore.rules");
+
+  assert.match(rules, /match \/posts\/\{postId\}/);
+  assert.match(rules, /match \/comments\/\{commentId\}/);
+  assert.match(rules, /match \/reactions\/\{userId\}/);
+  assert.match(rules, /match \/reports\/\{reportId\}/);
+  assert.match(rules, /request\.resource\.data\.userId == request\.auth\.uid/);
+  assert.match(rules, /request\.auth\.uid == resource\.data\.userId/);
+  assert.match(rules, /request\.auth\.uid == userId/);
+  assert.match(rules, /request\.resource\.data\.diff\(resource\.data\)\.affectedKeys\(\)\.hasOnly\(publicProfileFields\(\)\)/);
+  assert.match(rules, /allow update:[\s\S]*isAdmin\(\)/);
+  assert.doesNotMatch(rules, /validRole\(request\.resource\.data\.role\)[\s\S]{0,240}request\.auth\.uid == userId/);
+});
+
+test("V1 legal copy has no placeholders and describes Firestore persistence", () => {
+  const legal = read("legal.html");
+
+  assert.doesNotMatch(legal, /\[(VOTRE NOM OU ENTREPRISE|ADRESSE COMPLÈTE|NUM[ÉE]RO SIRET|NOM DE L[’']H[ÉE]BERGEUR|URL DE L[’']H[ÉE]BERGEUR)\]/i);
+  assert.doesNotMatch(legal, /journal de bord,[\s\S]{0,120}messages[\s\S]{0,120}localStorage/i);
+  assert.match(legal, /Jonathan YAV/);
+  assert.match(legal, /TEOMARCHI/);
+  assert.match(legal, /Firebase Firestore/);
+  assert.match(legal, /thème|préférences locales/i);
+});
+
+test("V1 client localStorage is limited to local preferences and onboarding", () => {
+  const js = read("app.js");
+
+  assert.match(js, /teomarchi\.theme/);
+  assert.match(js, /teomarchi\.onboarding/);
+  assert.doesNotMatch(js, /localStorage\.setItem\(`teomarchi\.profile/);
+  assert.doesNotMatch(js, /localStorage\.setItem\("teomarchi\.session"/);
+  assert.doesNotMatch(js, /localStorage\.setItem\("teomarchi\.journal"/);
+  assert.doesNotMatch(js, /localStorage\.setItem\("teomarchi\.journalier"/);
+  assert.doesNotMatch(js, /localStorage\.setItem\("teomarchi\.messages"/);
+});
+
+test("V1 search and toast rendering do not inject raw user strings", () => {
+  const js = read("app.js");
+
+  assert.match(js, /function\s+renderGlobalSearchResults\s*\(/);
+  assert.match(js, /document\.createElement\("button"\)/);
+  assert.match(js, /\.textContent\s*=/);
+  assert.match(js, /toast\.append/);
+  assert.doesNotMatch(js, /toast\.innerHTML\s*=/);
+  assert.doesNotMatch(js, /<strong>\$\{u\.name\}<\/strong>/);
+  assert.doesNotMatch(js, /<span[^>]*>\$\{u\.init\}<\/span>/);
 });

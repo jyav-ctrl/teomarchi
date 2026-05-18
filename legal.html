@@ -250,12 +250,12 @@
           <h3>Éditeur du site</h3>
           <p>Le site <strong>TEOMARCHI</strong> (accessible à l'adresse <strong>teomarchi.com</strong>) est édité par :</p>
           <ul>
-            <li>Nom / Raison sociale : <span class="placeholder">[VOTRE NOM OU ENTREPRISE]</span></li>
-            <li>Statut juridique : <span class="placeholder">[EI / SASU / SAS / etc.]</span></li>
-            <li>SIRET : <span class="placeholder">[NUMÉRO SIRET]</span> — si applicable</li>
-            <li>Adresse : <span class="placeholder">[ADRESSE COMPLÈTE]</span></li>
+            <li>Nom / Raison sociale : Jonathan YAV — TEOMARCHI</li>
+            <li>Statut juridique : projet éditorial et logiciel indépendant, immatriculation professionnelle à finaliser avant facturation directe hors Stripe</li>
+            <li>SIRET : non applicable à ce stade</li>
+            <li>Adresse : communiquée sur demande légitime à <a href="mailto:teomarchi@teomarchi.com">teomarchi@teomarchi.com</a></li>
             <li>E-mail : <a href="mailto:teomarchi@teomarchi.com">teomarchi@teomarchi.com</a></li>
-            <li>Directeur de la publication : <span class="placeholder">[VOTRE NOM]</span></li>
+            <li>Directeur de la publication : Jonathan YAV</li>
           </ul>
         </div>
 
@@ -263,9 +263,9 @@
           <h3>Hébergement</h3>
           <p>Le site est hébergé par :</p>
           <ul>
-            <li>Société : <span class="placeholder">[NOM DE L'HÉBERGEUR — ex: Vercel, OVH, Netlify]</span></li>
-            <li>Adresse : <span class="placeholder">[ADRESSE DE L'HÉBERGEUR]</span></li>
-            <li>Site : <span class="placeholder">[URL DE L'HÉBERGEUR]</span></li>
+            <li>Société : GitHub Pages / GitHub, Inc.</li>
+            <li>Adresse : 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, États-Unis</li>
+            <li>Site : <a href="https://pages.github.com/" target="_blank" rel="noopener">https://pages.github.com/</a></li>
           </ul>
         </div>
 
@@ -473,8 +473,8 @@
         <div class="doc-section">
           <h3>1. Responsable du traitement</h3>
           <ul>
-            <li>Identité : <span class="placeholder">[VOTRE NOM OU ENTREPRISE]</span></li>
-            <li>Adresse : <span class="placeholder">[ADRESSE COMPLÈTE]</span></li>
+            <li>Identité : Jonathan YAV — TEOMARCHI</li>
+            <li>Adresse : communiquée sur demande légitime à <a href="mailto:teomarchi@teomarchi.com">teomarchi@teomarchi.com</a></li>
             <li>Contact DPO / RGPD : <a href="mailto:teomarchi@teomarchi.com">teomarchi@teomarchi.com</a></li>
           </ul>
         </div>
@@ -503,12 +503,13 @@
             votre abonnement et la date de renouvellement.
           </p>
 
-          <h4>Données de navigation</h4>
+          <h4>Données applicatives et préférences</h4>
           <p>
-            Vos préférences d'affichage (thème sombre/clair), votre journal de bord,
-            vos messages et votre progression sont stockés localement dans le
-            <code style="font-family:var(--mono);font-size:.88em">localStorage</code>
-            de votre navigateur. Ces données ne quittent pas votre appareil.
+            Les contenus connectés de TEOMARCHI, notamment profils, publications,
+            commentaires, réactions, signalements et journal de projet, sont destinés
+            à être traités dans <strong>Firebase Firestore</strong> lorsque vous êtes authentifié.
+            Le stockage local du navigateur est limité aux préférences non critiques,
+            comme le thème d'affichage ou l'état d'accueil.
           </p>
         </div>
 
@@ -542,8 +543,9 @@
           <h3>5. Durée de conservation</h3>
           <ul>
             <li>Données de compte (Firebase) : conservées tant que le compte est actif, puis supprimées sous 30 jours après demande</li>
+            <li>Données applicatives (Firebase Firestore) : conservées tant que le compte ou le contenu associé reste actif</li>
             <li>Données de paiement (Stripe) : selon la politique de Stripe, minimum 5 ans pour obligations légales comptables</li>
-            <li>Données locales (localStorage) : stockées sur votre appareil, supprimables à tout moment depuis les paramètres de votre navigateur</li>
+            <li>Préférences locales : conservées sur votre appareil, supprimables à tout moment depuis les paramètres de votre navigateur</li>
           </ul>
         </div>
 
@@ -573,8 +575,8 @@
           <h3>7. Cookies</h3>
           <p>
             TEOMARCHI n'utilise pas de cookies de traçage ou publicitaires.
-            Le seul stockage côté navigateur est le <code style="font-family:var(--mono);font-size:.88em">localStorage</code>
-            utilisé pour vos préférences locales (thème, journal, messages). Aucun cookie tiers n'est déposé.
+            Le stockage côté navigateur est limité aux préférences locales non critiques
+            telles que le thème. Aucun cookie tiers publicitaire n'est déposé.
           </p>
         </div>
 

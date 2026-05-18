@@ -98,15 +98,24 @@ window.TEOMARCHI_SECURITY_MODEL = Object.freeze({
   note: "Sécurité critique à appliquer via Firestore Rules ou Cloud Functions, jamais uniquement côté front."
 });
 
-function getUserPlan(source = window.TEOMARCHI_AUTH_STATE) {
-  const user = source?.user || source;
-  const email = String(user?.email || source?.email || "").toLowerCase();
-  if (email === "teomarchi@teomarchi.com" || source?.isAdmin || source?.role === "admin") return "admin";
-  const raw = String(source?.plan || source?.role || source?.subscriptionRole || "").toLowerCase();
+function getAuthRole(source = window.TEOMARCHI_AUTH_STATE) {
+  const customClaims = source?.customClaims || source?.tokenClaims || source?.claims || {};
+  if (customClaims.admin === true || source?.isAdmin === true) return "admin";
+  const raw = String(
+    customClaims.role ||
+    source?.role ||
+    source?.plan ||
+    source?.subscriptionRole ||
+    ""
+  ).toLowerCase();
   if (raw === "agence") return "agency";
-  if (TEOMARCHI_ROLES.includes(raw)) return raw;
-  if (source?.isPremium === true) return "studio";
-  return "free";
+  return TEOMARCHI_ROLES.includes(raw) ? raw : "free";
+}
+
+function getUserPlan(source = window.TEOMARCHI_AUTH_STATE) {
+  const role = getAuthRole(source);
+  if (role !== "free") return role;
+  return source?.isPremium === true ? "studio" : "free";
 }
 
 function canAccessFeature(feature, source = window.TEOMARCHI_AUTH_STATE) {
@@ -161,8 +170,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
 
     /* ── Config ───────────────────────────────────────────────── */
     const STORAGE = {
-      theme:   "teomarchi.theme",
-      session: "teomarchi.session"
+      theme: "teomarchi.theme"
     };
 
     const MODULES = [
@@ -265,9 +273,8 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         authorName: "Atelier TEOMARCHI",
         text: "Étude d'une façade en brique isolée : continuité thermique, ventilation et gestion de l'humidité.",
         tags: ["brique", "isolation", "façade"],
-        likeCount: 18,
-        commentCount: 4,
-        repostCount: 2
+        reactions: { utile: 18, merci: 4, cherche: 2 },
+        commentCount: 4
       },
       {
         id: "demo-feed-maquette-bois",
@@ -276,9 +283,8 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         authorName: "Atelier TEOMARCHI",
         text: "Maquette de trame bois : structure répétitive, préfabrication et réduction des chutes.",
         tags: ["bois", "trame", "bas-carbone"],
-        likeCount: 23,
-        commentCount: 6,
-        repostCount: 3
+        reactions: { utile: 23, merci: 6, cherche: 3 },
+        commentCount: 6
       },
       {
         id: "demo-feed-patio",
@@ -287,9 +293,8 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         authorName: "Atelier TEOMARCHI",
         text: "Maison patio en climat chaud : inertie, ombrage, ventilation traversante et seuils protégés.",
         tags: ["patio", "climat chaud", "inertie"],
-        likeCount: 15,
-        commentCount: 3,
-        repostCount: 1
+        reactions: { utile: 15, merci: 3, cherche: 1 },
+        commentCount: 3
       }
     ]);
 
@@ -404,6 +409,11 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       if (getFirebaseUser()) return false;
       return DEMO_SURFACES.includes(normalizedSurface);
     }
+
+    window.TEOMARCHI_DEMO_CONTENT = DEMO_CONTENT;
+    window.TEOMARCHI_DEMO_SURFACES = DEMO_SURFACES;
+    window.TEOMARCHI_RENDER_DEMO_BADGE = renderDemoBadge;
+    window.TEOMARCHI_SHOULD_SHOW_DEMO_CONTENT = shouldShowDemoContent;
 
     function renderDemoJournalierPreview() {
       const project = getDemoContent("journalier");
@@ -1178,8 +1188,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
 
     function getAIAdminDiagnostics () {
       const user = window.TEOMARCHI_AUTH_STATE?.user || null;
-      const userEmail = String(user?.email || "").toLowerCase();
-      if (userEmail === ADMIN_EMAIL) {
+      if (isTeomarchiAdmin(user)) {
         return [
           "Diagnostic admin TEOMARCHI : accès autorisé.",
           `Modules déclarés : ${MODULES.map(m => m.id).join(", ")}.`,
@@ -1267,14 +1276,16 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
 
     /* ── Session ──────────────────────────────────────────────── */
     function syncSessionBtn () {
-      const session = store.get(STORAGE.session);
+      const session = window.TEOMARCHI_AUTH_STATE || {};
       const label   = $("#session-label");
-      if (label) label.textContent = session ? session.grade + " connecté" : "Session";
+      if (label) label.textContent = session.user
+        ? `${PLAN_LABELS[session.role || session.plan || "free"] || "Compte"} connecté`
+        : "Session";
     }
 
     function toggleSession () {
-      if (store.get(STORAGE.session)) {
-        store.remove(STORAGE.session);
+      if (window.TEOMARCHI_AUTH_STATE?.user) {
+        openLogoutConfirm();
       } else {
         window.TEOMARCHI_OPEN_LOGIN?.();
       }
@@ -1293,6 +1304,93 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         role:  p.role,
         init:  p.initiales
       }));
+    }
+
+    function renderGlobalSearchResults(results, modMatches, userMatches) {
+      if (!results) return;
+      results.replaceChildren();
+
+      const addGroupLabel = label => {
+        const title = document.createElement("div");
+        title.style.padding = ".3rem .75rem .15rem";
+        title.style.fontSize = ".58rem";
+        title.style.letterSpacing = ".12em";
+        title.style.textTransform = "uppercase";
+        title.style.color = "var(--muted)";
+        title.textContent = label;
+        results.appendChild(title);
+      };
+
+      const addModule = module => {
+        const btn = document.createElement("button");
+        btn.className = "result-item";
+        btn.type = "button";
+        btn.dataset.result = module.id;
+
+        const name = document.createElement("strong");
+        name.textContent = module.label;
+        const meta = document.createElement("span");
+        meta.textContent = `Module · ${module.id}`;
+        btn.append(name, meta);
+        results.appendChild(btn);
+      };
+
+      const addUser = user => {
+        const btn = document.createElement("button");
+        btn.className = "result-item";
+        btn.type = "button";
+        btn.dataset.userSlug = user.slug || "";
+        btn.style.display = "flex";
+        btn.style.alignItems = "center";
+        btn.style.gap = ".62rem";
+
+        const avatar = document.createElement("span");
+        avatar.style.width = "26px";
+        avatar.style.height = "26px";
+        avatar.style.borderRadius = "50%";
+        avatar.style.background = "rgba(201,169,110,.15)";
+        avatar.style.border = "0.5px solid rgba(201,169,110,.32)";
+        avatar.style.display = "grid";
+        avatar.style.placeItems = "center";
+        avatar.style.fontSize = ".6rem";
+        avatar.style.fontWeight = "600";
+        avatar.style.color = "var(--gold)";
+        avatar.style.flexShrink = "0";
+        avatar.textContent = user.init || "";
+
+        const textWrap = document.createElement("span");
+        const name = document.createElement("strong");
+        name.textContent = user.name || "Membre TEOMARCHI";
+        const role = document.createElement("span");
+        role.style.display = "block";
+        role.style.fontSize = ".65rem";
+        role.textContent = user.role || "";
+        textWrap.append(name, role);
+        btn.append(avatar, textWrap);
+        results.appendChild(btn);
+      };
+
+      if (!modMatches.length && !userMatches.length) {
+        const empty = document.createElement("div");
+        empty.className = "result-item";
+        const title = document.createElement("strong");
+        title.textContent = "Aucun résultat";
+        const hint = document.createElement("span");
+        hint.textContent = "Essayez : Atlas, Chronos, Normes, PMR...";
+        empty.append(title, hint);
+        results.appendChild(empty);
+        return;
+      }
+
+      if (userMatches.length) {
+        addGroupLabel("Membres");
+        userMatches.forEach(addUser);
+      }
+
+      if (modMatches.length) {
+        addGroupLabel("Modules");
+        modMatches.forEach(addModule);
+      }
     }
 
     function handleSearch (e) {
@@ -1314,36 +1412,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         .filter(u => normalize(u.name).includes(q) || normalize(u.role).includes(q))
         .slice(0, 3);
 
-      const modHTML = modMatches.map(m =>
-        `<button class="result-item" type="button" data-result="${m.id}">
-          <strong>${m.label}</strong>
-          <span>Module · ${m.id}</span>
-        </button>`
-      ).join("");
-
-      const userHTML = userMatches.map(u =>
-        `<button class="result-item" type="button" data-user-slug="${u.slug}"
-                 style="display:flex;align-items:center;gap:.62rem">
-          <span style="width:26px;height:26px;border-radius:50%;background:rgba(201,169,110,.15);
-                       border:0.5px solid rgba(201,169,110,.32);display:grid;place-items:center;
-                       font-size:.6rem;font-weight:600;color:var(--gold);flex-shrink:0">${u.init}</span>
-          <span>
-            <strong>${u.name}</strong>
-            <span style="display:block;font-size:.65rem">${u.role}</span>
-          </span>
-        </button>`
-      ).join("");
-
-      if (!modMatches.length && !userMatches.length) {
-        results.innerHTML = `<div class="result-item">
-          <strong>Aucun résultat</strong>
-          <span>Essayez : Atlas, Chronos, Normes, PMR…</span>
-        </div>`;
-      } else {
-        results.innerHTML =
-          (userMatches.length ? `<div style="padding:.3rem .75rem .15rem;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)">Membres</div>` + userHTML : "") +
-          (modMatches.length  ? `<div style="padding:.3rem .75rem .15rem;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)">Modules</div>`  + modHTML  : "");
-      }
+      renderGlobalSearchResults(results, modMatches, userMatches);
 
       results.classList.add("is-open");
     }
@@ -1650,7 +1719,32 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     } else {
       init();
     }
-  })();
+	  })();
+
+function getDemoContent(key) {
+  const normalizedKey = String(key ?? "").toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "");
+  return window.TEOMARCHI_DEMO_CONTENT?.[normalizedKey] || null;
+}
+
+function shouldShowDemoContent(surface) {
+  if (typeof window.TEOMARCHI_SHOULD_SHOW_DEMO_CONTENT === "function") {
+    return window.TEOMARCHI_SHOULD_SHOW_DEMO_CONTENT(surface);
+  }
+  const normalizedSurface = String(surface ?? "").toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "");
+  if (!normalizedSurface || getFirebaseUser()) return false;
+  return Array.isArray(window.TEOMARCHI_DEMO_SURFACES)
+    ? window.TEOMARCHI_DEMO_SURFACES.includes(normalizedSurface)
+    : false;
+}
+
+function renderDemoBadge(label = "Démo") {
+  if (typeof window.TEOMARCHI_RENDER_DEMO_BADGE === "function") {
+    return window.TEOMARCHI_RENDER_DEMO_BADGE(label);
+  }
+  return `<span class="tm-demo-badge" aria-label="Contenu de démonstration">${_esc(label)}</span>`;
+}
 
 /* ── CSS responsive Journalier (injecté une fois) ─────────────── */
   (function injectJournalierCSS() {
@@ -2057,11 +2151,29 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
   /* ── TEOMARCHI_APP : Persistance Globale ───────────────────────── */
   const TEOMARCHI_APP = (() => {
     const P = "teomarchi.";
+    const _memory = new Map();
 
     const _ls = {
-      get: (k, fb = null) => { try { return JSON.parse(localStorage.getItem(P + k)) ?? fb; } catch { return fb; } },
-      set: (k, v)         => { try { localStorage.setItem(P + k, JSON.stringify(v)); }        catch {}              },
-      del: (k)            => { try { localStorage.removeItem(P + k); }                         catch {}              }
+      get: (k, fb = null) => {
+        if (k === "theme") {
+          try { return JSON.parse(localStorage.getItem(P + k)) ?? fb; } catch { return fb; }
+        }
+        return _memory.has(k) ? _memory.get(k) : fb;
+      },
+      set: (k, v) => {
+        if (k === "theme") {
+          try { localStorage.setItem(P + k, JSON.stringify(v)); } catch {}
+          return;
+        }
+        _memory.set(k, v);
+      },
+      del: (k) => {
+        if (k === "theme") {
+          try { localStorage.removeItem(P + k); } catch {}
+          return;
+        }
+        _memory.delete(k);
+      }
     };
 
     const _cbs  = {};
@@ -2167,7 +2279,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       const active = next.projects[next.activeProjectType];
       if (active) active.updatedAt = new Date().toISOString();
       _ls.set("journalier", next);
-      setSaveStatus("Sauvegarde locale effectuée", "local");
+      setSaveStatus("Sauvegarde mémoire prête — cloud si disponible", "local");
       saveJournalierCloud(next);
       _emit("journalier");
       return next;
@@ -3344,6 +3456,133 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     technique: item.technique || item.contraintePrincipale,
     lecon: item.lecon || item.leconArchitecturale
   }));
+
+  const DATA_ATLAS_V1 = Object.freeze([
+    { id: "pmr-rotation-150", categorie: "PMR", titre: "Aire de rotation fauteuil", valeur_min: "Ø 150 cm", valeur_recommandee: "Ø 150 cm libre", norme_reference: "France accessibilité ERP/logement, Belgique guides régionaux", pays: "France / Belgique", usage: "Sanitaires, chambres, halls accessibles", note: "Aucun obstacle fixe dans le cercle de giration.", tags: ["pmr", "rotation", "fauteuil"], source_status: "officiel" },
+    { id: "pmr-porte-90", categorie: "PMR", titre: "Largeur de porte accessible", valeur_min: "83 cm vantail", valeur_recommandee: "90 cm vantail", norme_reference: "Accessibilité PMR", pays: "France / Belgique", usage: "Portes principales et locaux accessibles", note: "Vérifier passage utile selon huisserie.", tags: ["pmr", "porte"], source_status: "officiel" },
+    { id: "pmr-rampe-5", categorie: "PMR", titre: "Pente courante de rampe", valeur_min: "5 %", valeur_recommandee: "4 à 5 %", norme_reference: "Accessibilité cheminements", pays: "France / Belgique", usage: "Cheminement extérieur ou intérieur", note: "Paliers et longueurs maximales à confirmer localement.", tags: ["pmr", "rampe"], source_status: "officiel" },
+    { id: "pmr-douche-plain-pied", categorie: "PMR", titre: "Douche accessible", valeur_min: "90 x 120 cm", valeur_recommandee: "120 x 140 cm", norme_reference: "Accessibilité sanitaires", pays: "France / Belgique", usage: "Salle d'eau accessible", note: "Prévoir ressaut nul ou limité et zone de transfert.", tags: ["pmr", "sanitaire"], source_status: "à vérifier" },
+    { id: "circulation-couloir-logement", categorie: "Circulations", titre: "Couloir logement", valeur_min: "90 cm", valeur_recommandee: "100 à 120 cm", norme_reference: "Ergonomie logement", pays: "Europe", usage: "Distribution intérieure", note: "Augmenter si croisement, portage ou PMR.", tags: ["couloir", "logement"], source_status: "indicatif" },
+    { id: "circulation-hall-collectif", categorie: "Circulations", titre: "Hall collectif", valeur_min: "120 cm", valeur_recommandee: "150 cm", norme_reference: "Usage collectif / évacuation", pays: "Europe", usage: "Entrée et parties communes", note: "À croiser avec incendie et accessibilité.", tags: ["hall", "collectif"], source_status: "à vérifier" },
+    { id: "circulation-passage-mobilier", categorie: "Circulations", titre: "Passage autour mobilier", valeur_min: "70 cm", valeur_recommandee: "90 cm", norme_reference: "Ergonomie intérieure", pays: "Europe", usage: "Séjour, bureau, chambres", note: "90 cm devient plus confortable au quotidien.", tags: ["mobilier", "passage"], source_status: "indicatif" },
+    { id: "escalier-blondel", categorie: "Escaliers", titre: "Formule de Blondel", valeur_min: "60 cm", valeur_recommandee: "2H + G = 63 cm", norme_reference: "Règle ergonomique escalier", pays: "Europe", usage: "Pré-dimensionnement escalier", note: "Contrôler aussi échappée, largeur et garde-corps.", tags: ["escalier", "giron"], source_status: "indicatif" },
+    { id: "escalier-hauteur-marche", categorie: "Escaliers", titre: "Hauteur de marche", valeur_min: "16 cm", valeur_recommandee: "17 à 18 cm", norme_reference: "Ergonomie escalier", pays: "Europe", usage: "Escalier courant", note: "ERP et logement collectif peuvent imposer des valeurs spécifiques.", tags: ["marche", "hauteur"], source_status: "à vérifier" },
+    { id: "escalier-largeur", categorie: "Escaliers", titre: "Largeur escalier courant", valeur_min: "80 cm", valeur_recommandee: "100 cm", norme_reference: "Usage / évacuation", pays: "Europe", usage: "Maison ou petit collectif", note: "À recalculer selon effectif et incendie.", tags: ["escalier", "évacuation"], source_status: "à vérifier" },
+    { id: "stationnement-voiture", categorie: "Stationnement", titre: "Place voiture standard", valeur_min: "2,50 x 5,00 m", valeur_recommandee: "2,70 x 5,20 m", norme_reference: "Règlements urbanisme locaux", pays: "France / Belgique", usage: "Parking logement ou équipement", note: "Les obligations de nombre varient fortement selon commune.", tags: ["parking", "voiture"], source_status: "à vérifier" },
+    { id: "stationnement-pmr", categorie: "Stationnement", titre: "Place PMR", valeur_min: "3,30 x 5,00 m", valeur_recommandee: "3,50 x 5,00 m", norme_reference: "Accessibilité stationnement", pays: "France / Belgique", usage: "Parking accessible", note: "Prévoir liaison accessible vers l'entrée.", tags: ["parking", "pmr"], source_status: "officiel" },
+    { id: "stationnement-velo", categorie: "Stationnement", titre: "Emplacement vélo", valeur_min: "60 x 180 cm", valeur_recommandee: "75 x 200 cm", norme_reference: "Guides mobilité locale", pays: "Europe", usage: "Local vélo", note: "Ajouter aire de manoeuvre et système d'attache.", tags: ["vélo", "mobilité"], source_status: "indicatif" },
+    { id: "sanitaire-wc-standard", categorie: "Sanitaires", titre: "WC standard compact", valeur_min: "80 x 120 cm", valeur_recommandee: "90 x 140 cm", norme_reference: "Ergonomie sanitaire", pays: "Europe", usage: "Logement non PMR", note: "Porte ouvrant vers extérieur préférable en très petit local.", tags: ["wc", "sanitaire"], source_status: "indicatif" },
+    { id: "sanitaire-wc-pmr", categorie: "Sanitaires", titre: "WC accessible", valeur_min: "150 x 150 cm", valeur_recommandee: "170 x 170 cm", norme_reference: "Accessibilité sanitaires", pays: "France / Belgique", usage: "ERP, logement adaptable", note: "Inclure transfert latéral et barres d'appui.", tags: ["wc", "pmr"], source_status: "officiel" },
+    { id: "sanitaire-lavabo", categorie: "Sanitaires", titre: "Dégagement devant lavabo", valeur_min: "70 cm", valeur_recommandee: "90 cm", norme_reference: "Ergonomie sanitaire", pays: "Europe", usage: "Salle de bain", note: "Adapter si tiroirs, meuble profond ou accessibilité.", tags: ["lavabo", "dégagement"], source_status: "indicatif" },
+    { id: "cuisine-plan-hauteur", categorie: "Cuisine", titre: "Hauteur plan de travail", valeur_min: "85 cm", valeur_recommandee: "90 à 92 cm", norme_reference: "Ergonomie cuisine", pays: "Europe", usage: "Cuisine logement", note: "À adapter à la taille des usagers.", tags: ["cuisine", "plan"], source_status: "indicatif" },
+    { id: "cuisine-degagement", categorie: "Cuisine", titre: "Dégagement devant meuble", valeur_min: "90 cm", valeur_recommandee: "120 cm", norme_reference: "Ergonomie cuisine", pays: "Europe", usage: "Cuisine linéaire ou parallèle", note: "120 cm si deux personnes travaillent.", tags: ["cuisine", "circulation"], source_status: "indicatif" },
+    { id: "cuisine-ilot", categorie: "Cuisine", titre: "Îlot central", valeur_min: "90 x 160 cm", valeur_recommandee: "100 x 220 cm", norme_reference: "Ergonomie cuisine", pays: "Europe", usage: "Cuisine ouverte", note: "Ajouter les dégagements autour, pas seulement l'objet.", tags: ["cuisine", "îlot"], source_status: "indicatif" },
+    { id: "logement-chambre-simple", categorie: "Logement", titre: "Chambre simple", valeur_min: "9 m²", valeur_recommandee: "10 à 12 m²", norme_reference: "Décence logement / pratiques locales", pays: "France / Belgique", usage: "Logement", note: "Vérifier hauteur, éclairement et ventilation.", tags: ["chambre", "logement"], source_status: "à vérifier" },
+    { id: "logement-sejour", categorie: "Logement", titre: "Séjour compact", valeur_min: "14 m²", valeur_recommandee: "18 à 24 m²", norme_reference: "Programme logement", pays: "Europe", usage: "Séjour logement", note: "La qualité dépend aussi de la largeur utile et de la lumière.", tags: ["séjour", "logement"], source_status: "indicatif" },
+    { id: "logement-hauteur", categorie: "Logement", titre: "Hauteur sous plafond", valeur_min: "2,20 m", valeur_recommandee: "2,50 m", norme_reference: "Décence / règlements locaux", pays: "France / Belgique", usage: "Pièces principales", note: "Certains règlements imposent plus selon affectation.", tags: ["hauteur", "logement"], source_status: "à vérifier" },
+    { id: "thermique-isolation-toiture", categorie: "Thermique", titre: "Priorité isolation toiture", valeur_min: "Selon réglementation", valeur_recommandee: "Traitement renforcé", norme_reference: "PEB / RE2020 / rénovation", pays: "France / Belgique", usage: "Enveloppe chauffée", note: "La toiture concentre souvent les pertes et surchauffes.", tags: ["toiture", "isolation"], source_status: "à vérifier" },
+    { id: "thermique-pont-thermique", categorie: "Thermique", titre: "Continuité isolant", valeur_min: "Rupteurs aux jonctions", valeur_recommandee: "Enveloppe continue dessinée en coupe", norme_reference: "PEB / RE2020", pays: "France / Belgique", usage: "Façades, dalles, balcons", note: "Contrôler seuils, tableaux, acrotères et balcons.", tags: ["pont thermique", "coupe"], source_status: "à vérifier" },
+    { id: "thermique-ventilation", categorie: "Thermique", titre: "Ventilation hygiénique", valeur_min: "Débits réglementaires", valeur_recommandee: "Système dimensionné par local", norme_reference: "Ventilation logement", pays: "France / Belgique", usage: "Logement et locaux humides", note: "Ne pas confondre étanchéité à l'air et absence de ventilation.", tags: ["ventilation", "air"], source_status: "officiel" },
+    { id: "urbanisme-recul", categorie: "Urbanisme basique", titre: "Recul à rue", valeur_min: "Selon zone", valeur_recommandee: "Alignement ou recul prescrit", norme_reference: "PLU / RRU / CoDT / commune", pays: "France / Belgique", usage: "Implantation parcelle", note: "Toujours vérifier la parcelle et la zone exacte.", tags: ["urbanisme", "recul"], source_status: "officiel" },
+    { id: "urbanisme-emprise", categorie: "Urbanisme basique", titre: "Emprise au sol", valeur_min: "Selon règlement", valeur_recommandee: "Calcul par parcelle", norme_reference: "PLU / règlements communaux", pays: "France / Belgique", usage: "Faisabilité", note: "Inclure annexes et surfaces couvertes selon définition locale.", tags: ["emprise", "parcelle"], source_status: "officiel" },
+    { id: "urbanisme-hauteur", categorie: "Urbanisme basique", titre: "Hauteur maximale", valeur_min: "Selon zone", valeur_recommandee: "Vérifier gabarit + toiture", norme_reference: "PLU / RRU / CoDT", pays: "France / Belgique", usage: "Volume constructible", note: "Les méthodes de mesure varient selon règlement.", tags: ["hauteur", "gabarit"], source_status: "officiel" },
+    { id: "urbanisme-pleine-terre", categorie: "Urbanisme basique", titre: "Pleine terre", valeur_min: "Selon zone", valeur_recommandee: "Maximiser infiltration", norme_reference: "PLU / règlements environnementaux", pays: "France / Belgique", usage: "Aménagement de parcelle", note: "Vérifier définition : dalle drainante, cave et parking peuvent exclure.", tags: ["eau", "sol"], source_status: "à vérifier" },
+    { id: "pmr-interrupteur", categorie: "PMR", titre: "Hauteur commandes", valeur_min: "90 cm", valeur_recommandee: "90 à 130 cm", norme_reference: "Accessibilité atteinte", pays: "France / Belgique", usage: "Interrupteurs, commandes", note: "Zone d'atteinte à vérifier selon public et local.", tags: ["pmr", "électricité"], source_status: "officiel" },
+    { id: "escalier-garde-corps", categorie: "Escaliers", titre: "Hauteur garde-corps", valeur_min: "90 cm", valeur_recommandee: "100 cm", norme_reference: "Sécurité garde-corps", pays: "France / Belgique", usage: "Escaliers, paliers, vides", note: "Exigences précises selon hauteur de chute et type de bâtiment.", tags: ["garde-corps", "sécurité"], source_status: "à vérifier" },
+    { id: "circulation-porte-entree", categorie: "Circulations", titre: "Porte d'entrée logement", valeur_min: "90 cm", valeur_recommandee: "93 à 100 cm", norme_reference: "Accessibilité / usage logement", pays: "France / Belgique", usage: "Entrée logement", note: "Contrôler passage utile réel et seuil.", tags: ["porte", "entrée"], source_status: "à vérifier" },
+    { id: "sanitaire-douche-standard", categorie: "Sanitaires", titre: "Douche confortable", valeur_min: "80 x 120 cm", valeur_recommandee: "90 x 140 cm", norme_reference: "Ergonomie sanitaire", pays: "Europe", usage: "Salle d'eau logement", note: "Prévoir paroi, pente, siphon et entretien.", tags: ["douche", "salle d'eau"], source_status: "indicatif" }
+  ]);
+
+  const _atlasV1State = { query: "", categorie: "", pays: "" };
+
+  function getAtlasV1Filtered() {
+    const needle = normalizeText(_atlasV1State.query);
+    return DATA_ATLAS_V1.filter(item => {
+      const categoryMatch = !_atlasV1State.categorie || item.categorie === _atlasV1State.categorie;
+      const countryMatch = !_atlasV1State.pays || item.pays.includes(_atlasV1State.pays);
+      const searchMatch = !needle || normalizeText(Object.values(item).flat().join(" ")).includes(needle);
+      return categoryMatch && countryMatch && searchMatch;
+    });
+  }
+
+  function renderAtlasV1Panel() {
+    const rows = getAtlasV1Filtered();
+    const categories = getUniqueValues(DATA_ATLAS_V1, "categorie");
+    const countries = ["France", "Belgique", "Europe"];
+    return `
+      <section class="tm-editorial-panel tm-atlas-v1" aria-label="Atlas V1 fiches techniques">
+        <div class="landing-band__head">
+          <p class="tm-tech-kicker">Atlas V1</p>
+          <h3 class="landing-title landing-title--wide">Fiches techniques rapides pour les jurys.</h3>
+        </div>
+        <div class="tm-tech-controls">
+          <label class="field">
+            <input type="search" data-atlas-v1-search value="${_esc(_atlasV1State.query)}" placeholder="Rechercher PMR, escalier, thermique..." autocomplete="off">
+          </label>
+          <label class="field">
+            <select data-atlas-v1-category>
+              <option value="">Toutes catégories</option>
+              ${categories.map(cat => `<option value="${_esc(cat)}" ${_atlasV1State.categorie === cat ? "selected" : ""}>${_esc(cat)}</option>`).join("")}
+            </select>
+          </label>
+          <label class="field">
+            <select data-atlas-v1-country>
+              <option value="">Tous pays</option>
+              ${countries.map(country => `<option value="${_esc(country)}" ${_atlasV1State.pays === country ? "selected" : ""}>${_esc(country)}</option>`).join("")}
+            </select>
+          </label>
+        </div>
+        <div class="tm-normes-grid">
+          ${rows.map(item => `
+            <article class="tm-normes-item">
+              <span class="tm-technical-badge">${_esc(item.source_status)}</span>
+              <p class="tm-normes-nom">${_esc(item.categorie)}</p>
+              <h4 style="margin:0;font-family:var(--serif);font-size:1.35rem;font-weight:300;color:var(--ink)">${_esc(item.titre)}</h4>
+              <p class="tm-normes-dim">${_esc(item.valeur_recommandee)}</p>
+              <p class="tm-normes-note">Min. ${_esc(item.valeur_min)} · ${_esc(item.pays)}</p>
+              <p class="tm-normes-note">${_esc(item.note)}</p>
+              <p class="tm-normes-note">${_esc(item.norme_reference)}</p>
+              ${renderTagList(item.tags, "tm-normes-tags")}
+              <button type="button" class="tm-feed-btn" data-atlas-copy-value="${_esc(item.valeur_recommandee)}">Copier valeur</button>
+            </article>
+          `).join("") || renderEmptyState("Aucune fiche Atlas", "Ajustez la recherche, la catégorie ou le pays.")}
+        </div>
+      </section>
+    `;
+  }
+
+  function bindAtlasV1Panel(root) {
+    if (!root || root.dataset.atlasV1Bound) return;
+    root.dataset.atlasV1Bound = "1";
+    const refresh = () => {
+      const panel = root.querySelector(".tm-atlas-v1");
+      if (panel) panel.outerHTML = renderAtlasV1Panel();
+    };
+    root.addEventListener("input", e => {
+      const search = e.target.closest("[data-atlas-v1-search]");
+      if (!search) return;
+      _atlasV1State.query = search.value || "";
+      refresh();
+    });
+    root.addEventListener("change", e => {
+      const category = e.target.closest("[data-atlas-v1-category]");
+      const country = e.target.closest("[data-atlas-v1-country]");
+      if (!category && !country) return;
+      if (category) _atlasV1State.categorie = category.value || "";
+      if (country) _atlasV1State.pays = country.value || "";
+      refresh();
+    });
+    root.addEventListener("click", async e => {
+      const copy = e.target.closest("[data-atlas-copy-value]");
+      if (!copy) return;
+      try {
+        await navigator.clipboard?.writeText(copy.dataset.atlasCopyValue || "");
+        notifyUser("Valeur Atlas copiée.");
+      } catch {
+        notifyUser(copy.dataset.atlasCopyValue || "Valeur Atlas");
+      }
+    });
+  }
 
   /* ── Placeholder SVG architectural (léger, générique) ───────── */
   const _svgSketch = (seed = 0) => {
@@ -5109,7 +5348,9 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     const root = document.getElementById("atlas-grid");
     if (!root) return;
     renderTechnicalCards(root, DATA_ATLAS_EXPANDED, _atlasOptions);
+    root.insertAdjacentHTML("beforeend", renderAtlasV1Panel());
     _bindTechnicalModule(root, DATA_ATLAS_EXPANDED, _atlasOptions);
+    bindAtlasV1Panel(root);
   }
 
   function initChronos() {
@@ -5848,11 +6089,12 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
   })();
 
   /* ── Auth/Firestore helpers partagés ────────────────────────── */
-  const ADMIN_EMAIL = "teomarchi@teomarchi.com";
   window.TEOMARCHI_AUTH_STATE = window.TEOMARCHI_AUTH_STATE || {
     user: null,
     isAdmin: false,
-    isPremium: false
+    isPremium: false,
+    role: "free",
+    customClaims: {}
   };
 
   function getFirestoreDb() {
@@ -5873,7 +6115,11 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
   }
 
   function isTeomarchiAdmin(user = getFirebaseUser()) {
-    return String(user?.email || "").toLowerCase() === ADMIN_EMAIL;
+    return getAuthRole({
+      user,
+      role: window.TEOMARCHI_AUTH_STATE?.role,
+      customClaims: window.TEOMARCHI_AUTH_STATE?.customClaims
+    }) === "admin";
   }
 
   function serverTimestamp() {
@@ -6447,7 +6693,6 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     const data = new FormData(form);
     const avatarFile = form.querySelector("#profile-avatar-file")?.files?.[0] || null;
     const uploadedAvatar = avatarFile ? await uploadProfileAvatar(avatarFile, user) : "";
-    const role = getUserPlan(window.TEOMARCHI_AUTH_STATE);
     const profile = {
       displayName: String(data.get("displayName") || compactUserName(user)).trim().slice(0, 80),
       bio: String(data.get("bio") || "").trim().slice(0, 240),
@@ -6464,8 +6709,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     };
 
     if (!db) {
-      try { localStorage.setItem(`teomarchi.profile.${user.uid}`, JSON.stringify(profile)); } catch {}
-      notifyUser("Profil sauvegardé sur ce navigateur.");
+      notifyUser("Profil non sauvegardé : Firestore est indisponible.");
       return;
     }
 
@@ -6473,7 +6717,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     const snap = await ref.get();
     await ref.set({
       ...profile,
-      ...(snap.exists ? {} : { role, status: "active", createdAt: serverTimestamp() })
+      ...(snap.exists ? {} : { role: "free", status: "active", createdAt: serverTimestamp() })
     }, { merge: true });
     notifyUser("Profil sauvegardé.");
   }
@@ -7789,14 +8033,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
 
     /* beforeunload : flush final pour les navigateurs aggressifs */
     window.addEventListener("beforeunload", () => {
-      if (typeof TEOMARCHI_APP === "undefined") return;
-      const j = TEOMARCHI_APP.journal.get();
-      const jp = TEOMARCHI_APP.journalier.get();
       try {
-        localStorage.setItem("teomarchi.journal", JSON.stringify(j));
-        localStorage.setItem("teomarchi.journalier", JSON.stringify(jp));
-        const sess = TEOMARCHI_APP.session.get();
-        if (sess) localStorage.setItem("teomarchi.session", JSON.stringify(sess));
         const theme = document.documentElement.getAttribute("data-theme") || "dark";
         localStorage.setItem("teomarchi.theme", JSON.stringify(theme));
       } catch {}
@@ -7893,9 +8130,6 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
 
   /* ── pushNotification : toast doré global ───────────────────── */
   window.pushNotification = function(message) {
-    const _e = s => String(s ?? "").replace(/[&<>"']/g, c =>
-      ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])
-    );
     let wrap = document.getElementById("tm-toast-wrap");
     if (!wrap) {
       wrap = document.createElement("div");
@@ -7904,7 +8138,11 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     }
     const toast = document.createElement("div");
     toast.className = "tm-toast";
-    toast.innerHTML = `<span class="tm-toast__dot"></span><span>${_e(message)}</span>`;
+    const dot = document.createElement("span");
+    dot.className = "tm-toast__dot";
+    const text = document.createElement("span");
+    text.textContent = String(message ?? "");
+    toast.append(dot, text);
     wrap.appendChild(toast);
     requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add("is-in")));
     const dismiss = () => {
@@ -7916,6 +8154,44 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
   };
 
   /* ── Feed social Firestore ──────────────────────────────────── */
+  const FEED_POST_TYPES = Object.freeze([
+    { id: "wip", label: "WIP" },
+    { id: "question", label: "Question" },
+    { id: "ressource", label: "Ressource" },
+    { id: "norme", label: "Norme" }
+  ]);
+
+  const FEED_PROJECT_PHASES = Object.freeze([
+    "Esquisse",
+    "Avant-projet",
+    "Développement",
+    "Détail",
+    "Jury",
+    "Chantier"
+  ]);
+
+  const FEED_CATEGORIES = Object.freeze([
+    "Logement",
+    "Équipement",
+    "Intérieur",
+    "Urbanisme",
+    "Structure",
+    "Matériaux",
+    "PMR",
+    "Thermique"
+  ]);
+
+  const FEED_REACTIONS = Object.freeze([
+    { id: "utile", label: "Utile" },
+    { id: "merci", label: "Merci" },
+    { id: "cherche", label: "Je cherche aussi" }
+  ]);
+
+  const FEED_SCHEMA_PATHS = Object.freeze([
+    "posts/{postId}/comments",
+    "posts/{postId}/reactions"
+  ]);
+
   const FEED_RULES = [
     "Interdiction de publier un projet qui ne vous appartient pas.",
     "Obligation de créditer les collaborateurs, enseignants, agences ou sources.",
@@ -7929,6 +8205,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
 
   let _feedUnsubscribe = null;
   let _feedPosts = [];
+  const _feedFilters = { type: "", projectPhase: "", category: "" };
 
   function injectFeedCSS() {
     if (document.getElementById("tm-feed-social-css")) return;
@@ -7954,6 +8231,24 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         background:var(--surface); min-width:0;
       }
       .tm-feed-composer { display:grid; gap:.8rem; }
+      .tm-feed-composer-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.72rem; }
+      .tm-feed-field--full { grid-column:1 / -1; }
+      .tm-feed-field label,
+      .tm-feed-field > span { display:block; margin:0 0 .28rem; color:var(--muted); font-size:.62rem; letter-spacing:.12em; text-transform:uppercase; }
+      .tm-feed-field input,
+      .tm-feed-field textarea,
+      .tm-feed-field select {
+        width:100%; border:var(--border); border-radius:var(--r-sm);
+        background:var(--surface-2); color:var(--ink); padding:.66rem .75rem; font:inherit;
+      }
+      .tm-feed-field textarea { min-height:108px; resize:vertical; }
+      .tm-feed-filters { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.72rem; margin-bottom:1rem; }
+      .tm-feed-meta { display:flex; flex-wrap:wrap; gap:.4rem; color:var(--muted); font-size:.66rem; }
+      .tm-feed-meta span,
+      .tm-feed-reaction-count {
+        border:0.5px solid rgba(201,169,110,.18); border-radius:999px; padding:.18rem .48rem;
+        color:var(--gold); background:rgba(201,169,110,.05);
+      }
       .tm-feed-cert { display:flex; align-items:flex-start; gap:.55rem; color:var(--ink-2); font-size:.74rem; line-height:1.45; }
       .tm-feed-cert input { margin-top:.18rem; accent-color:var(--gold); }
       .tm-feed-rules { display:grid; gap:.5rem; padding-left:1rem; color:var(--muted); font-size:.68rem; line-height:1.55; }
@@ -7977,6 +8272,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       .tm-feed-comment-form { display:flex; gap:.55rem; align-items:center; min-width:0; }
       .tm-feed-comment-form input { flex:1; min-width:0; border:var(--border); border-radius:var(--r-pill); background:var(--surface-2); color:var(--ink); padding:.55rem .8rem; }
       .tm-feed-empty { padding:2.2rem; text-align:center; border:var(--border); border-radius:var(--r-xl); color:var(--muted); background:color-mix(in srgb,var(--surface) 78%,transparent); }
+      @media (max-width:700px) { .tm-feed-composer-grid, .tm-feed-filters { grid-template-columns:1fr; } }
       @media (max-width:900px) { .tm-feed { grid-template-columns:1fr; } }
     `;
     document.head.appendChild(s);
@@ -7990,7 +8286,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
           <p style="margin:0;text-transform:uppercase;letter-spacing:.16em;font-size:.58rem;color:var(--gold)">Publication</p>
           <h3 style="margin:0;font-family:var(--serif);font-size:1.8rem;font-weight:300;color:var(--ink)">Connectez-vous pour publier</h3>
           <p style="margin:0;color:var(--muted);font-size:.82rem;line-height:1.6">
-            Vous pouvez lire le Feed public, mais la publication, les likes, commentaires et signalements nécessitent un compte connecté.
+            Vous pouvez lire le Feed public, mais la publication, les réactions, commentaires et signalements nécessitent un compte connecté.
           </p>
           <button class="text-btn text-btn--primary" type="button" data-open-login>Connexion</button>
           <div>
@@ -8008,17 +8304,53 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
         <form class="tm-feed-composer" id="feed-composer-form">
           <div>
             <p style="margin:0 0 .22rem;text-transform:uppercase;letter-spacing:.16em;font-size:.58rem;color:var(--gold)">Composer</p>
-            <h3 style="margin:0;font-family:var(--serif);font-size:1.8rem;font-weight:300;color:var(--ink)">Publier un rendu</h3>
+            <h3 style="margin:0;font-family:var(--serif);font-size:1.8rem;font-weight:300;color:var(--ink)">Publier une note architecture</h3>
           </div>
-          <div class="tm-feed-field tm-feed-field--full">
-            <label for="feed-post-text">Texte court</label>
-            <textarea id="feed-post-text" name="text" maxlength="560" placeholder="Partagez une idée, un rendu, une coupe, une intention constructive..."></textarea>
+          <div class="tm-feed-composer-grid">
+            <label class="tm-feed-field">
+              <span>Type</span>
+              <select name="type">
+                ${FEED_POST_TYPES.map(type => `<option value="${_esc(type.id)}">${_esc(type.label)}</option>`).join("")}
+              </select>
+            </label>
+            <label class="tm-feed-field">
+              <span>Phase</span>
+              <select name="projectPhase">
+                ${FEED_PROJECT_PHASES.map(phase => `<option value="${_esc(phase)}">${_esc(phase)}</option>`).join("")}
+              </select>
+            </label>
+            <label class="tm-feed-field">
+              <span>Catégorie</span>
+              <select name="category">
+                ${FEED_CATEGORIES.map(category => `<option value="${_esc(category)}">${_esc(category)}</option>`).join("")}
+              </select>
+            </label>
+            <label class="tm-feed-field">
+              <span>Titre</span>
+              <input name="title" maxlength="110" placeholder="Ex : coupe façade brique isolée">
+            </label>
+            <label class="tm-feed-field tm-feed-field--full">
+              <span>Corps</span>
+              <textarea id="feed-post-text" name="body" maxlength="1200" placeholder="Expliquez le contexte, la question technique, la ressource ou la norme à vérifier..."></textarea>
+            </label>
+            <label class="tm-feed-field tm-feed-field--full">
+              <span>Tags</span>
+              <input name="tags" placeholder="brique, PMR, détail, thermique">
+            </label>
+            <label class="tm-feed-field tm-feed-field--full">
+              <span>Images ou médias</span>
+              <input id="feed-image-urls" name="mediaUrls" placeholder="URLs séparées par des virgules ou des retours ligne">
+            </label>
+            <label class="tm-feed-field">
+              <span>Atlas liés</span>
+              <input name="linkedAtlasIds" placeholder="pmr-rotation-150, escalier-blondel">
+            </label>
+            <label class="tm-feed-field">
+              <span>Données dimensionnelles</span>
+              <input name="dimensionData" placeholder="ex : giron 28 cm, H 17 cm">
+            </label>
           </div>
-          <div class="tm-feed-field tm-feed-field--full">
-            <label for="feed-image-urls">Images de projet</label>
-            <input id="feed-image-urls" name="imageUrls" placeholder="URLs séparées par des virgules ou des retours ligne">
-            <button class="tm-feed-btn" type="button" data-feed-image-focus>Ajouter une image</button>
-          </div>
+          <button class="tm-feed-btn" type="button" data-feed-image-focus>Ajouter une image</button>
           <label class="tm-feed-cert">
             <input id="feed-certify" data-feed-certify type="checkbox" name="certify">
             <span>Je certifie être l’auteur de ce contenu ou disposer des droits nécessaires.</span>
@@ -8035,15 +8367,101 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     `;
   }
 
+  function normalizeFeedPostInput(form, author, user) {
+    const data = new FormData(form);
+    const type = FEED_POST_TYPES.some(item => item.id === data.get("type")) ? data.get("type") : "wip";
+    const projectPhase = FEED_PROJECT_PHASES.includes(data.get("projectPhase")) ? data.get("projectPhase") : FEED_PROJECT_PHASES[0];
+    const category = FEED_CATEGORIES.includes(data.get("category")) ? data.get("category") : FEED_CATEGORIES[0];
+    const tags = String(data.get("tags") || "")
+      .split(/[,#\n]+/)
+      .map(tag => tag.trim())
+      .filter(Boolean)
+      .slice(0, 10);
+    const mediaUrls = String(data.get("mediaUrls") || "")
+      .split(/[\n,]+/)
+      .map(url => url.trim())
+      .filter(Boolean)
+      .slice(0, 4);
+    const linkedAtlasIds = String(data.get("linkedAtlasIds") || "")
+      .split(/[\n,]+/)
+      .map(id => id.trim())
+      .filter(Boolean)
+      .slice(0, 8);
+    const dimensionText = String(data.get("dimensionData") || "").trim().slice(0, 240);
+
+    return {
+      userId: user.uid,
+      authorName: author.authorName,
+      authorAvatar: author.authorAvatar,
+      type,
+      title: String(data.get("title") || "").trim().slice(0, 110),
+      body: String(data.get("body") || data.get("text") || "").trim().slice(0, 1200),
+      projectPhase,
+      category,
+      tags: tags,
+      mediaUrls: mediaUrls,
+      linkedAtlasIds: linkedAtlasIds,
+      dimensionData: dimensionText ? { summary: dimensionText } : {},
+      reactions: FEED_REACTIONS.reduce((acc, reaction) => ({ ...acc, [reaction.id]: 0 }), {}),
+      commentsCount: 0,
+      reportCount: 0,
+      status: "active",
+      plagiarismStatus: "clear",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
+  }
+
+  function renderFeedFilters() {
+    const optionList = values => values.map(value =>
+      `<option value="${_esc(value)}">${_esc(value)}</option>`
+    ).join("");
+    return `
+      <div class="tm-feed-filters" aria-label="Filtres du Feed">
+        <label class="tm-feed-field">
+          <span>Type</span>
+          <select data-feed-filter="type">
+            <option value="">Tous</option>
+            ${FEED_POST_TYPES.map(type => `<option value="${_esc(type.id)}" ${_feedFilters.type === type.id ? "selected" : ""}>${_esc(type.label)}</option>`).join("")}
+          </select>
+        </label>
+        <label class="tm-feed-field">
+          <span>Phase</span>
+          <select data-feed-filter="projectPhase">
+            <option value="">Toutes</option>
+            ${optionList(FEED_PROJECT_PHASES).replace(`value="${_esc(_feedFilters.projectPhase)}"`, `value="${_esc(_feedFilters.projectPhase)}" selected`)}
+          </select>
+        </label>
+        <label class="tm-feed-field">
+          <span>Catégorie</span>
+          <select data-feed-filter="category">
+            <option value="">Toutes</option>
+            ${optionList(FEED_CATEGORIES).replace(`value="${_esc(_feedFilters.category)}"`, `value="${_esc(_feedFilters.category)}" selected`)}
+          </select>
+        </label>
+      </div>
+    `;
+  }
+
+  function applyFeedFilters(posts) {
+    return (posts || []).filter(post =>
+      (!_feedFilters.type || post.type === _feedFilters.type) &&
+      (!_feedFilters.projectPhase || post.projectPhase === _feedFilters.projectPhase) &&
+      (!_feedFilters.category || post.category === _feedFilters.category)
+    );
+  }
+
   function renderPost(post) {
     const user = getFirebaseUser();
-    const isOwner = user?.uid && user.uid === post.authorId;
+    const isOwner = user?.uid && user.uid === (post.userId || post.authorId);
     const canModerate = isTeomarchiAdmin(user);
     const avatar = post.authorAvatar
       ? `<img src="${_esc(post.authorAvatar)}" alt="">`
       : _esc(String(post.authorName || "T").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase());
-    const images = Array.isArray(post.imageUrls) ? post.imageUrls.filter(Boolean).slice(0, 4) : [];
+    const mediaUrls = Array.isArray(post.mediaUrls) ? post.mediaUrls.filter(Boolean).slice(0, 4) : [];
     const statusBadge = post.status === "hidden" ? `<span class="badge">Masqué</span>` : "";
+    const typeLabel = FEED_POST_TYPES.find(type => type.id === post.type)?.label || "WIP";
+    const reactions = post.reactions || {};
 
     return `
       <article class="tm-feed-post" data-post-id="${_esc(post.id)}">
@@ -8055,21 +8473,37 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
           </div>
           ${statusBadge}
         </header>
-        <div class="tm-feed-text">${_esc(post.text || "")}</div>
-        ${images.length ? `
+        <div class="tm-feed-meta">
+          <span>${_esc(typeLabel)}</span>
+          <span>${_esc(post.projectPhase || "Phase non précisée")}</span>
+          <span>${_esc(post.category || "Architecture")}</span>
+        </div>
+        <h3 style="margin:0;font-family:var(--serif);font-size:1.45rem;font-weight:300;color:var(--ink)">${_esc(post.title || "Note architecture")}</h3>
+        <div class="tm-feed-text">${_esc(post.body || post.text || "")}</div>
+        ${Array.isArray(post.tags) && post.tags.length ? renderTagList(post.tags, "tm-feed-tags") : ""}
+        ${post.dimensionData?.summary ? `<p class="tm-feed-text" style="font-size:.76rem;color:var(--muted)">Dimensions : ${_esc(post.dimensionData.summary)}</p>` : ""}
+        ${Array.isArray(post.linkedAtlasIds) && post.linkedAtlasIds.length ? `
+          <div class="tm-feed-meta">${post.linkedAtlasIds.map(id => `<span>Atlas · ${_esc(id)}</span>`).join("")}</div>
+        ` : ""}
+        ${mediaUrls.length ? `
           <div class="tm-feed-images">
-            ${images.map(url => `<img src="${_esc(url)}" alt="Image de projet publiée sur TEOMARCHI" loading="lazy">`).join("")}
+            ${mediaUrls.map(url => `<img src="${_esc(url)}" alt="Image de projet publiée sur TEOMARCHI" loading="lazy">`).join("")}
           </div>
         ` : ""}
         <div class="tm-feed-actions" aria-label="Actions de publication">
-          <button class="tm-feed-btn" type="button" data-feed-like="${_esc(post.id)}">Like · ${Number(post.likeCount || 0)}</button>
-          <button class="tm-feed-btn" type="button" data-feed-repost="${_esc(post.id)}">Republier · ${Number(post.repostCount || 0)}</button>
+          ${FEED_REACTIONS.map(reaction => `
+            <button class="tm-feed-btn" type="button"
+                    data-feed-reaction="${_esc(post.id)}"
+                    data-reaction-type="${_esc(reaction.id)}">
+              ${_esc(reaction.label)} · ${Number(reactions[reaction.id] || 0)}
+            </button>
+          `).join("")}
           <button class="tm-feed-btn" type="button" data-feed-report="${_esc(post.id)}">Signaler · ${Number(post.reportCount || 0)}</button>
           ${(isOwner || canModerate) ? `<button class="tm-feed-btn" type="button" data-feed-delete="${_esc(post.id)}">Supprimer</button>` : ""}
         </div>
         <form class="tm-feed-comments tm-feed-comment-form" data-feed-comment-form="${_esc(post.id)}">
           <input name="comment" maxlength="240" placeholder="Commenter ce rendu">
-          <button class="tm-feed-btn" type="submit">Commenter · ${Number(post.commentCount || 0)}</button>
+          <button class="tm-feed-btn" type="submit">Commenter · ${Number(post.commentsCount || post.commentCount || 0)}</button>
         </form>
       </article>
     `;
@@ -8078,7 +8512,16 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
   function renderFeedPosts(posts) {
     const timeline = document.getElementById("feed-timeline");
     if (!timeline) return;
-    timeline.innerHTML = posts.map(renderPost).join("");
+    const visiblePosts = applyFeedFilters(posts);
+    timeline.innerHTML = `
+      ${renderFeedFilters()}
+      ${visiblePosts.length ? visiblePosts.map(renderPost).join("") : `
+        <div class="tm-feed-empty">
+          <p style="font-family:var(--serif);font-size:1.55rem;font-weight:300;margin:0 0 .4rem;color:var(--ink)">Aucun post pour ces filtres</p>
+          <p style="margin:0;color:var(--muted);font-size:.82rem">Changez le type, la phase ou la catégorie.</p>
+        </div>
+      `}
+    `;
   }
 
   function renderDemoFeedTimeline() {
@@ -8101,9 +8544,9 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
               </div>
             ` : ""}
             <div class="tm-feed-demo-stats" aria-label="Statistiques de démonstration non interactives">
-              <span>Like · ${Number(post.likeCount || 0)}</span>
+              <span>Utile · ${Number(post.reactions?.utile || 0)}</span>
               <span>Commentaire · ${Number(post.commentCount || 0)}</span>
-              <span>Republication · ${Number(post.repostCount || 0)}</span>
+              <span>Je cherche aussi · ${Number(post.reactions?.cherche || 0)}</span>
             </div>
           </article>
         `).join("")}
@@ -8195,7 +8638,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
   async function resolveFeedProfile(user) {
     const db = getFirestoreDb();
     const fallback = {
-      authorId: user.uid,
+      userId: user.uid,
       authorName: compactUserName(user),
       authorAvatar: user.photoURL || ""
     };
@@ -8204,7 +8647,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       const doc = await db.collection("users").doc(user.uid).get();
       const data = doc.exists ? doc.data() : {};
       return {
-        authorId: user.uid,
+        userId: user.uid,
         authorName: data.displayName || fallback.authorName,
         authorAvatar: data.avatarUrl || fallback.authorAvatar
       };
@@ -8220,50 +8663,50 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     if (!db || !form) { notifyUser("Service de publication indisponible."); return; }
 
     const data = new FormData(form);
-    const text = String(data.get("text") || "").trim();
     const certify = data.get("certify") === "on";
-    const imageUrls = String(data.get("imageUrls") || "")
-      .split(/[\n,]+/).map(url => url.trim()).filter(Boolean).slice(0, 4);
 
     if (!certify) { notifyUser("Certification anti-plagiat obligatoire."); return; }
-    if (text.length < 2) { notifyUser("Ajoutez un texte avant de publier."); return; }
-    if (text.length > 560) { notifyUser("Texte limité à 560 caractères."); return; }
 
     const author = await resolveFeedProfile(user);
-    await db.collection("posts").add({
-      ...author,
-      text,
-      imageUrls,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      likeCount: 0,
-      commentCount: 0,
-      repostCount: 0,
-      reportCount: 0,
-      status: "active",
-      plagiarismStatus: "clear"
-    });
+    const post = normalizeFeedPostInput(form, author, user);
+    if (post.title.length < 3) { notifyUser("Ajoutez un titre avant de publier."); return; }
+    if (post.body.length < 2) { notifyUser("Ajoutez un texte avant de publier."); return; }
+    await db.collection("posts").add(post);
     form.reset();
     const btn = form.querySelector("#feed-submit-btn");
     if (btn) btn.disabled = true;
     notifyUser("Publication envoyée.");
   }
 
-  async function toggleLike(postId) {
+  async function toggleReaction(postId, reactionType) {
     const user = getFirebaseUser();
     const db = getFirestoreDb();
     if (!user) { openLoginPrompt(); return; }
     if (!db || !postId) return;
+    const safeReaction = FEED_REACTIONS.some(item => item.id === reactionType) ? reactionType : "utile";
     const postRef = db.collection("posts").doc(postId);
-    const likeRef = postRef.collection("likes").doc(user.uid);
+    const reactionRef = postRef.collection("reactions").doc(user.uid);
     await db.runTransaction(async tx => {
-      const like = await tx.get(likeRef);
-      if (like.exists) {
-        tx.delete(likeRef);
-        tx.update(postRef, { likeCount: incrementBy(-1), updatedAt: serverTimestamp() });
+      const reaction = await tx.get(reactionRef);
+      if (reaction.exists && reaction.data()?.reactionType === safeReaction) {
+        tx.delete(reactionRef);
+        tx.update(postRef, {
+          [`reactions.${safeReaction}`]: incrementBy(-1),
+          updatedAt: serverTimestamp()
+        });
       } else {
-        tx.set(likeRef, { userId: user.uid, createdAt: serverTimestamp() });
-        tx.update(postRef, { likeCount: incrementBy(1), updatedAt: serverTimestamp() });
+        const previousType = reaction.exists ? reaction.data()?.reactionType : "";
+        tx.set(reactionRef, {
+          userId: user.uid,
+          reactionType: safeReaction,
+          createdAt: reaction.exists ? reaction.data()?.createdAt || serverTimestamp() : serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+        tx.update(postRef, {
+          ...(previousType ? { [`reactions.${previousType}`]: incrementBy(-1) } : {}),
+          [`reactions.${safeReaction}`]: incrementBy(1),
+          updatedAt: serverTimestamp()
+        });
       }
     });
   }
@@ -8278,30 +8721,14 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     const author = await resolveFeedProfile(user);
     const postRef = db.collection("posts").doc(postId);
     await postRef.collection("comments").add({
-      authorId: author.authorId,
+      userId: author.userId,
       authorName: author.authorName,
       authorAvatar: author.authorAvatar,
       text: clean,
       createdAt: serverTimestamp(),
       status: "active"
     });
-    await postRef.update({ commentCount: incrementBy(1), updatedAt: serverTimestamp() });
-  }
-
-  async function repostPost(postId) {
-    const user = getFirebaseUser();
-    const db = getFirestoreDb();
-    if (!user) { openLoginPrompt(); return; }
-    if (!db || !postId) return;
-    const postRef = db.collection("posts").doc(postId);
-    const repostRef = postRef.collection("reposts").doc(user.uid);
-    await db.runTransaction(async tx => {
-      const repost = await tx.get(repostRef);
-      if (repost.exists) return;
-      tx.set(repostRef, { userId: user.uid, createdAt: serverTimestamp() });
-      tx.update(postRef, { repostCount: incrementBy(1), updatedAt: serverTimestamp() });
-    });
-    notifyUser("Publication repartagée.");
+    await postRef.update({ commentsCount: incrementBy(1), updatedAt: serverTimestamp() });
   }
 
   async function reportPost(postId) {
@@ -8332,7 +8759,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     if (!user) { openLoginPrompt(); return; }
     if (!db || !postId) return;
     const post = _feedPosts.find(item => item.id === postId);
-    if (!post || (post.authorId !== user.uid && !isTeomarchiAdmin(user))) return;
+    if (!post || ((post.userId || post.authorId) !== user.uid && !isTeomarchiAdmin(user))) return;
     await db.collection("posts").doc(postId).update({
       status: "deleted",
       updatedAt: serverTimestamp()
@@ -8345,10 +8772,18 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     root.dataset.feedBound = "1";
 
     root.addEventListener("change", e => {
-      if (!e.target.matches("[data-feed-certify]")) return;
-      const form = e.target.closest("#feed-composer-form");
-      const btn = form?.querySelector("#feed-submit-btn");
-      if (btn) btn.disabled = !e.target.checked;
+      const filter = e.target.closest("[data-feed-filter]");
+      if (filter) {
+        _feedFilters[filter.dataset.feedFilter] = filter.value || "";
+        renderFeedPosts(_feedPosts);
+        return;
+      }
+
+      if (e.target.matches("[data-feed-certify]")) {
+        const form = e.target.closest("#feed-composer-form");
+        const btn = form?.querySelector("#feed-submit-btn");
+        if (btn) btn.disabled = !e.target.checked;
+      }
     });
 
     root.addEventListener("submit", async e => {
@@ -8370,19 +8805,17 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
 
     root.addEventListener("click", async e => {
       const imageFocus = e.target.closest("[data-feed-image-focus]");
-      const like = e.target.closest("[data-feed-like]");
-      const repost = e.target.closest("[data-feed-repost]");
+      const reaction = e.target.closest("[data-feed-reaction]");
       const report = e.target.closest("[data-feed-report]");
       const del = e.target.closest("[data-feed-delete]");
-      if (!imageFocus && !like && !repost && !report && !del) return;
+      if (!imageFocus && !reaction && !report && !del) return;
       e.preventDefault();
       if (imageFocus) {
         root.querySelector("#feed-image-urls")?.focus();
         return;
       }
       try {
-        if (like) await toggleLike(like.dataset.feedLike);
-        if (repost) await repostPost(repost.dataset.feedRepost);
+        if (reaction) await toggleReaction(reaction.dataset.feedReaction, reaction.dataset.reactionType);
         if (report) await reportPost(report.dataset.feedReport);
         if (del) await deleteOwnPost(del.dataset.feedDelete);
       } catch (err) {
@@ -8833,22 +9266,11 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
   /* ── Persistance des messages Messagerie ─────────────────────── */
   (function setupMsgPersistence() {
     if (typeof DATA_CONTACTS === "undefined") return;
-    try {
-      const saved = JSON.parse(localStorage.getItem("teomarchi.messages"));
-      if (Array.isArray(saved)) {
-        saved.forEach(d => {
-          const c = DATA_CONTACTS.find(x => x.id === d.id);
-          if (c) { c.messages = d.messages; c.preview = d.preview || c.preview; }
-        });
-      }
-    } catch {}
-    window.addEventListener("beforeunload", () => {
-      try {
-        localStorage.setItem("teomarchi.messages", JSON.stringify(
-          DATA_CONTACTS.map(c => ({ id: c.id, preview: c.preview, messages: c.messages }))
-        ));
-      } catch {}
-    });
+    window.TEOMARCHI_MESSAGE_DRAFTS = DATA_CONTACTS.map(c => ({
+      id: c.id,
+      preview: c.preview,
+      messages: c.messages
+    }));
   })();
 
   /* ── Toast de bienvenue au démarrage ─────────────────────────── */
@@ -8868,6 +9290,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     let _user        = null;
     let _isPremium   = false;
     let _userPlan    = "free";
+    let _authClaims  = {};
     let _returnMod   = null;
     let _activeTab   = "login";
 
@@ -9244,13 +9667,13 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     async function _checkPremium(user) {
       _isPremium = false;
       _userPlan = "free";
+      _authClaims = {};
       if (!user) return;
-      if (user.email === ADMIN_EMAIL) {
-        _userPlan = "admin";
-        _isPremium = true;
-        return;
-      }
       try {
+        const tokenResult = typeof user.getIdTokenResult === "function"
+          ? await user.getIdTokenResult(true)
+          : { claims: {} };
+        _authClaims = tokenResult.claims || {};
         const doc = await firebase.firestore()
           .collection("users").doc(user.uid).get();
         const data = doc.exists ? doc.data() : {};
@@ -9258,10 +9681,25 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
           user,
           role: data.role,
           plan: data.plan,
+          customClaims: _authClaims,
+          tokenClaims: tokenResult.claims,
           isPremium: data.isPremium === true || data.premium === true
         });
         _isPremium = ["studio", "agency", "moderator", "admin"].includes(_userPlan);
-      } catch (_) { /* offline ou règles — pas bloquant */ }
+      } catch (_) {
+        _userPlan = getUserPlan({ user, customClaims: _authClaims });
+        _isPremium = ["studio", "agency", "moderator", "admin"].includes(_userPlan);
+      }
+    }
+
+    async function syncPremiumFromFirestore(user) {
+      await _checkPremium(user);
+      return {
+        role: _userPlan,
+        plan: _userPlan,
+        isPremium: _isPremium,
+        customClaims: _authClaims
+      };
     }
 
     /* ── Sync UI après changement d'état ────────────────────────── */
@@ -9274,12 +9712,19 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       /* ── Panneau Admin : visible uniquement pour le fondateur ─── */
       const adminTab     = document.getElementById("tab-admin");
       const adminDashBtn = document.getElementById("btn-admin-dash");
-      const isAdmin      = user?.email === ADMIN_EMAIL;
-      const plan         = isAdmin ? "admin" : (_userPlan || "free");
+      const plan         = _userPlan || "free";
+      const isAdmin      = plan === "admin";
       document.body.classList.toggle("is-authenticated", !!user);
       document.body.classList.toggle("is-admin", !!isAdmin);
       document.body.dataset.userPlan = user ? plan : "free";
-      window.TEOMARCHI_AUTH_STATE = { user: user || null, isAdmin, isPremium: _isPremium, plan, role: plan };
+      window.TEOMARCHI_AUTH_STATE = {
+        user: user || null,
+        isAdmin,
+        isPremium: _isPremium,
+        plan,
+        role: plan,
+        customClaims: _authClaims
+      };
       document.dispatchEvent(new CustomEvent("teomarchi:auth-changed", {
         detail: window.TEOMARCHI_AUTH_STATE
       }));
@@ -9465,7 +9910,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       const mod = document.getElementById("module-admin");
       if (!mod) return;
       new MutationObserver(() => {
-        if (mod.classList.contains("is-active") && _user?.email === ADMIN_EMAIL) _initAdmin();
+        if (mod.classList.contains("is-active") && isTeomarchiAdmin(_user)) _initAdmin();
       }).observe(mod, { attributes: true, attributeFilter: ["class"] });
     })();
 
@@ -9477,7 +9922,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       window.auth = _auth;
       _auth.onAuthStateChanged(async user => {
         _user = user;
-        await _checkPremium(user);
+        await syncPremiumFromFirestore(user);
         _syncUI(user);
 
         if (!user) {
@@ -9545,7 +9990,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       const _pollPremium = setInterval(async () => {
         _tries++;
         if (!_user || _tries > 20) { clearInterval(_pollPremium); return; }
-        await _checkPremium(_user);
+        await syncPremiumFromFirestore(_user);
         if (_isPremium) {
           clearInterval(_pollPremium);
           _syncUI(_user);

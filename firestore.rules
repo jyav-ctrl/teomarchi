@@ -7,16 +7,19 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function userDoc() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
     function userRole() {
-      return signedIn()
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+      return signedIn() && exists(userDoc())
+        ? get(userDoc()).data.role
         : "free";
     }
 
     function isAdmin() {
       return signedIn()
-        && (request.auth.token.email == "teomarchi@teomarchi.com" || userRole() == "admin");
+        && (request.auth.token.admin == true || userRole() == "admin");
     }
 
     function isModerator() {
@@ -28,7 +31,7 @@ service cloud.firestore {
     }
 
     function validStatus(status) {
-      return status in ["active", "suspended", "deleted"];
+      return status in ["active", "hidden", "suspended", "deleted", "resolved", "open"];
     }
 
     function publicProfileFields() {
@@ -39,22 +42,77 @@ service cloud.firestore {
       ];
     }
 
+    function ownerProfileCreateFields() {
+      return [
+        "displayName", "bio", "schoolOrAgency", "level", "city",
+        "specialties", "avatarUrl", "portfolioUrl", "email", "photoURL",
+        "createdAt", "updatedAt", "role", "status", "plan", "isPremium", "premium"
+      ];
+    }
+
+    function adminUserUpdateFields() {
+      return [
+        "displayName", "bio", "schoolOrAgency", "level", "city",
+        "specialties", "avatarUrl", "portfolioUrl", "email", "photoURL",
+        "createdAt", "updatedAt", "status", "suspendedBy", "moderatedBy"
+      ];
+    }
+
+    function validOwnerProfileCreate(userId) {
+      return signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(ownerProfileCreateFields())
+        && (!("role" in request.resource.data) || request.resource.data.role == "free")
+        && (!("status" in request.resource.data) || request.resource.data.status == "active")
+        && (!("plan" in request.resource.data) || request.resource.data.plan == "free")
+        && (!("isPremium" in request.resource.data) || request.resource.data.isPremium == false)
+        && (!("premium" in request.resource.data) || request.resource.data.premium == false);
+    }
+
+    function validPostCreate() {
+      return signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.type in ["wip", "question", "ressource", "norme"]
+        && request.resource.data.status == "active"
+        && request.resource.data.keys().hasOnly([
+          "userId", "authorName", "authorAvatar", "type", "title", "body",
+          "projectPhase", "category", "tags", "mediaUrls", "linkedAtlasIds",
+          "dimensionData", "reactions", "commentsCount", "reportCount",
+          "status", "plagiarismStatus", "createdAt", "updatedAt"
+        ]);
+    }
+
+    function ownerPostUpdate() {
+      return signedIn()
+        && request.auth.uid == resource.data.userId
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "type", "title", "body", "projectPhase", "category", "tags",
+          "mediaUrls", "linkedAtlasIds", "dimensionData", "updatedAt"
+        ]);
+    }
+
+    function moderatorPostUpdate() {
+      return isModerator()
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "status", "plagiarismStatus", "moderatedBy", "updatedAt"
+        ]);
+    }
+
     match /users/{userId} {
       allow read: if signedIn();
-      allow create: if signedIn()
-        && request.auth.uid == userId
-        && validRole(request.resource.data.role)
-        && validStatus(request.resource.data.status)
-        && (
-          request.resource.data.role == "free" ||
-          (request.auth.token.email == "teomarchi@teomarchi.com" && request.resource.data.role == "admin")
-        );
-      allow update: if signedIn() && (
-        (
-          request.auth.uid == userId &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(publicProfileFields())
-        ) ||
+      allow create: if validOwnerProfileCreate(userId) || (
         isAdmin()
+        && request.resource.data.keys().hasOnly(adminUserUpdateFields())
+      );
+      allow update: if (
+        signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(publicProfileFields())
+      ) || (
+        isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(adminUserUpdateFields())
       );
       allow delete: if isAdmin();
 
@@ -65,42 +123,56 @@ service cloud.firestore {
 
     match /posts/{postId} {
       allow read: if resource.data.status == "active" || isModerator();
-      allow create: if signedIn()
-        && request.resource.data.authorId == request.auth.uid
-        && request.resource.data.status == "active";
-      allow update: if signedIn() && (
-        request.auth.uid == resource.data.authorId ||
-        isModerator()
-      );
-      allow delete: if isModerator();
-
-      match /likes/{userId} {
-        allow read: if signedIn();
-        allow create, delete: if signedIn() && request.auth.uid == userId;
-        allow update: if false;
-      }
+      allow create: if validPostCreate();
+      allow update: if ownerPostUpdate() || moderatorPostUpdate();
+      allow delete: if signedIn() && (request.auth.uid == resource.data.userId || isModerator());
 
       match /comments/{commentId} {
         allow read: if signedIn();
         allow create: if signedIn()
-          && request.resource.data.authorId == request.auth.uid;
-        allow update, delete: if signedIn() && (
-          request.auth.uid == resource.data.authorId ||
-          isModerator()
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.status == "active"
+          && request.resource.data.keys().hasOnly([
+            "userId", "authorName", "authorAvatar", "text", "createdAt", "updatedAt", "status"
+          ]);
+        allow update: if signedIn() && (
+          (
+            request.auth.uid == resource.data.userId
+            && request.resource.data.userId == resource.data.userId
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["text", "updatedAt"])
+          ) || (
+            isModerator()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "moderatedBy", "updatedAt"])
+          )
         );
+        allow delete: if signedIn() && (request.auth.uid == resource.data.userId || isModerator());
       }
 
-      match /reposts/{userId} {
+      match /reactions/{userId} {
         allow read: if signedIn();
-        allow create, delete: if signedIn() && request.auth.uid == userId;
-        allow update: if false;
+        allow create, update: if signedIn()
+          && request.auth.uid == userId
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.reactionType in ["utile", "merci", "cherche"]
+          && request.resource.data.keys().hasOnly([
+            "userId", "reactionType", "createdAt", "updatedAt"
+          ]);
+        allow delete: if signedIn() && request.auth.uid == userId;
       }
     }
 
     match /reports/{reportId} {
       allow create: if signedIn()
-        && request.resource.data.reporterId == request.auth.uid;
-      allow read, update, delete: if isModerator();
+        && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.status == "open"
+        && request.resource.data.keys().hasOnly([
+          "postId", "reporterId", "reporterEmail", "reason", "status", "createdAt", "updatedAt"
+        ]);
+      allow read, delete: if isModerator();
+      allow update: if isModerator()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "status", "resolvedBy", "resolvedAt", "updatedAt"
+        ]);
     }
 
     match /securityLogs/{logId} {
