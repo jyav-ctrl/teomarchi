@@ -802,6 +802,16 @@ test("feed uses Firestore realtime social primitives without fake posts", () => 
   assert.match(js, /Aucun rendu publié/);
 });
 
+test("feed initializes safely when opened directly from the URL hash", () => {
+  const js = read("app.js");
+
+  assert.match(js, /document\.dispatchEvent\(new CustomEvent\("teomarchi:navigate"/);
+  assert.match(js, /moduleId === "feed"[\s\S]{0,220}initFeed\(\)/);
+  assert.match(js, /function\s+renderFeedPendingState\s*\(/);
+  assert.match(js, /data-feed-pending="true"/);
+  assert.doesNotMatch(js, /<div class="tm-feed-empty">Chargement du Feed/);
+});
+
 test("profile editor persists real Firebase profile data in Firestore", () => {
   const js = read("app.js");
 
