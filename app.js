@@ -103,7 +103,7 @@ function getAuthRole(source = window.TEOMARCHI_AUTH_STATE) {
   if (customClaims.admin === true || source?.isAdmin === true) return "admin";
   const raw = String(
     customClaims.role ||
-    source?.role ||
+    source?.accessRole ||
     source?.plan ||
     source?.subscriptionRole ||
     ""
@@ -1630,6 +1630,14 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       /* Navigation navigateur arrière/avant */
       window.addEventListener("popstate", () => navigateTo(resolveHash(), false));
       window.addEventListener("keydown", e => {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+          const input = document.getElementById("global-search");
+          if (input) {
+            e.preventDefault();
+            input.focus();
+            input.select?.();
+          }
+        }
         if (e.key === "Escape") {
           closeLegalSlider();
           closeAIPanel();
@@ -3457,130 +3465,286 @@ function renderDemoBadge(label = "Démo") {
     lecon: item.lecon || item.leconArchitecturale
   }));
 
-  const DATA_ATLAS_V1 = Object.freeze([
-    { id: "pmr-rotation-150", categorie: "PMR", titre: "Aire de rotation fauteuil", valeur_min: "Ø 150 cm", valeur_recommandee: "Ø 150 cm libre", norme_reference: "France accessibilité ERP/logement, Belgique guides régionaux", pays: "France / Belgique", usage: "Sanitaires, chambres, halls accessibles", note: "Aucun obstacle fixe dans le cercle de giration.", tags: ["pmr", "rotation", "fauteuil"], source_status: "officiel" },
-    { id: "pmr-porte-90", categorie: "PMR", titre: "Largeur de porte accessible", valeur_min: "83 cm vantail", valeur_recommandee: "90 cm vantail", norme_reference: "Accessibilité PMR", pays: "France / Belgique", usage: "Portes principales et locaux accessibles", note: "Vérifier passage utile selon huisserie.", tags: ["pmr", "porte"], source_status: "officiel" },
-    { id: "pmr-rampe-5", categorie: "PMR", titre: "Pente courante de rampe", valeur_min: "5 %", valeur_recommandee: "4 à 5 %", norme_reference: "Accessibilité cheminements", pays: "France / Belgique", usage: "Cheminement extérieur ou intérieur", note: "Paliers et longueurs maximales à confirmer localement.", tags: ["pmr", "rampe"], source_status: "officiel" },
-    { id: "pmr-douche-plain-pied", categorie: "PMR", titre: "Douche accessible", valeur_min: "90 x 120 cm", valeur_recommandee: "120 x 140 cm", norme_reference: "Accessibilité sanitaires", pays: "France / Belgique", usage: "Salle d'eau accessible", note: "Prévoir ressaut nul ou limité et zone de transfert.", tags: ["pmr", "sanitaire"], source_status: "à vérifier" },
-    { id: "circulation-couloir-logement", categorie: "Circulations", titre: "Couloir logement", valeur_min: "90 cm", valeur_recommandee: "100 à 120 cm", norme_reference: "Ergonomie logement", pays: "Europe", usage: "Distribution intérieure", note: "Augmenter si croisement, portage ou PMR.", tags: ["couloir", "logement"], source_status: "indicatif" },
-    { id: "circulation-hall-collectif", categorie: "Circulations", titre: "Hall collectif", valeur_min: "120 cm", valeur_recommandee: "150 cm", norme_reference: "Usage collectif / évacuation", pays: "Europe", usage: "Entrée et parties communes", note: "À croiser avec incendie et accessibilité.", tags: ["hall", "collectif"], source_status: "à vérifier" },
-    { id: "circulation-passage-mobilier", categorie: "Circulations", titre: "Passage autour mobilier", valeur_min: "70 cm", valeur_recommandee: "90 cm", norme_reference: "Ergonomie intérieure", pays: "Europe", usage: "Séjour, bureau, chambres", note: "90 cm devient plus confortable au quotidien.", tags: ["mobilier", "passage"], source_status: "indicatif" },
-    { id: "escalier-blondel", categorie: "Escaliers", titre: "Formule de Blondel", valeur_min: "60 cm", valeur_recommandee: "2H + G = 63 cm", norme_reference: "Règle ergonomique escalier", pays: "Europe", usage: "Pré-dimensionnement escalier", note: "Contrôler aussi échappée, largeur et garde-corps.", tags: ["escalier", "giron"], source_status: "indicatif" },
-    { id: "escalier-hauteur-marche", categorie: "Escaliers", titre: "Hauteur de marche", valeur_min: "16 cm", valeur_recommandee: "17 à 18 cm", norme_reference: "Ergonomie escalier", pays: "Europe", usage: "Escalier courant", note: "ERP et logement collectif peuvent imposer des valeurs spécifiques.", tags: ["marche", "hauteur"], source_status: "à vérifier" },
-    { id: "escalier-largeur", categorie: "Escaliers", titre: "Largeur escalier courant", valeur_min: "80 cm", valeur_recommandee: "100 cm", norme_reference: "Usage / évacuation", pays: "Europe", usage: "Maison ou petit collectif", note: "À recalculer selon effectif et incendie.", tags: ["escalier", "évacuation"], source_status: "à vérifier" },
-    { id: "stationnement-voiture", categorie: "Stationnement", titre: "Place voiture standard", valeur_min: "2,50 x 5,00 m", valeur_recommandee: "2,70 x 5,20 m", norme_reference: "Règlements urbanisme locaux", pays: "France / Belgique", usage: "Parking logement ou équipement", note: "Les obligations de nombre varient fortement selon commune.", tags: ["parking", "voiture"], source_status: "à vérifier" },
-    { id: "stationnement-pmr", categorie: "Stationnement", titre: "Place PMR", valeur_min: "3,30 x 5,00 m", valeur_recommandee: "3,50 x 5,00 m", norme_reference: "Accessibilité stationnement", pays: "France / Belgique", usage: "Parking accessible", note: "Prévoir liaison accessible vers l'entrée.", tags: ["parking", "pmr"], source_status: "officiel" },
-    { id: "stationnement-velo", categorie: "Stationnement", titre: "Emplacement vélo", valeur_min: "60 x 180 cm", valeur_recommandee: "75 x 200 cm", norme_reference: "Guides mobilité locale", pays: "Europe", usage: "Local vélo", note: "Ajouter aire de manoeuvre et système d'attache.", tags: ["vélo", "mobilité"], source_status: "indicatif" },
-    { id: "sanitaire-wc-standard", categorie: "Sanitaires", titre: "WC standard compact", valeur_min: "80 x 120 cm", valeur_recommandee: "90 x 140 cm", norme_reference: "Ergonomie sanitaire", pays: "Europe", usage: "Logement non PMR", note: "Porte ouvrant vers extérieur préférable en très petit local.", tags: ["wc", "sanitaire"], source_status: "indicatif" },
-    { id: "sanitaire-wc-pmr", categorie: "Sanitaires", titre: "WC accessible", valeur_min: "150 x 150 cm", valeur_recommandee: "170 x 170 cm", norme_reference: "Accessibilité sanitaires", pays: "France / Belgique", usage: "ERP, logement adaptable", note: "Inclure transfert latéral et barres d'appui.", tags: ["wc", "pmr"], source_status: "officiel" },
-    { id: "sanitaire-lavabo", categorie: "Sanitaires", titre: "Dégagement devant lavabo", valeur_min: "70 cm", valeur_recommandee: "90 cm", norme_reference: "Ergonomie sanitaire", pays: "Europe", usage: "Salle de bain", note: "Adapter si tiroirs, meuble profond ou accessibilité.", tags: ["lavabo", "dégagement"], source_status: "indicatif" },
-    { id: "cuisine-plan-hauteur", categorie: "Cuisine", titre: "Hauteur plan de travail", valeur_min: "85 cm", valeur_recommandee: "90 à 92 cm", norme_reference: "Ergonomie cuisine", pays: "Europe", usage: "Cuisine logement", note: "À adapter à la taille des usagers.", tags: ["cuisine", "plan"], source_status: "indicatif" },
-    { id: "cuisine-degagement", categorie: "Cuisine", titre: "Dégagement devant meuble", valeur_min: "90 cm", valeur_recommandee: "120 cm", norme_reference: "Ergonomie cuisine", pays: "Europe", usage: "Cuisine linéaire ou parallèle", note: "120 cm si deux personnes travaillent.", tags: ["cuisine", "circulation"], source_status: "indicatif" },
-    { id: "cuisine-ilot", categorie: "Cuisine", titre: "Îlot central", valeur_min: "90 x 160 cm", valeur_recommandee: "100 x 220 cm", norme_reference: "Ergonomie cuisine", pays: "Europe", usage: "Cuisine ouverte", note: "Ajouter les dégagements autour, pas seulement l'objet.", tags: ["cuisine", "îlot"], source_status: "indicatif" },
-    { id: "logement-chambre-simple", categorie: "Logement", titre: "Chambre simple", valeur_min: "9 m²", valeur_recommandee: "10 à 12 m²", norme_reference: "Décence logement / pratiques locales", pays: "France / Belgique", usage: "Logement", note: "Vérifier hauteur, éclairement et ventilation.", tags: ["chambre", "logement"], source_status: "à vérifier" },
-    { id: "logement-sejour", categorie: "Logement", titre: "Séjour compact", valeur_min: "14 m²", valeur_recommandee: "18 à 24 m²", norme_reference: "Programme logement", pays: "Europe", usage: "Séjour logement", note: "La qualité dépend aussi de la largeur utile et de la lumière.", tags: ["séjour", "logement"], source_status: "indicatif" },
-    { id: "logement-hauteur", categorie: "Logement", titre: "Hauteur sous plafond", valeur_min: "2,20 m", valeur_recommandee: "2,50 m", norme_reference: "Décence / règlements locaux", pays: "France / Belgique", usage: "Pièces principales", note: "Certains règlements imposent plus selon affectation.", tags: ["hauteur", "logement"], source_status: "à vérifier" },
-    { id: "thermique-isolation-toiture", categorie: "Thermique", titre: "Priorité isolation toiture", valeur_min: "Selon réglementation", valeur_recommandee: "Traitement renforcé", norme_reference: "PEB / RE2020 / rénovation", pays: "France / Belgique", usage: "Enveloppe chauffée", note: "La toiture concentre souvent les pertes et surchauffes.", tags: ["toiture", "isolation"], source_status: "à vérifier" },
-    { id: "thermique-pont-thermique", categorie: "Thermique", titre: "Continuité isolant", valeur_min: "Rupteurs aux jonctions", valeur_recommandee: "Enveloppe continue dessinée en coupe", norme_reference: "PEB / RE2020", pays: "France / Belgique", usage: "Façades, dalles, balcons", note: "Contrôler seuils, tableaux, acrotères et balcons.", tags: ["pont thermique", "coupe"], source_status: "à vérifier" },
-    { id: "thermique-ventilation", categorie: "Thermique", titre: "Ventilation hygiénique", valeur_min: "Débits réglementaires", valeur_recommandee: "Système dimensionné par local", norme_reference: "Ventilation logement", pays: "France / Belgique", usage: "Logement et locaux humides", note: "Ne pas confondre étanchéité à l'air et absence de ventilation.", tags: ["ventilation", "air"], source_status: "officiel" },
-    { id: "urbanisme-recul", categorie: "Urbanisme basique", titre: "Recul à rue", valeur_min: "Selon zone", valeur_recommandee: "Alignement ou recul prescrit", norme_reference: "PLU / RRU / CoDT / commune", pays: "France / Belgique", usage: "Implantation parcelle", note: "Toujours vérifier la parcelle et la zone exacte.", tags: ["urbanisme", "recul"], source_status: "officiel" },
-    { id: "urbanisme-emprise", categorie: "Urbanisme basique", titre: "Emprise au sol", valeur_min: "Selon règlement", valeur_recommandee: "Calcul par parcelle", norme_reference: "PLU / règlements communaux", pays: "France / Belgique", usage: "Faisabilité", note: "Inclure annexes et surfaces couvertes selon définition locale.", tags: ["emprise", "parcelle"], source_status: "officiel" },
-    { id: "urbanisme-hauteur", categorie: "Urbanisme basique", titre: "Hauteur maximale", valeur_min: "Selon zone", valeur_recommandee: "Vérifier gabarit + toiture", norme_reference: "PLU / RRU / CoDT", pays: "France / Belgique", usage: "Volume constructible", note: "Les méthodes de mesure varient selon règlement.", tags: ["hauteur", "gabarit"], source_status: "officiel" },
-    { id: "urbanisme-pleine-terre", categorie: "Urbanisme basique", titre: "Pleine terre", valeur_min: "Selon zone", valeur_recommandee: "Maximiser infiltration", norme_reference: "PLU / règlements environnementaux", pays: "France / Belgique", usage: "Aménagement de parcelle", note: "Vérifier définition : dalle drainante, cave et parking peuvent exclure.", tags: ["eau", "sol"], source_status: "à vérifier" },
-    { id: "pmr-interrupteur", categorie: "PMR", titre: "Hauteur commandes", valeur_min: "90 cm", valeur_recommandee: "90 à 130 cm", norme_reference: "Accessibilité atteinte", pays: "France / Belgique", usage: "Interrupteurs, commandes", note: "Zone d'atteinte à vérifier selon public et local.", tags: ["pmr", "électricité"], source_status: "officiel" },
-    { id: "escalier-garde-corps", categorie: "Escaliers", titre: "Hauteur garde-corps", valeur_min: "90 cm", valeur_recommandee: "100 cm", norme_reference: "Sécurité garde-corps", pays: "France / Belgique", usage: "Escaliers, paliers, vides", note: "Exigences précises selon hauteur de chute et type de bâtiment.", tags: ["garde-corps", "sécurité"], source_status: "à vérifier" },
-    { id: "circulation-porte-entree", categorie: "Circulations", titre: "Porte d'entrée logement", valeur_min: "90 cm", valeur_recommandee: "93 à 100 cm", norme_reference: "Accessibilité / usage logement", pays: "France / Belgique", usage: "Entrée logement", note: "Contrôler passage utile réel et seuil.", tags: ["porte", "entrée"], source_status: "à vérifier" },
-    { id: "sanitaire-douche-standard", categorie: "Sanitaires", titre: "Douche confortable", valeur_min: "80 x 120 cm", valeur_recommandee: "90 x 140 cm", norme_reference: "Ergonomie sanitaire", pays: "Europe", usage: "Salle d'eau logement", note: "Prévoir paroi, pente, siphon et entretien.", tags: ["douche", "salle d'eau"], source_status: "indicatif" }
+  function atlasEntry(id, data) {
+    return {
+      id,
+      title: data.title,
+      country: data.country,
+      region: data.region,
+      city: data.city,
+      coordinates: data.coordinates || { lat: 0, lng: 0 },
+      period: data.period,
+      century: data.century,
+      style: data.style,
+      movement: data.movement,
+      architect: data.architect,
+      year: data.year,
+      buildingType: data.buildingType,
+      structuralSystem: data.structuralSystem,
+      dominantMaterials: data.dominantMaterials,
+      climateContext: data.climateContext,
+      culturalContext: data.culturalContext,
+      technicalNotes: data.technicalNotes,
+      heritageStatus: data.heritageStatus || "Indicatif",
+      sourceName: data.sourceName,
+      sourceUrl: data.sourceUrl,
+      sourceType: data.sourceType || "Other",
+      category: data.category,
+      tags: data.tags || [],
+      createdAt: null,
+      updatedAt: null
+    };
+  }
+
+  const DATA_ATLAS_FALLBACK = Object.freeze([
+    atlasEntry("fr-centre-pompidou", { title: "Centre Pompidou", country: "France", region: "Île-de-France", city: "Paris", coordinates: { lat: 48.8606, lng: 2.3522 }, period: "Contemporain", century: "XXe", style: "High-tech", movement: "High-tech", architect: "Renzo Piano, Richard Rogers", year: "1977", buildingType: "Musée", structuralSystem: "Exosquelette acier et plateaux libres", dominantMaterials: "Acier, verre, services apparents", climateContext: "Climat tempéré urbain", culturalContext: "Équipement culturel post-1968 au cœur de Paris", technicalNotes: "Structure et réseaux externalisés pour libérer les plateaux.", heritageStatus: "Patrimoine contemporain", sourceName: "ArchDaily", sourceUrl: "https://www.archdaily.com/search/projects", sourceType: "ArchDaily", category: "musées", tags: ["high-tech", "musée", "structure apparente"] }),
+    atlasEntry("fr-villa-savoye", { title: "Villa Savoye", country: "France", region: "Île-de-France", city: "Poissy", coordinates: { lat: 48.9244, lng: 2.0283 }, period: "Moderne", century: "XXe", style: "Modernisme", movement: "Mouvement moderne", architect: "Le Corbusier, Pierre Jeanneret", year: "1931", buildingType: "Maison", structuralSystem: "Pilotis béton armé", dominantMaterials: "Béton, enduit blanc, verre", climateContext: "Climat tempéré", culturalContext: "Manifeste des cinq points de l'architecture moderne", technicalNotes: "Plan libre, façade libre, fenêtre en longueur et toit-terrasse.", heritageStatus: "UNESCO", sourceName: "UNESCO World Heritage Centre", sourceUrl: "https://whc.unesco.org/en/list/", sourceType: "UNESCO", category: "architecture moderne", tags: ["modernisme", "maison", "pilotis"] }),
+    atlasEntry("fr-notre-dame-paris", { title: "Notre-Dame de Paris", country: "France", region: "Île-de-France", city: "Paris", coordinates: { lat: 48.853, lng: 2.3499 }, period: "Moyen Âge", century: "XIIe-XIVe", style: "Gothique", movement: "Gothique français", architect: "Maîtres d'œuvre médiévaux", year: "1163-1345", buildingType: "Cathédrale", structuralSystem: "Voûtes d'ogives et arcs-boutants", dominantMaterials: "Pierre calcaire, bois, plomb", climateContext: "Climat tempéré", culturalContext: "Cathédrale urbaine et repère symbolique", technicalNotes: "Transfert des poussées vers les arcs-boutants pour ouvrir les murs.", heritageStatus: "UNESCO", sourceName: "UNESCO World Heritage Centre", sourceUrl: "https://whc.unesco.org/en/list/", sourceType: "UNESCO", category: "patrimoine UNESCO", tags: ["gothique", "pierre", "cathédrale"] }),
   ]);
 
-  const _atlasV1State = { query: "", categorie: "", pays: "" };
+  const DATA_ATLAS_WORLD = Object.freeze(
+    Array.isArray(window.TEOMARCHI_ATLAS_SEED) && window.TEOMARCHI_ATLAS_SEED.length
+      ? window.TEOMARCHI_ATLAS_SEED
+      : DATA_ATLAS_FALLBACK
+  );
 
-  function getAtlasV1Filtered() {
-    const needle = normalizeText(_atlasV1State.query);
-    return DATA_ATLAS_V1.filter(item => {
-      const categoryMatch = !_atlasV1State.categorie || item.categorie === _atlasV1State.categorie;
-      const countryMatch = !_atlasV1State.pays || item.pays.includes(_atlasV1State.pays);
+  const _atlasWorldState = { query: "", country: "", period: "", style: "", material: "", buildingType: "", selectedId: "fr-centre-pompidou", limit: 24, entries: DATA_ATLAS_WORLD };
+
+  function injectAtlasWorldCSS() {
+    if (document.getElementById("tm-atlas-world-css")) return;
+    const s = document.createElement("style");
+    s.id = "tm-atlas-world-css";
+    s.textContent = `
+      .tm-atlas-world { display:grid; gap:1rem; min-width:0; }
+      .tm-atlas-map {
+        position:relative; min-height:190px; border:var(--border); border-radius:var(--r-xl);
+        overflow:hidden; background:
+          linear-gradient(90deg, rgba(201,169,110,.08) 1px, transparent 1px),
+          linear-gradient(rgba(201,169,110,.06) 1px, transparent 1px),
+          radial-gradient(circle at 30% 45%, rgba(201,169,110,.16), transparent 22%),
+          radial-gradient(circle at 64% 48%, rgba(245,245,241,.08), transparent 26%);
+        background-size:56px 56px,56px 56px,100% 100%,100% 100%;
+      }
+      .tm-atlas-map::before {
+        content:""; position:absolute; inset:20px; border:1px solid rgba(201,169,110,.18);
+        border-radius:50%; transform:scaleX(1.55); pointer-events:none;
+      }
+      .tm-atlas-map-point {
+        position:absolute; width:9px; height:9px; transform:translate(-50%,-50%);
+        border:1px solid rgba(245,245,241,.8); border-radius:50%;
+        background:var(--gold); box-shadow:0 0 0 6px rgba(201,169,110,.08);
+        cursor:pointer;
+      }
+      .tm-atlas-world-controls { grid-template-columns:1.5fr repeat(5,minmax(120px,1fr)); }
+      .tm-atlas-world-layout { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr); gap:1rem; align-items:start; }
+      .tm-atlas-world-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.82rem; margin:1rem 0; }
+      .tm-atlas-world-card { border:var(--border); border-radius:var(--r-md); background:var(--surface); min-width:0; overflow:hidden; }
+      .tm-atlas-world-card.is-selected { border-color:rgba(201,169,110,.55); box-shadow:0 0 0 1px rgba(201,169,110,.18); }
+      .tm-atlas-world-card button { width:100%; display:grid; gap:.45rem; padding:1rem; border:0; background:transparent; color:inherit; text-align:left; cursor:pointer; }
+      .tm-atlas-world-card strong { color:var(--ink); font-family:var(--serif); font-size:1.2rem; font-weight:300; }
+      .tm-atlas-world-card small,
+      .tm-atlas-world-card p { margin:0; color:var(--muted); font-size:.72rem; line-height:1.45; }
+      .tm-atlas-detail {
+        position:sticky; top:86px; display:grid; gap:.9rem; padding:1.1rem;
+        border:var(--border); border-radius:var(--r-xl); background:var(--surface); min-width:0;
+      }
+      .tm-atlas-detail h3 { margin:0; font-family:var(--serif); font-size:1.85rem; font-weight:300; color:var(--ink); }
+      @media (max-width:1100px) { .tm-atlas-world-controls, .tm-atlas-world-layout { grid-template-columns:1fr; } .tm-atlas-detail { position:static; } }
+    `;
+    document.head.appendChild(s);
+  }
+
+  function getAtlasWorldEntryById(id) {
+    return (_atlasWorldState.entries || DATA_ATLAS_WORLD).find(item => item.id === id) || DATA_ATLAS_WORLD.find(item => item.id === id) || null;
+  }
+
+  function getAtlasFilteredEntries() {
+    const needle = normalizeText(_atlasWorldState.query);
+    return (_atlasWorldState.entries || DATA_ATLAS_WORLD).filter(item => {
       const searchMatch = !needle || normalizeText(Object.values(item).flat().join(" ")).includes(needle);
-      return categoryMatch && countryMatch && searchMatch;
+      const countryMatch = !_atlasWorldState.country || item.country === _atlasWorldState.country;
+      const periodMatch = !_atlasWorldState.period || item.period === _atlasWorldState.period || item.century === _atlasWorldState.period;
+      const styleMatch = !_atlasWorldState.style || item.category === _atlasWorldState.style || item.style === _atlasWorldState.style || item.movement === _atlasWorldState.style;
+      const materialMatch = !_atlasWorldState.material || normalizeText(item.dominantMaterials).includes(normalizeText(_atlasWorldState.material));
+      const typeMatch = !_atlasWorldState.buildingType || item.buildingType === _atlasWorldState.buildingType;
+      return searchMatch && countryMatch && periodMatch && styleMatch && materialMatch && typeMatch;
     });
   }
 
-  function renderAtlasV1Panel() {
-    const rows = getAtlasV1Filtered();
-    const categories = getUniqueValues(DATA_ATLAS_V1, "categorie");
-    const countries = ["France", "Belgique", "Europe"];
+  function renderAtlasOptionList(values, selected) {
+    return values.map(value => `<option value="${_esc(value)}" ${selected === value ? "selected" : ""}>${_esc(value)}</option>`).join("");
+  }
+
+  function renderAtlasWorldMap(entries) {
+    const points = entries.slice(0, 42).map(item => {
+      const x = Math.max(4, Math.min(96, ((Number(item.coordinates?.lng) + 180) / 360) * 100));
+      const y = Math.max(6, Math.min(94, ((90 - Number(item.coordinates?.lat)) / 180) * 100));
+      return `<button class="tm-atlas-map-point" type="button" title="${_esc(item.title)}" data-atlas-card="${_esc(item.id)}" style="left:${x}%;top:${y}%"></button>`;
+    }).join("");
+    return `<div class="tm-atlas-map" aria-label="Carte stylisée Atlas">${points}</div>`;
+  }
+
+  function renderAtlasSkeleton() {
     return `
-      <section class="tm-editorial-panel tm-atlas-v1" aria-label="Atlas V1 fiches techniques">
+      <div class="tm-atlas-skeleton" data-atlas-skeleton aria-hidden="true">
+        <div class="tm-skeleton tm-atlas-skeleton__card">
+          <span class="tm-skeleton-line" style="width:32%"></span>
+          <span class="tm-skeleton-line" style="width:76%"></span>
+          <span class="tm-skeleton-line" style="width:58%"></span>
+        </div>
+        <div class="tm-skeleton tm-atlas-skeleton__card">
+          <span class="tm-skeleton-line" style="width:44%"></span>
+          <span class="tm-skeleton-line" style="width:82%"></span>
+          <span class="tm-skeleton-line" style="width:52%"></span>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderAtlasDetail(entry) {
+    if (!entry) return renderEmptyState("Sélection Atlas", "Choisissez une fiche pour afficher le détail.");
+    return `
+      <aside class="tm-atlas-detail" aria-live="polite">
+        <p class="tm-tech-kicker">${_esc(entry.country)} · ${_esc(entry.city)}</p>
+        <h3>${_esc(entry.title)}</h3>
+        <div class="tm-feed-meta">
+          <span>${_esc(entry.category)}</span>
+          <span>${_esc(entry.period)}</span>
+          <span>${_esc(entry.style)}</span>
+          <span>${_esc(entry.sourceType)}</span>
+        </div>
+        <div class="tm-tech-compare-grid">
+          <div><span>Architecte</span><p>${_esc(entry.architect)}</p></div>
+          <div><span>Année</span><p>${_esc(entry.year)}</p></div>
+          <div><span>Système</span><p>${_esc(entry.structuralSystem)}</p></div>
+          <div><span>Matériaux</span><p>${_esc(entry.dominantMaterials)}</p></div>
+        </div>
+        <p class="tm-tech-lesson">${_esc(entry.technicalNotes)}</p>
+        <p class="tm-tech-muted">${_esc(entry.culturalContext)} · ${_esc(entry.climateContext)}</p>
+        ${renderTagList(entry.tags, "tm-tech-badges")}
+        <div class="tm-feed-actions">
+          <a class="tm-feed-btn" data-atlas-source href="${_esc(entry.sourceUrl)}" target="_blank" rel="noopener">Voir source</a>
+          <button class="tm-feed-btn" type="button" data-atlas-link-feed="${_esc(entry.id)}">Créer un post à partir de cette référence</button>
+        </div>
+      </aside>
+    `;
+  }
+
+  function renderAtlasWorldPanel() {
+    const filtered = getAtlasFilteredEntries();
+    const visible = filtered.slice(0, _atlasWorldState.limit);
+    const selected = getAtlasWorldEntryById(_atlasWorldState.selectedId) || visible[0] || filtered[0];
+    const countries = getUniqueValues(DATA_ATLAS_WORLD, "country");
+    const periods = getUniqueValues(DATA_ATLAS_WORLD, "period");
+    const styles = getUniqueValues(DATA_ATLAS_WORLD, "category");
+    const materials = ["Béton", "Pierre", "Bois", "Verre", "Acier", "Brique", "Terre", "Marbre"];
+    const types = getUniqueValues(DATA_ATLAS_WORLD, "buildingType");
+    return `
+      <section class="tm-atlas-world" aria-label="Atlas mondial architecture">
         <div class="landing-band__head">
-          <p class="tm-tech-kicker">Atlas V1</p>
-          <h3 class="landing-title landing-title--wide">Fiches techniques rapides pour les jurys.</h3>
+          <p class="tm-tech-kicker">Atlas mondial</p>
+          <h3 class="landing-title landing-title--wide">Pays, villes, bâtiments, climats et systèmes constructifs.</h3>
         </div>
-        <div class="tm-tech-controls">
-          <label class="field">
-            <input type="search" data-atlas-v1-search value="${_esc(_atlasV1State.query)}" placeholder="Rechercher PMR, escalier, thermique..." autocomplete="off">
-          </label>
-          <label class="field">
-            <select data-atlas-v1-category>
-              <option value="">Toutes catégories</option>
-              ${categories.map(cat => `<option value="${_esc(cat)}" ${_atlasV1State.categorie === cat ? "selected" : ""}>${_esc(cat)}</option>`).join("")}
-            </select>
-          </label>
-          <label class="field">
-            <select data-atlas-v1-country>
-              <option value="">Tous pays</option>
-              ${countries.map(country => `<option value="${_esc(country)}" ${_atlasV1State.pays === country ? "selected" : ""}>${_esc(country)}</option>`).join("")}
-            </select>
-          </label>
+        ${renderAtlasWorldMap(filtered)}
+        <div class="tm-tech-controls tm-atlas-world-controls">
+          <label class="field tm-tech-search"><input type="search" data-atlas-world-search value="${_esc(_atlasWorldState.query)}" placeholder="Rechercher pays, ville, architecte, matériau..." autocomplete="off"></label>
+          <label class="field"><select data-atlas-filter="country"><option value="">Tous pays</option>${renderAtlasOptionList(countries, _atlasWorldState.country)}</select></label>
+          <label class="field"><select data-atlas-filter="period"><option value="">Toutes époques</option>${renderAtlasOptionList(periods, _atlasWorldState.period)}</select></label>
+          <label class="field"><select data-atlas-filter="style"><option value="">Tous styles</option>${renderAtlasOptionList(styles, _atlasWorldState.style)}</select></label>
+          <label class="field"><select data-atlas-filter="material"><option value="">Tous matériaux</option>${renderAtlasOptionList(materials, _atlasWorldState.material)}</select></label>
+          <label class="field"><select data-atlas-filter="buildingType"><option value="">Tous types</option>${renderAtlasOptionList(types, _atlasWorldState.buildingType)}</select></label>
         </div>
-        <div class="tm-normes-grid">
-          ${rows.map(item => `
-            <article class="tm-normes-item">
-              <span class="tm-technical-badge">${_esc(item.source_status)}</span>
-              <p class="tm-normes-nom">${_esc(item.categorie)}</p>
-              <h4 style="margin:0;font-family:var(--serif);font-size:1.35rem;font-weight:300;color:var(--ink)">${_esc(item.titre)}</h4>
-              <p class="tm-normes-dim">${_esc(item.valeur_recommandee)}</p>
-              <p class="tm-normes-note">Min. ${_esc(item.valeur_min)} · ${_esc(item.pays)}</p>
-              <p class="tm-normes-note">${_esc(item.note)}</p>
-              <p class="tm-normes-note">${_esc(item.norme_reference)}</p>
-              ${renderTagList(item.tags, "tm-normes-tags")}
-              <button type="button" class="tm-feed-btn" data-atlas-copy-value="${_esc(item.valeur_recommandee)}">Copier valeur</button>
-            </article>
-          `).join("") || renderEmptyState("Aucune fiche Atlas", "Ajustez la recherche, la catégorie ou le pays.")}
+        <div class="tm-atlas-world-layout">
+          <div>
+            <p class="tm-tech-muted">${visible.length} fiches visibles sur ${filtered.length} résultats. Données indicatives, sources documentaires citées.</p>
+            <div class="tm-atlas-world-grid">
+              ${visible.map(item => `
+                <article class="tm-atlas-world-card ${selected?.id === item.id ? "is-selected" : ""}" data-atlas-card="${_esc(item.id)}">
+                  <button type="button" data-atlas-card="${_esc(item.id)}">
+                    <span class="tm-technical-badge">${_esc(item.sourceType)}</span>
+                    <strong>${_esc(item.title)}</strong>
+                    <small>${_esc(item.city)} · ${_esc(item.country)}</small>
+                    <p>${_esc(item.period)} · ${_esc(item.style)}</p>
+                    <p>${_esc(item.dominantMaterials)} · ${_esc(item.structuralSystem)}</p>
+                  </button>
+                </article>
+              `).join("") || renderEmptyState("Aucune fiche Atlas", "Ajustez les filtres géographiques ou techniques.")}
+            </div>
+            ${filtered.length > visible.length ? `<button class="tm-feed-btn" type="button" data-atlas-load-more>Afficher plus de fiches</button>` : ""}
+          </div>
+          ${renderAtlasDetail(selected)}
         </div>
       </section>
     `;
   }
 
-  function bindAtlasV1Panel(root) {
-    if (!root || root.dataset.atlasV1Bound) return;
-    root.dataset.atlasV1Bound = "1";
-    const refresh = () => {
-      const panel = root.querySelector(".tm-atlas-v1");
-      if (panel) panel.outerHTML = renderAtlasV1Panel();
-    };
+  async function hydrateAtlasWorldFromFirestore() {
+    const db = getFirestoreDb();
+    if (!db || _atlasWorldState.firestoreLoaded) return;
+    _atlasWorldState.firestoreLoaded = true;
+    try {
+      const snap = await db.collection("atlas").limit(120).get();
+      const rows = [];
+      snap.forEach(doc => rows.push({ id: doc.id, ...doc.data() }));
+      if (rows.length) {
+        _atlasWorldState.entries = rows;
+        if (!rows.some(item => item.id === _atlasWorldState.selectedId)) _atlasWorldState.selectedId = rows[0].id;
+        const root = document.getElementById("atlas-grid");
+        if (root) root.innerHTML = renderAtlasWorldPanel();
+      }
+    } catch {
+      _atlasWorldState.entries = DATA_ATLAS_WORLD;
+    }
+  }
+
+  function openAtlasReference(atlasId) {
+    const root = document.getElementById("atlas-grid");
+    _atlasWorldState.selectedId = atlasId || _atlasWorldState.selectedId;
+    try { window.navigateTo?.("atlas"); } catch {}
+    window.setTimeout(() => {
+      const atlasRoot = document.getElementById("atlas-grid") || root;
+      if (atlasRoot) {
+        atlasRoot.innerHTML = renderAtlasWorldPanel();
+        Array.from(atlasRoot.querySelectorAll("[data-atlas-card]"))
+          .find(el => el.dataset.atlasCard === _atlasWorldState.selectedId)
+          ?.scrollIntoView({ block: "center", behavior: "smooth" });
+      }
+    }, 100);
+  }
+
+  function bindAtlasWorldPanel(root) {
+    if (!root || root.dataset.atlasWorldBound) return;
+    root.dataset.atlasWorldBound = "1";
+    const refresh = () => { root.innerHTML = renderAtlasWorldPanel(); };
     root.addEventListener("input", e => {
-      const search = e.target.closest("[data-atlas-v1-search]");
+      const search = e.target.closest("[data-atlas-world-search]");
       if (!search) return;
-      _atlasV1State.query = search.value || "";
+      _atlasWorldState.query = search.value || "";
+      _atlasWorldState.limit = 24;
       refresh();
     });
     root.addEventListener("change", e => {
-      const category = e.target.closest("[data-atlas-v1-category]");
-      const country = e.target.closest("[data-atlas-v1-country]");
-      if (!category && !country) return;
-      if (category) _atlasV1State.categorie = category.value || "";
-      if (country) _atlasV1State.pays = country.value || "";
+      const filter = e.target.closest("[data-atlas-filter]");
+      if (!filter) return;
+      _atlasWorldState[filter.dataset.atlasFilter] = filter.value || "";
+      _atlasWorldState.limit = 24;
       refresh();
     });
-    root.addEventListener("click", async e => {
-      const copy = e.target.closest("[data-atlas-copy-value]");
-      if (!copy) return;
-      try {
-        await navigator.clipboard?.writeText(copy.dataset.atlasCopyValue || "");
-        notifyUser("Valeur Atlas copiée.");
-      } catch {
-        notifyUser(copy.dataset.atlasCopyValue || "Valeur Atlas");
+    root.addEventListener("click", e => {
+      const card = e.target.closest("[data-atlas-card]");
+      const loadMore = e.target.closest("[data-atlas-load-more]");
+      const linkFeed = e.target.closest("[data-atlas-link-feed]");
+      if (!card && !loadMore && !linkFeed) return;
+      e.preventDefault();
+      if (card) {
+        _atlasWorldState.selectedId = card.dataset.atlasCard;
+        refresh();
       }
+      if (loadMore) {
+        _atlasWorldState.limit += 24;
+        refresh();
+      }
+      if (linkFeed) prefillFeedComposerFromAtlas(linkFeed.dataset.atlasLinkFeed);
     });
   }
 
@@ -5347,10 +5511,13 @@ function renderDemoBadge(label = "Démo") {
   function initAtlas() {
     const root = document.getElementById("atlas-grid");
     if (!root) return;
-    renderTechnicalCards(root, DATA_ATLAS_EXPANDED, _atlasOptions);
-    root.insertAdjacentHTML("beforeend", renderAtlasV1Panel());
-    _bindTechnicalModule(root, DATA_ATLAS_EXPANDED, _atlasOptions);
-    bindAtlasV1Panel(root);
+    injectAtlasWorldCSS();
+    root.innerHTML = renderAtlasSkeleton();
+    window.setTimeout(() => {
+      root.innerHTML = renderAtlasWorldPanel();
+      bindAtlasWorldPanel(root);
+      hydrateAtlasWorldFromFirestore();
+    }, 0);
   }
 
   function initChronos() {
@@ -8153,59 +8320,101 @@ function renderDemoBadge(label = "Démo") {
     toast.addEventListener("click", () => { clearTimeout(t); dismiss(); });
   };
 
-  /* ── Feed social Firestore ──────────────────────────────────── */
+  /* ── Feed social architectural Firestore ─────────────────────── */
   const FEED_POST_TYPES = Object.freeze([
     { id: "wip", label: "WIP" },
+    { id: "moment", label: "Moment" },
+    { id: "projet", label: "Projet" },
     { id: "question", label: "Question" },
     { id: "ressource", label: "Ressource" },
-    { id: "norme", label: "Norme" }
+    { id: "workshop", label: "Workshop" },
+    { id: "concours", label: "Concours" },
+    { id: "analyse", label: "Analyse" },
+    { id: "recherche", label: "Recherche" },
+    { id: "decouverte", label: "Découverte" },
+    { id: "opportunite", label: "Opportunité" },
+    { id: "norme", label: "Norme" },
+    { id: "chantier", label: "Chantier" }
   ]);
 
-  const FEED_PROJECT_PHASES = Object.freeze([
-    "Esquisse",
-    "Avant-projet",
-    "Développement",
-    "Détail",
-    "Jury",
-    "Chantier"
+  const FEED_VISIBILITIES = Object.freeze([
+    { id: "tous", label: "Tous" },
+    { id: "communaute", label: "Communauté" },
+    { id: "professionnel", label: "Professionnel" }
   ]);
+
+  const FEED_SOCIAL_ROLES = Object.freeze([
+    { id: "etudiant", label: "Étudiant" },
+    { id: "architecte", label: "Architecte" },
+    { id: "agence", label: "Agence" },
+    { id: "ecole", label: "École" },
+    { id: "admin", label: "Admin" }
+  ]);
+
+  const FEED_PROJECT_PHASES = Object.freeze(["Esquisse", "Avant-projet", "Développement", "Détail", "Jury", "Chantier"]);
 
   const FEED_CATEGORIES = Object.freeze([
+    "Atelier",
     "Logement",
-    "Équipement",
-    "Intérieur",
+    "Équipement public",
     "Urbanisme",
     "Structure",
     "Matériaux",
-    "PMR",
-    "Thermique"
-  ]);
-
-  const FEED_REACTIONS = Object.freeze([
-    { id: "utile", label: "Utile" },
-    { id: "merci", label: "Merci" },
-    { id: "cherche", label: "Je cherche aussi" }
+    "Patrimoine",
+    "Climat",
+    "Concours",
+    "Stage / emploi"
   ]);
 
   const FEED_SCHEMA_PATHS = Object.freeze([
     "posts/{postId}/comments",
-    "posts/{postId}/reactions"
+    "posts/{postId}/likes",
+    "users/{userId}/following",
+    "users/{userId}/followers"
   ]);
 
   const FEED_RULES = [
-    "Interdiction de publier un projet qui ne vous appartient pas.",
-    "Obligation de créditer les collaborateurs, enseignants, agences ou sources.",
-    "Interdiction de copier, reprendre ou republier un projet sans autorisation.",
-    "Interdiction d’usurper l’identité d’un étudiant, architecte ou agence.",
-    "Interdiction de harcèlement, insultes, propos discriminatoires ou humiliants.",
-    "Interdiction de publier des documents confidentiels d’agence, de client ou d’école.",
-    "Tout contenu signalé peut être masqué pendant vérification.",
-    "TEOMARCHI peut suspendre ou supprimer un compte en cas d’abus."
+    "Publier uniquement un contenu dont vous êtes l’auteur ou que vous pouvez citer.",
+    "Citer les agences, écoles, enseignants, collaborateurs et références Atlas.",
+    "Les opportunités doivent rester utiles : stage, concours, appel, ressource ou chantier.",
+    "Le signalement sert aux contenus copiés, abusifs, confidentiels ou hors sujet."
   ];
+
+  window.TEOMARCHI_FEED_DRAFT = window.TEOMARCHI_FEED_DRAFT || null;
 
   let _feedUnsubscribe = null;
   let _feedPosts = [];
-  const _feedFilters = { type: "", projectPhase: "", category: "" };
+  let _feedComposerOpen = false;
+  let _feedProfileState = null;
+  let _feedCountsRequestId = 0;
+  const _feedFilters = { type: "", visibility: "", category: "" };
+
+  function feedTypeLabel(type) {
+    return FEED_POST_TYPES.find(item => item.id === type)?.label || "Moment";
+  }
+
+  function feedVisibilityLabel(visibility) {
+    return FEED_VISIBILITIES.find(item => item.id === visibility)?.label || "Tous";
+  }
+
+  function feedRoleLabel(role) {
+    return FEED_SOCIAL_ROLES.find(item => item.id === role)?.label || "Étudiant";
+  }
+
+  function feedInitials(name = "TEOMARCHI") {
+    return String(name || "T")
+      .split(/\s+/)
+      .filter(Boolean)
+      .map(part => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "TM";
+  }
+
+  function normalizeFeedChoice(value, list, fallback) {
+    const raw = String(value || "").trim();
+    return list.some(item => item.id === raw) ? raw : fallback;
+  }
 
   function injectFeedCSS() {
     if (document.getElementById("tm-feed-social-css")) return;
@@ -8217,20 +8426,23 @@ function renderDemoBadge(label = "Démo") {
       .tm-feed--connected .tm-feed-timeline { min-height:calc(100dvh - 150px); }
       .tm-feed-wall { align-items:start; }
       .tm-feed-editorial { margin-bottom:1rem; }
-      .tm-feed-editorial h3 {
-        font-family:var(--serif); font-size:1.8rem; font-weight:300;
-        line-height:1.05; color:var(--ink);
-      }
-      .tm-feed-editorial p:last-child {
-        color:var(--muted); font-size:.78rem; line-height:1.6;
-      }
+      .tm-feed-editorial h3 { font-family:var(--serif); font-size:1.8rem; font-weight:300; line-height:1.05; color:var(--ink); }
+      .tm-feed-editorial p:last-child { color:var(--muted); font-size:.78rem; line-height:1.6; }
       .tm-feed-panel,
-      .tm-feed-post {
+      .tm-feed-post,
+      .tm-feed-profile-card {
         display:grid; gap:1rem; padding:1.2rem;
         border:var(--border); border-radius:var(--r-xl);
         background:var(--surface); min-width:0;
       }
-      .tm-feed-composer { display:grid; gap:.8rem; }
+      .tm-feed-publish-pill {
+        width:100%; display:flex; align-items:center; justify-content:center; gap:.55rem;
+        border:1px solid rgba(201,169,110,.42); border-radius:999px;
+        background:linear-gradient(135deg,rgba(201,169,110,.18),rgba(201,169,110,.05));
+        color:var(--ink); padding:.82rem 1rem; cursor:pointer;
+      }
+      .tm-feed-publish-mark { width:26px; height:26px; display:grid; place-items:center; border:1px solid rgba(201,169,110,.55); color:var(--gold); }
+      .tm-feed-composer { display:grid; gap:.82rem; }
       .tm-feed-composer-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.72rem; }
       .tm-feed-field--full { grid-column:1 / -1; }
       .tm-feed-field label,
@@ -8241,124 +8453,71 @@ function renderDemoBadge(label = "Démo") {
         width:100%; border:var(--border); border-radius:var(--r-sm);
         background:var(--surface-2); color:var(--ink); padding:.66rem .75rem; font:inherit;
       }
-      .tm-feed-field textarea { min-height:108px; resize:vertical; }
+      .tm-feed-field textarea { min-height:132px; resize:vertical; }
       .tm-feed-filters { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.72rem; margin-bottom:1rem; }
       .tm-feed-meta { display:flex; flex-wrap:wrap; gap:.4rem; color:var(--muted); font-size:.66rem; }
       .tm-feed-meta span,
-      .tm-feed-reaction-count {
+      .tm-feed-role,
+      .tm-feed-atlas-badge {
         border:0.5px solid rgba(201,169,110,.18); border-radius:999px; padding:.18rem .48rem;
         color:var(--gold); background:rgba(201,169,110,.05);
       }
-      .tm-feed-cert { display:flex; align-items:flex-start; gap:.55rem; color:var(--ink-2); font-size:.74rem; line-height:1.45; }
-      .tm-feed-cert input { margin-top:.18rem; accent-color:var(--gold); }
       .tm-feed-rules { display:grid; gap:.5rem; padding-left:1rem; color:var(--muted); font-size:.68rem; line-height:1.55; }
       .tm-feed-rules li::marker { color:var(--gold); }
       .tm-feed-timeline { display:grid; gap:1rem; min-width:0; }
       .tm-feed-author { display:flex; gap:.72rem; align-items:center; min-width:0; }
+      .tm-feed-author-btn { display:flex; gap:.72rem; align-items:center; min-width:0; border:0; background:transparent; color:inherit; padding:0; text-align:left; cursor:pointer; }
       .tm-feed-avatar {
         width:42px; height:42px; border-radius:50%; display:grid; place-items:center; flex-shrink:0;
         border:0.5px solid rgba(201,169,110,.42); background:rgba(201,169,110,.10);
         color:var(--gold); font-size:.72rem; letter-spacing:.05em; overflow:hidden;
       }
-      .tm-feed-avatar img { width:100%; height:100%; object-fit:cover; }
-      .tm-feed-author strong { display:block; color:var(--ink); font-size:.86rem; font-weight:500; }
+      .tm-feed-author strong { display:block; color:var(--ink); font-size:.88rem; font-weight:500; }
       .tm-feed-author span { display:block; color:var(--muted); font-size:.68rem; }
-      .tm-feed-text { color:var(--ink-2); font-size:.86rem; line-height:1.65; white-space:pre-wrap; overflow-wrap:anywhere; }
-      .tm-feed-images { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:.6rem; }
-      .tm-feed-images img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:var(--r-md); border:var(--border); background:var(--surface-2); }
+      .tm-feed-text { color:var(--ink-2); font-size:.88rem; line-height:1.65; white-space:pre-wrap; overflow-wrap:anywhere; }
       .tm-feed-actions { display:flex; gap:.48rem; flex-wrap:wrap; padding-top:.8rem; border-top:var(--border); }
       .tm-feed-btn:disabled { opacity:.5; cursor:not-allowed; }
+      .tm-feed-comment-list { display:grid; gap:.42rem; padding:.72rem .84rem; border:var(--border); border-radius:var(--r-md); background:rgba(201,169,110,.035); }
+      .tm-feed-comment-list p { margin:0; color:var(--ink-2); font-size:.76rem; line-height:1.45; overflow-wrap:anywhere; }
+      .tm-feed-comment-list strong { color:var(--ink); font-weight:500; }
       .tm-feed-comments { display:grid; gap:.6rem; }
       .tm-feed-comment-form { display:flex; gap:.55rem; align-items:center; min-width:0; }
       .tm-feed-comment-form input { flex:1; min-width:0; border:var(--border); border-radius:var(--r-pill); background:var(--surface-2); color:var(--ink); padding:.55rem .8rem; }
       .tm-feed-empty { padding:2.2rem; text-align:center; border:var(--border); border-radius:var(--r-xl); color:var(--muted); background:color-mix(in srgb,var(--surface) 78%,transparent); }
-      @media (max-width:700px) { .tm-feed-composer-grid, .tm-feed-filters { grid-template-columns:1fr; } }
+      .tm-feed-modal {
+        position:fixed; inset:0; z-index:80; display:none; place-items:center; padding:1rem;
+        background:rgba(0,0,0,.72); backdrop-filter:blur(12px);
+      }
+      .tm-feed-modal.is-open { display:grid; }
+      .tm-feed-modal-card {
+        width:min(760px,100%); max-height:min(86vh,820px); overflow:auto;
+        border:1px solid rgba(201,169,110,.28); border-radius:var(--r-xl);
+        background:color-mix(in srgb,var(--surface) 92%,#000 8%); padding:1.25rem;
+        box-shadow:0 24px 80px rgba(0,0,0,.42);
+      }
+      .tm-feed-modal-head { display:flex; justify-content:space-between; gap:1rem; align-items:start; margin-bottom:1rem; }
+      .tm-feed-profile-modal { position:fixed; inset:0; z-index:82; display:grid; place-items:center; padding:1rem; background:rgba(0,0,0,.68); backdrop-filter:blur(10px); }
+      .tm-feed-profile-card { width:min(720px,100%); max-height:min(86vh,780px); overflow:auto; }
+      .tm-feed-profile-stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.65rem; }
+      .tm-feed-profile-stats div { border:var(--border); border-radius:var(--r-md); padding:.72rem; }
+      .tm-feed-profile-stats strong { display:block; color:var(--ink); }
+      .tm-feed-profile-posts { display:grid; gap:.65rem; }
+      .tm-feed-profile-mini { border:var(--border); border-radius:var(--r-md); padding:.82rem; }
+      @media (max-width:700px) { .tm-feed-composer-grid, .tm-feed-filters, .tm-feed-profile-stats { grid-template-columns:1fr; } }
       @media (max-width:900px) { .tm-feed { grid-template-columns:1fr; } }
     `;
     document.head.appendChild(s);
   }
 
   function renderFeedComposer() {
-    const user = getFirebaseUser();
-    if (!user) {
-      return `
-        <div class="tm-feed-panel">
-          <p style="margin:0;text-transform:uppercase;letter-spacing:.16em;font-size:.58rem;color:var(--gold)">Publication</p>
-          <h3 style="margin:0;font-family:var(--serif);font-size:1.8rem;font-weight:300;color:var(--ink)">Connectez-vous pour publier</h3>
-          <p style="margin:0;color:var(--muted);font-size:.82rem;line-height:1.6">
-            Vous pouvez lire le Feed public, mais la publication, les réactions, commentaires et signalements nécessitent un compte connecté.
-          </p>
-          <button class="text-btn text-btn--primary" type="button" data-open-login>Connexion</button>
-          <div>
-            <p style="margin:0 0 .62rem;text-transform:uppercase;letter-spacing:.16em;font-size:.58rem;color:var(--gold)">Règles anti-plagiat</p>
-            <ol class="tm-feed-rules">
-              ${FEED_RULES.map(rule => `<li>${_esc(rule)}</li>`).join("")}
-            </ol>
-          </div>
-        </div>
-      `;
-    }
-
     return `
       <div class="tm-feed-panel">
-        <form class="tm-feed-composer" id="feed-composer-form">
-          <div>
-            <p style="margin:0 0 .22rem;text-transform:uppercase;letter-spacing:.16em;font-size:.58rem;color:var(--gold)">Composer</p>
-            <h3 style="margin:0;font-family:var(--serif);font-size:1.8rem;font-weight:300;color:var(--ink)">Publier une note architecture</h3>
-          </div>
-          <div class="tm-feed-composer-grid">
-            <label class="tm-feed-field">
-              <span>Type</span>
-              <select name="type">
-                ${FEED_POST_TYPES.map(type => `<option value="${_esc(type.id)}">${_esc(type.label)}</option>`).join("")}
-              </select>
-            </label>
-            <label class="tm-feed-field">
-              <span>Phase</span>
-              <select name="projectPhase">
-                ${FEED_PROJECT_PHASES.map(phase => `<option value="${_esc(phase)}">${_esc(phase)}</option>`).join("")}
-              </select>
-            </label>
-            <label class="tm-feed-field">
-              <span>Catégorie</span>
-              <select name="category">
-                ${FEED_CATEGORIES.map(category => `<option value="${_esc(category)}">${_esc(category)}</option>`).join("")}
-              </select>
-            </label>
-            <label class="tm-feed-field">
-              <span>Titre</span>
-              <input name="title" maxlength="110" placeholder="Ex : coupe façade brique isolée">
-            </label>
-            <label class="tm-feed-field tm-feed-field--full">
-              <span>Corps</span>
-              <textarea id="feed-post-text" name="body" maxlength="1200" placeholder="Expliquez le contexte, la question technique, la ressource ou la norme à vérifier..."></textarea>
-            </label>
-            <label class="tm-feed-field tm-feed-field--full">
-              <span>Tags</span>
-              <input name="tags" placeholder="brique, PMR, détail, thermique">
-            </label>
-            <label class="tm-feed-field tm-feed-field--full">
-              <span>Images ou médias</span>
-              <input id="feed-image-urls" name="mediaUrls" placeholder="URLs séparées par des virgules ou des retours ligne">
-            </label>
-            <label class="tm-feed-field">
-              <span>Atlas liés</span>
-              <input name="linkedAtlasIds" placeholder="pmr-rotation-150, escalier-blondel">
-            </label>
-            <label class="tm-feed-field">
-              <span>Données dimensionnelles</span>
-              <input name="dimensionData" placeholder="ex : giron 28 cm, H 17 cm">
-            </label>
-          </div>
-          <button class="tm-feed-btn" type="button" data-feed-image-focus>Ajouter une image</button>
-          <label class="tm-feed-cert">
-            <input id="feed-certify" data-feed-certify type="checkbox" name="certify">
-            <span>Je certifie être l’auteur de ce contenu ou disposer des droits nécessaires.</span>
-          </label>
-          <button class="text-btn text-btn--primary" id="feed-submit-btn" type="submit" disabled>Publier</button>
-        </form>
+        <button class="tm-feed-publish-pill" type="button" data-feed-open-composer>
+          <span class="tm-feed-publish-mark" aria-hidden="true">+</span>
+          <span>Publier dans TEOMARCHI</span>
+        </button>
         <div>
-          <p style="margin:0 0 .62rem;text-transform:uppercase;letter-spacing:.16em;font-size:.58rem;color:var(--gold)">Règles anti-plagiat</p>
+          <p style="margin:0 0 .62rem;text-transform:uppercase;letter-spacing:.16em;font-size:.58rem;color:var(--gold)">Cadre éditorial</p>
           <ol class="tm-feed-rules">
             ${FEED_RULES.map(rule => `<li>${_esc(rule)}</li>`).join("")}
           </ol>
@@ -8367,76 +8526,133 @@ function renderDemoBadge(label = "Démo") {
     `;
   }
 
+  function renderFeedPublishModal() {
+    const user = getFirebaseUser();
+    const draft = window.TEOMARCHI_FEED_DRAFT || {};
+    const linkedAtlasIds = Array.isArray(draft.linkedAtlasIds) ? draft.linkedAtlasIds.join(", ") : "";
+    return `
+      <div class="tm-feed-modal ${_feedComposerOpen && user ? "is-open" : ""}" data-feed-modal aria-hidden="${_feedComposerOpen && user ? "false" : "true"}">
+        <div class="tm-feed-modal-card" role="dialog" aria-modal="true" aria-labelledby="feed-publish-title">
+          <div class="tm-feed-modal-head">
+            <div>
+              <p class="tm-tech-kicker">+ publier</p>
+              <h3 id="feed-publish-title" style="margin:0;font-family:var(--serif);font-size:2rem;font-weight:300;color:var(--ink)">Nouveau post architectural</h3>
+            </div>
+            <button class="tm-feed-btn" type="button" data-feed-close-composer>Fermer</button>
+          </div>
+          <form class="tm-feed-composer" id="feed-composer-form">
+            <div class="tm-feed-composer-grid">
+              <label class="tm-feed-field">
+                <span>Type</span>
+                <select name="type">
+                  ${FEED_POST_TYPES.map(type => `<option value="${_esc(type.id)}" ${draft.type === type.id ? "selected" : ""}>${_esc(type.label)}</option>`).join("")}
+                </select>
+              </label>
+              <label class="tm-feed-field">
+                <span>Espace</span>
+                <select name="visibility">
+                  ${FEED_VISIBILITIES.map(space => `<option value="${_esc(space.id)}" ${draft.visibility === space.id ? "selected" : ""}>${_esc(space.label)}</option>`).join("")}
+                </select>
+              </label>
+              <label class="tm-feed-field">
+                <span>Catégorie</span>
+                <select name="category">
+                  ${FEED_CATEGORIES.map(category => `<option value="${_esc(category)}" ${draft.category === category ? "selected" : ""}>${_esc(category)}</option>`).join("")}
+                </select>
+              </label>
+              <label class="tm-feed-field">
+                <span>Phase</span>
+                <select name="projectPhase">
+                  ${FEED_PROJECT_PHASES.map(phase => `<option value="${_esc(phase)}" ${draft.projectPhase === phase ? "selected" : ""}>${_esc(phase)}</option>`).join("")}
+                </select>
+              </label>
+              <label class="tm-feed-field tm-feed-field--full">
+                <span>Titre</span>
+                <input name="title" maxlength="120" value="${_esc(draft.title || "")}" placeholder="Ex : structure apparente, patio, concours, détail, ressource">
+              </label>
+              <label class="tm-feed-field tm-feed-field--full">
+                <span>Texte</span>
+                <textarea name="body" maxlength="1400" placeholder="Partagez une question, une référence, un moment d’atelier ou une opportunité.">${_esc(draft.body || "")}</textarea>
+              </label>
+              <label class="tm-feed-field">
+                <span>Tags</span>
+                <input name="tags" value="${_esc(Array.isArray(draft.tags) ? draft.tags.join(", ") : "")}" placeholder="béton, logement, concours">
+              </label>
+              <label class="tm-feed-field">
+                <span>Références Atlas</span>
+                <input name="linkedAtlasIds" value="${_esc(linkedAtlasIds)}" placeholder="fr-centre-pompidou, jp-sendai-mediatheque">
+              </label>
+            </div>
+            <button class="text-btn text-btn--primary" id="feed-submit-btn" type="submit">Publier</button>
+          </form>
+        </div>
+      </div>
+    `;
+  }
+
   function normalizeFeedPostInput(form, author, user) {
     const data = new FormData(form);
-    const type = FEED_POST_TYPES.some(item => item.id === data.get("type")) ? data.get("type") : "wip";
-    const projectPhase = FEED_PROJECT_PHASES.includes(data.get("projectPhase")) ? data.get("projectPhase") : FEED_PROJECT_PHASES[0];
+    const type = normalizeFeedChoice(data.get("type"), FEED_POST_TYPES, "moment");
+    const visibility = normalizeFeedChoice(data.get("visibility"), FEED_VISIBILITIES, "tous");
     const category = FEED_CATEGORIES.includes(data.get("category")) ? data.get("category") : FEED_CATEGORIES[0];
+    const projectPhase = FEED_PROJECT_PHASES.includes(data.get("projectPhase")) ? data.get("projectPhase") : FEED_PROJECT_PHASES[0];
     const tags = String(data.get("tags") || "")
       .split(/[,#\n]+/)
       .map(tag => tag.trim())
       .filter(Boolean)
       .slice(0, 10);
-    const mediaUrls = String(data.get("mediaUrls") || "")
-      .split(/[\n,]+/)
-      .map(url => url.trim())
-      .filter(Boolean)
-      .slice(0, 4);
     const linkedAtlasIds = String(data.get("linkedAtlasIds") || "")
       .split(/[\n,]+/)
       .map(id => id.trim())
       .filter(Boolean)
       .slice(0, 8);
-    const dimensionText = String(data.get("dimensionData") || "").trim().slice(0, 240);
 
     return {
-      userId: user.uid,
+      authorId: user.uid,
       authorName: author.authorName,
-      authorAvatar: author.authorAvatar,
+      authorRole: author.authorRole,
+      authorSchoolOrAgency: author.authorSchoolOrAgency,
+      authorVerified: Boolean(author.authorVerified),
+      visibility,
       type,
-      title: String(data.get("title") || "").trim().slice(0, 110),
-      body: String(data.get("body") || data.get("text") || "").trim().slice(0, 1200),
+      title: String(data.get("title") || "").trim().slice(0, 120),
+      body: String(data.get("body") || "").trim().slice(0, 1400),
+      tags,
       projectPhase,
       category,
-      tags: tags,
-      mediaUrls: mediaUrls,
-      linkedAtlasIds: linkedAtlasIds,
-      dimensionData: dimensionText ? { summary: dimensionText } : {},
-      reactions: FEED_REACTIONS.reduce((acc, reaction) => ({ ...acc, [reaction.id]: 0 }), {}),
+      linkedAtlasIds,
+      likesCount: 0,
       commentsCount: 0,
-      reportCount: 0,
+      repostsCount: 0,
+      savesCount: 0,
       status: "active",
-      plagiarismStatus: "clear",
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };
   }
 
   function renderFeedFilters() {
-    const optionList = values => values.map(value =>
-      `<option value="${_esc(value)}">${_esc(value)}</option>`
-    ).join("");
     return `
       <div class="tm-feed-filters" aria-label="Filtres du Feed">
         <label class="tm-feed-field">
           <span>Type</span>
           <select data-feed-filter="type">
-            <option value="">Tous</option>
+            <option value="">Tous types</option>
             ${FEED_POST_TYPES.map(type => `<option value="${_esc(type.id)}" ${_feedFilters.type === type.id ? "selected" : ""}>${_esc(type.label)}</option>`).join("")}
           </select>
         </label>
         <label class="tm-feed-field">
-          <span>Phase</span>
-          <select data-feed-filter="projectPhase">
-            <option value="">Toutes</option>
-            ${optionList(FEED_PROJECT_PHASES).replace(`value="${_esc(_feedFilters.projectPhase)}"`, `value="${_esc(_feedFilters.projectPhase)}" selected`)}
+          <span>Espace</span>
+          <select data-feed-filter="visibility">
+            <option value="">Tous espaces</option>
+            ${FEED_VISIBILITIES.map(space => `<option value="${_esc(space.id)}" ${_feedFilters.visibility === space.id ? "selected" : ""}>${_esc(space.label)}</option>`).join("")}
           </select>
         </label>
         <label class="tm-feed-field">
           <span>Catégorie</span>
           <select data-feed-filter="category">
-            <option value="">Toutes</option>
-            ${optionList(FEED_CATEGORIES).replace(`value="${_esc(_feedFilters.category)}"`, `value="${_esc(_feedFilters.category)}" selected`)}
+            <option value="">Toutes catégories</option>
+            ${FEED_CATEGORIES.map(category => `<option value="${_esc(category)}" ${_feedFilters.category === category ? "selected" : ""}>${_esc(category)}</option>`).join("")}
           </select>
         </label>
       </div>
@@ -8446,64 +8662,78 @@ function renderDemoBadge(label = "Démo") {
   function applyFeedFilters(posts) {
     return (posts || []).filter(post =>
       (!_feedFilters.type || post.type === _feedFilters.type) &&
-      (!_feedFilters.projectPhase || post.projectPhase === _feedFilters.projectPhase) &&
+      (!_feedFilters.visibility || post.visibility === _feedFilters.visibility || post.visibility === "tous") &&
       (!_feedFilters.category || post.category === _feedFilters.category)
     );
   }
 
+  function renderAtlasBadgesForPost(post) {
+    const ids = Array.isArray(post.linkedAtlasIds) ? post.linkedAtlasIds.filter(Boolean).slice(0, 4) : [];
+    if (!ids.length) return "";
+    return `
+      <div class="tm-feed-meta">
+        ${ids.map(id => {
+          const atlas = typeof getAtlasWorldEntryById === "function" ? getAtlasWorldEntryById(id) : null;
+          const label = atlas?.title || id;
+          return `<button class="tm-feed-atlas-badge" type="button" data-feed-atlas-id="${_esc(id)}">Référence Atlas · ${_esc(label)}</button>`;
+        }).join("")}
+      </div>
+    `;
+  }
+
+  function renderPostCommentsPreview(post) {
+    const comments = Array.isArray(post.previewComments) ? post.previewComments.slice(-3) : [];
+    if (!comments.length) return "";
+    return `
+      <div class="tm-feed-comment-list" aria-label="Derniers commentaires">
+        ${comments.map(comment => `
+          <p><strong>${_esc(comment.authorName || "Utilisateur")}</strong> ${_esc(comment.body || "")}</p>
+        `).join("")}
+      </div>
+    `;
+  }
+
   function renderPost(post) {
     const user = getFirebaseUser();
-    const isOwner = user?.uid && user.uid === (post.userId || post.authorId);
+    const authorId = post.authorId || post.userId || "";
+    const isOwner = user?.uid && user.uid === authorId;
     const canModerate = isTeomarchiAdmin(user);
-    const avatar = post.authorAvatar
-      ? `<img src="${_esc(post.authorAvatar)}" alt="">`
-      : _esc(String(post.authorName || "T").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase());
-    const mediaUrls = Array.isArray(post.mediaUrls) ? post.mediaUrls.filter(Boolean).slice(0, 4) : [];
-    const statusBadge = post.status === "hidden" ? `<span class="badge">Masqué</span>` : "";
-    const typeLabel = FEED_POST_TYPES.find(type => type.id === post.type)?.label || "WIP";
-    const reactions = post.reactions || {};
+    const statusBadge = post.status === "reported" ? `<span class="badge">Signalé</span>` : post.status === "hidden" ? `<span class="badge">Masqué</span>` : "";
 
     return `
       <article class="tm-feed-post" data-post-id="${_esc(post.id)}">
         <header class="tm-feed-author">
-          <div class="tm-feed-avatar" aria-hidden="true">${avatar}</div>
-          <div style="min-width:0;flex:1">
-            <strong>${_esc(post.authorName || "Utilisateur TEOMARCHI")}</strong>
-            <span>${formatFirestoreDate(post.createdAt)} · ${_esc(post.plagiarismStatus || "clear")}</span>
-          </div>
+          <button class="tm-feed-author-btn" type="button" data-feed-profile="${_esc(authorId)}">
+            <span class="tm-feed-avatar" aria-hidden="true">${_esc(feedInitials(post.authorName))}</span>
+            <span style="min-width:0;flex:1">
+              <strong>${_esc(post.authorName || "Utilisateur TEOMARCHI")}${post.authorVerified ? " · ✓" : ""}</strong>
+              <span>${_esc(feedRoleLabel(post.authorRole))}${post.authorSchoolOrAgency ? ` · ${_esc(post.authorSchoolOrAgency)}` : ""}</span>
+            </span>
+          </button>
+          ${!isOwner && authorId ? `<button class="tm-feed-btn" type="button" data-feed-follow="${_esc(authorId)}">S’abonner</button>` : ""}
           ${statusBadge}
         </header>
         <div class="tm-feed-meta">
-          <span>${_esc(typeLabel)}</span>
-          <span>${_esc(post.projectPhase || "Phase non précisée")}</span>
+          ${post.isDemo ? `<span>${_esc(post.label || "Démo")}</span>` : ""}
+          <span>${_esc(feedTypeLabel(post.type))}</span>
+          <span>${_esc(feedVisibilityLabel(post.visibility))}</span>
           <span>${_esc(post.category || "Architecture")}</span>
+          <span>${formatFirestoreDate(post.createdAt)}</span>
         </div>
-        <h3 style="margin:0;font-family:var(--serif);font-size:1.45rem;font-weight:300;color:var(--ink)">${_esc(post.title || "Note architecture")}</h3>
+        <h3 style="margin:0;font-family:var(--serif);font-size:1.45rem;font-weight:300;color:var(--ink)">${_esc(post.title || "Moment architecture")}</h3>
         <div class="tm-feed-text">${_esc(post.body || post.text || "")}</div>
         ${Array.isArray(post.tags) && post.tags.length ? renderTagList(post.tags, "tm-feed-tags") : ""}
-        ${post.dimensionData?.summary ? `<p class="tm-feed-text" style="font-size:.76rem;color:var(--muted)">Dimensions : ${_esc(post.dimensionData.summary)}</p>` : ""}
-        ${Array.isArray(post.linkedAtlasIds) && post.linkedAtlasIds.length ? `
-          <div class="tm-feed-meta">${post.linkedAtlasIds.map(id => `<span>Atlas · ${_esc(id)}</span>`).join("")}</div>
-        ` : ""}
-        ${mediaUrls.length ? `
-          <div class="tm-feed-images">
-            ${mediaUrls.map(url => `<img src="${_esc(url)}" alt="Image de projet publiée sur TEOMARCHI" loading="lazy">`).join("")}
-          </div>
-        ` : ""}
+        ${renderAtlasBadgesForPost(post)}
         <div class="tm-feed-actions" aria-label="Actions de publication">
-          ${FEED_REACTIONS.map(reaction => `
-            <button class="tm-feed-btn" type="button"
-                    data-feed-reaction="${_esc(post.id)}"
-                    data-reaction-type="${_esc(reaction.id)}">
-              ${_esc(reaction.label)} · ${Number(reactions[reaction.id] || 0)}
-            </button>
-          `).join("")}
-          <button class="tm-feed-btn" type="button" data-feed-report="${_esc(post.id)}">Signaler · ${Number(post.reportCount || 0)}</button>
+          <button class="tm-feed-btn" type="button" data-feed-like="${_esc(post.id)}">Aimer · ${Number(post.likesCount || 0)}</button>
+          <button class="tm-feed-btn" type="button" data-feed-profile="${_esc(authorId)}">Voir profil</button>
+          <button class="tm-feed-btn" type="button" data-feed-report="${_esc(post.id)}">Signaler</button>
           ${(isOwner || canModerate) ? `<button class="tm-feed-btn" type="button" data-feed-delete="${_esc(post.id)}">Supprimer</button>` : ""}
         </div>
+        ${renderPostCommentsPreview(post)}
         <form class="tm-feed-comments tm-feed-comment-form" data-feed-comment-form="${_esc(post.id)}">
-          <input name="comment" maxlength="240" placeholder="Commenter ce rendu">
-          <button class="tm-feed-btn" type="submit">Commenter · ${Number(post.commentsCount || post.commentCount || 0)}</button>
+          <input name="comment" maxlength="280" placeholder="Commenter ce post">
+          <button class="tm-feed-btn" type="submit">Commenter · ${Number(post.commentsCount || 0)}</button>
         </form>
       </article>
     `;
@@ -8518,41 +8748,53 @@ function renderDemoBadge(label = "Démo") {
       ${visiblePosts.length ? visiblePosts.map(renderPost).join("") : `
         <div class="tm-feed-empty">
           <p style="font-family:var(--serif);font-size:1.55rem;font-weight:300;margin:0 0 .4rem;color:var(--ink)">Aucun post pour ces filtres</p>
-          <p style="margin:0;color:var(--muted);font-size:.82rem">Changez le type, la phase ou la catégorie.</p>
+          <p style="margin:0;color:var(--muted);font-size:.82rem">Changez le type, l’espace ou la catégorie.</p>
         </div>
       `}
     `;
   }
 
+  function getFeedDemoSeed() {
+    const external = Array.isArray(window.TEOMARCHI_FEED_DEMO) ? window.TEOMARCHI_FEED_DEMO : [];
+    return external.length ? external : (getDemoContent("feed") || []);
+  }
+
+  function getDemoSocialPosts() {
+    return getFeedDemoSeed().map((post, index) => ({
+      id: post.id || `demo-feed-${index}`,
+      authorId: post.authorId || `demo-author-${index}`,
+      authorName: post.authorName || "Atelier TEOMARCHI",
+      authorRole: post.authorRole || (index === 1 ? "agence" : "etudiant"),
+      authorSchoolOrAgency: post.authorSchoolOrAgency || (index === 1 ? "Agence démo" : "Atelier école"),
+      authorVerified: Boolean(post.authorVerified ?? (index === 1)),
+      visibility: post.visibility || (index === 1 ? "professionnel" : "communaute"),
+      type: normalizeFeedChoice(post.type, FEED_POST_TYPES, index === 0 ? "projet" : index === 1 ? "ressource" : "question"),
+      title: post.title || post.titre || "Exemple de post architectural",
+      body: post.body || post.text || post.sous_titre || "",
+      tags: post.tags || [],
+      category: post.category || (index === 1 ? "Matériaux" : "Atelier"),
+      projectPhase: post.projectPhase || "Concept",
+      linkedAtlasIds: Array.isArray(post.linkedAtlasIds) ? post.linkedAtlasIds : (index === 0 ? ["fr-centre-pompidou"] : []),
+      likesCount: Number(post.likesCount ?? post.reactions?.utile ?? 0),
+      commentsCount: Number(post.commentsCount ?? post.commentCount ?? 0),
+      repostsCount: 0,
+      savesCount: 0,
+      status: "active",
+      createdAt: null,
+      previewComments: Array.isArray(post.previewComments) ? post.previewComments : [],
+      label: post.label || "Démo",
+      isDemo: true
+    }));
+  }
+
   function renderDemoFeedTimeline() {
-    const posts = getDemoContent("feed") || [];
     return `
       <div class="tm-demo-feed" aria-label="Feed public de démonstration">
-        ${posts.map(post => `
-          <article class="tm-feed-post tm-feed-post--demo" data-demo-post-id="${_esc(post.id)}">
-            <header class="tm-feed-author">
-              <div class="tm-feed-avatar" aria-hidden="true">TM</div>
-              <div style="min-width:0;flex:1">
-                <strong>${_esc(post.authorName || "Atelier TEOMARCHI")}</strong>
-                <span>${renderDemoBadge(post.label || "Démo")} · Exemple public sans utilisateur</span>
-              </div>
-            </header>
-            <div class="tm-feed-text">${_esc(post.text || "")}</div>
-            ${Array.isArray(post.tags) && post.tags.length ? `
-              <div class="tm-feed-tags" aria-label="Tags de démonstration">
-                ${post.tags.map(tag => `<span>${_esc(tag)}</span>`).join("")}
-              </div>
-            ` : ""}
-            <div class="tm-feed-demo-stats" aria-label="Statistiques de démonstration non interactives">
-              <span>Utile · ${Number(post.reactions?.utile || 0)}</span>
-              <span>Commentaire · ${Number(post.commentCount || 0)}</span>
-              <span>Je cherche aussi · ${Number(post.reactions?.cherche || 0)}</span>
-            </div>
-          </article>
-        `).join("")}
+        ${renderFeedFilters()}
+        ${getDemoSocialPosts().map(post => renderPost(post).replace("tm-feed-post", "tm-feed-post tm-feed-post--demo")).join("")}
         <div class="tm-feed-empty">
           <p style="font-family:var(--serif);font-size:1.55rem;font-weight:300;margin:0 0 .4rem;color:var(--ink)">Feed de démonstration</p>
-          <p style="margin:0 0 1rem;color:var(--muted);font-size:.82rem">Ces publications sont des exemples statiques. Connectez-vous pour publier, commenter ou signaler un vrai contenu.</p>
+          <p style="margin:0 0 1rem;color:var(--muted);font-size:.82rem">Ces publications sont des exemples statiques. Connectez-vous pour publier, commenter, aimer ou suivre un profil.</p>
           <button class="text-btn text-btn--primary" type="button" data-open-login>Connexion</button>
         </div>
       </div>
@@ -8566,21 +8808,106 @@ function renderDemoBadge(label = "Démo") {
       renderFeedPosts(posts);
       return;
     }
-    timeline.innerHTML = `
+    timeline.innerHTML = shouldShowDemoContent("feed") ? renderDemoFeedTimeline() : `
+      ${renderFeedFilters()}
       <div class="tm-feed-empty">
-        <p style="font-family:var(--serif);font-size:1.9rem;font-weight:300;margin:0 0 .4rem;color:var(--ink)">Aucun rendu publié</p>
-        <p style="margin:0;color:var(--muted);font-size:.82rem">Le Feed est vide pour le moment.</p>
+        <p style="font-family:var(--serif);font-size:1.9rem;font-weight:300;margin:0 0 .4rem;color:var(--ink)">Aucun post publié</p>
+        <p style="margin:0;color:var(--muted);font-size:.82rem">Le Feed est prêt. Le premier post peut venir d’un projet, d’une question ou d’une référence Atlas.</p>
+      </div>
+    `;
+  }
+
+  async function hydrateFeedSocialCounts(posts) {
+    const db = getFirestoreDb();
+    const visible = (posts || []).filter(post => post?.id && !post.isDemo).slice(0, 30);
+    if (!db || !getFirebaseUser() || !visible.length) return;
+    const requestId = ++_feedCountsRequestId;
+    try {
+      const counts = await Promise.all(visible.map(async post => {
+        const ref = db.collection("posts").doc(post.id);
+        const [likes, comments, preview] = await Promise.all([
+          ref.collection("likes").get(),
+          ref.collection("comments").get(),
+          ref.collection("comments").orderBy("createdAt", "desc").limit(3).get()
+        ]);
+        const previewComments = [];
+        preview.forEach(doc => previewComments.push({ id: doc.id, ...doc.data() }));
+        return { id: post.id, likesCount: likes.size, commentsCount: comments.size, previewComments: previewComments.reverse() };
+      }));
+      if (requestId !== _feedCountsRequestId) return;
+      counts.forEach(count => {
+        const post = _feedPosts.find(item => item.id === count.id);
+        if (!post) return;
+        post.likesCount = count.likesCount;
+        post.commentsCount = count.commentsCount;
+        post.previewComments = count.previewComments;
+      });
+      renderFeedTimeline(_feedPosts);
+    } catch {}
+  }
+
+  function renderFeedSkeleton() {
+    return `
+      <div class="tm-feed-skeleton" data-feed-skeleton data-feed-pending="true" aria-hidden="true">
+        <div class="tm-skeleton tm-feed-skeleton__card">
+          <span class="tm-skeleton-line" style="width:36%"></span>
+          <span class="tm-skeleton-line" style="width:88%"></span>
+          <span class="tm-skeleton-line" style="width:62%"></span>
+        </div>
+        <div class="tm-skeleton tm-feed-skeleton__card">
+          <span class="tm-skeleton-line" style="width:28%"></span>
+          <span class="tm-skeleton-line" style="width:82%"></span>
+          <span class="tm-skeleton-line" style="width:50%"></span>
+        </div>
       </div>
     `;
   }
 
   function renderFeedPendingState() {
+    return renderFeedSkeleton();
+  }
+
+  function renderFeedProfileView() {
+    if (!_feedProfileState) return "";
+    const profile = _feedProfileState.profile || {};
+    const posts = _feedProfileState.posts || [];
+    const userId = _feedProfileState.userId || "";
     return `
-      <div class="tm-feed-empty" data-feed-pending="true">
-        <p style="font-family:var(--serif);font-size:1.55rem;font-weight:300;margin:0 0 .4rem;color:var(--ink)">Connexion au Feed en attente</p>
-        <p style="margin:0;color:var(--muted);font-size:.82rem">Les publications apparaîtront dès que Firestore répond. Vous pouvez continuer à naviguer dans les autres modules.</p>
+      <div class="tm-feed-profile-modal" data-feed-profile-modal>
+        <article class="tm-feed-profile-card">
+          <header class="tm-feed-author">
+            <div class="tm-feed-avatar" aria-hidden="true">${_esc(feedInitials(profile.displayName || profile.authorName))}</div>
+            <div style="min-width:0;flex:1">
+              <h3 style="margin:0;font-family:var(--serif);font-size:2rem;font-weight:300;color:var(--ink)">${_esc(profile.displayName || profile.authorName || "Profil TEOMARCHI")}${profile.verified ? " · ✓" : ""}</h3>
+              <p style="margin:.22rem 0 0;color:var(--muted);font-size:.82rem">${_esc(feedRoleLabel(profile.role || profile.authorRole))}${profile.schoolOrAgency ? ` · ${_esc(profile.schoolOrAgency)}` : ""}</p>
+            </div>
+            <button class="tm-feed-btn" type="button" data-feed-close-profile>Fermer</button>
+          </header>
+          <p class="tm-feed-text">${_esc(profile.bio || "Profil architectural TEOMARCHI.")}</p>
+          <div class="tm-feed-profile-stats">
+            <div><strong>${Number(profile.followersCount || 0)}</strong><span>abonnés</span></div>
+            <div><strong>${Number(profile.followingCount || 0)}</strong><span>abonnements</span></div>
+            <div><strong>${Number(profile.postsCount || posts.length || 0)}</strong><span>posts</span></div>
+          </div>
+          ${getFirebaseUser()?.uid !== userId ? `<button class="text-btn text-btn--primary" type="button" data-feed-follow="${_esc(userId)}">Suivre / ne plus suivre</button>` : ""}
+          <section class="tm-feed-profile-posts">
+            <p class="tm-tech-kicker">Publications</p>
+            ${posts.length ? posts.map(post => `
+              <article class="tm-feed-profile-mini">
+                <p style="margin:0 0 .28rem;color:var(--gold);font-size:.65rem;text-transform:uppercase">${_esc(feedTypeLabel(post.type))} · ${_esc(post.category || "Architecture")}</p>
+                <strong>${_esc(post.title || "Post")}</strong>
+                <p class="tm-feed-text" style="font-size:.78rem">${_esc(post.body || "").slice(0, 220)}</p>
+              </article>
+            `).join("") : renderEmptyState("Aucune publication", "Ce profil n’a pas encore de publication visible.")}
+          </section>
+        </article>
       </div>
     `;
+  }
+
+  function renderFeedProfileMount() {
+    const mount = document.getElementById("feed-profile-mount");
+    if (mount) mount.innerHTML = renderFeedProfileView();
   }
 
   function subscribeToFeed() {
@@ -8591,26 +8918,22 @@ function renderDemoBadge(label = "Démo") {
       try { _feedUnsubscribe(); } catch {}
       _feedUnsubscribe = null;
     }
-    if (shouldShowDemoContent("feed")) {
-      timeline.innerHTML = renderDemoFeedTimeline();
-    }
+    if (shouldShowDemoContent("feed")) timeline.innerHTML = renderDemoFeedTimeline();
     if (!db) {
-      if (shouldShowDemoContent("feed")) {
-        timeline.innerHTML = renderDemoFeedTimeline();
-        return;
-      }
-      timeline.innerHTML = `<div class="tm-feed-empty">Service temps réel indisponible. Le Feed ne peut pas être chargé pour le moment.</div>`;
+      renderFeedTimeline([]);
       return;
     }
 
     const pendingFeedTimer = window.setTimeout(() => {
       if (!timeline.querySelector("[data-feed-pending]")) return;
-      timeline.innerHTML = shouldShowDemoContent("feed") ? renderDemoFeedTimeline() : renderFeedPendingState();
+      renderFeedTimeline(_feedPosts);
     }, 1200);
 
-    _feedUnsubscribe = db.collection("posts")
-      .orderBy("createdAt", "desc")
-      .limit(50)
+    const feedQuery = isTeomarchiAdmin()
+      ? db.collection("posts").orderBy("createdAt", "desc").limit(60)
+      : db.collection("posts").where("status", "==", "active").limit(60);
+
+    _feedUnsubscribe = feedQuery
       .onSnapshot(snapshot => {
         window.clearTimeout(pendingFeedTimer);
         const canModerate = isTeomarchiAdmin();
@@ -8621,35 +8944,35 @@ function renderDemoBadge(label = "Démo") {
           if (data.status === "hidden" && !canModerate) return;
           _feedPosts.push(data);
         });
-        if (_feedPosts.length) {
-          renderFeedPosts(_feedPosts);
-        } else if (shouldShowDemoContent("feed")) {
-          timeline.innerHTML = renderDemoFeedTimeline();
-        } else {
-          renderFeedTimeline(_feedPosts);
-        }
+        _feedPosts.sort((a, b) => Number(b.createdAt?.seconds || 0) - Number(a.createdAt?.seconds || 0));
+        renderFeedTimeline(_feedPosts);
+        hydrateFeedSocialCounts(_feedPosts);
       }, err => {
         window.clearTimeout(pendingFeedTimer);
         console.error("Erreur Feed Firestore :", err);
-        timeline.innerHTML = `<div class="tm-feed-empty">Erreur de chargement du Feed.</div>`;
+        renderFeedTimeline([]);
       });
   }
 
   async function resolveFeedProfile(user) {
     const db = getFirestoreDb();
     const fallback = {
-      userId: user.uid,
+      authorId: user.uid,
       authorName: compactUserName(user),
-      authorAvatar: user.photoURL || ""
+      authorRole: "etudiant",
+      authorSchoolOrAgency: "",
+      authorVerified: false
     };
     if (!db) return fallback;
     try {
       const doc = await db.collection("users").doc(user.uid).get();
       const data = doc.exists ? doc.data() : {};
       return {
-        userId: user.uid,
-        authorName: data.displayName || fallback.authorName,
-        authorAvatar: data.avatarUrl || fallback.authorAvatar
+        authorId: user.uid,
+        authorName: data.displayName || data.username || fallback.authorName,
+        authorRole: data.role || fallback.authorRole,
+        authorSchoolOrAgency: data.schoolOrAgency || "",
+        authorVerified: Boolean(data.verified)
       };
     } catch {
       return fallback;
@@ -8662,73 +8985,95 @@ function renderDemoBadge(label = "Démo") {
     if (!user) { openLoginPrompt(); return; }
     if (!db || !form) { notifyUser("Service de publication indisponible."); return; }
 
-    const data = new FormData(form);
-    const certify = data.get("certify") === "on";
-
-    if (!certify) { notifyUser("Certification anti-plagiat obligatoire."); return; }
-
     const author = await resolveFeedProfile(user);
     const post = normalizeFeedPostInput(form, author, user);
     if (post.title.length < 3) { notifyUser("Ajoutez un titre avant de publier."); return; }
     if (post.body.length < 2) { notifyUser("Ajoutez un texte avant de publier."); return; }
     await db.collection("posts").add(post);
     form.reset();
-    const btn = form.querySelector("#feed-submit-btn");
-    if (btn) btn.disabled = true;
+    window.TEOMARCHI_FEED_DRAFT = null;
+    _feedComposerOpen = false;
+    initFeed();
     notifyUser("Publication envoyée.");
   }
 
-  async function toggleReaction(postId, reactionType) {
+  async function toggleLike(postId) {
     const user = getFirebaseUser();
     const db = getFirestoreDb();
     if (!user) { openLoginPrompt(); return; }
     if (!db || !postId) return;
-    const safeReaction = FEED_REACTIONS.some(item => item.id === reactionType) ? reactionType : "utile";
     const postRef = db.collection("posts").doc(postId);
-    const reactionRef = postRef.collection("reactions").doc(user.uid);
+    const likeRef = postRef.collection("likes").doc(user.uid);
+    let liked = false;
     await db.runTransaction(async tx => {
-      const reaction = await tx.get(reactionRef);
-      if (reaction.exists && reaction.data()?.reactionType === safeReaction) {
-        tx.delete(reactionRef);
-        tx.update(postRef, {
-          [`reactions.${safeReaction}`]: incrementBy(-1),
-          updatedAt: serverTimestamp()
-        });
+      const like = await tx.get(likeRef);
+      if (like.exists) {
+        tx.delete(likeRef);
       } else {
-        const previousType = reaction.exists ? reaction.data()?.reactionType : "";
-        tx.set(reactionRef, {
-          userId: user.uid,
-          reactionType: safeReaction,
-          createdAt: reaction.exists ? reaction.data()?.createdAt || serverTimestamp() : serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-        tx.update(postRef, {
-          ...(previousType ? { [`reactions.${previousType}`]: incrementBy(-1) } : {}),
-          [`reactions.${safeReaction}`]: incrementBy(1),
-          updatedAt: serverTimestamp()
-        });
+        tx.set(likeRef, { userId: user.uid, createdAt: serverTimestamp() });
+        liked = true;
       }
     });
+    const post = _feedPosts.find(item => item.id === postId);
+    if (post) {
+      post.likesCount = Math.max(0, Number(post.likesCount || 0) + (liked ? 1 : -1));
+      renderFeedTimeline(_feedPosts);
+      hydrateFeedSocialCounts([post]);
+    }
   }
 
-  async function addComment(postId, text) {
+  async function toggleFollow(targetUserId) {
+    const user = getFirebaseUser();
+    const db = getFirestoreDb();
+    if (!user) { openLoginPrompt(); return; }
+    if (!db || !targetUserId || targetUserId === user.uid) return;
+    const currentRef = db.collection("users").doc(user.uid);
+    const targetRef = db.collection("users").doc(targetUserId);
+    const followingRef = currentRef.collection("following").doc(targetUserId);
+    const followerRef = targetRef.collection("followers").doc(user.uid);
+    let followed = false;
+    await db.runTransaction(async tx => {
+      const existing = await tx.get(followingRef);
+      if (existing.exists) {
+        tx.delete(followingRef);
+        tx.delete(followerRef);
+      } else {
+        tx.set(followingRef, { targetUserId, createdAt: serverTimestamp() });
+        tx.set(followerRef, { followerId: user.uid, createdAt: serverTimestamp() });
+        followed = true;
+      }
+    });
+    if (_feedProfileState?.userId === targetUserId) {
+      const current = Number(_feedProfileState.profile?.followersCount || 0);
+      _feedProfileState.profile.followersCount = Math.max(0, current + (followed ? 1 : -1));
+      renderFeedProfileMount();
+    }
+    notifyUser("Abonnement mis à jour.");
+  }
+
+  async function addComment(postId, body) {
     const user = getFirebaseUser();
     const db = getFirestoreDb();
     if (!user) { openLoginPrompt(); return; }
     if (!db || !postId) return;
-    const clean = String(text || "").trim().slice(0, 240);
+    const clean = String(body || "").trim().slice(0, 280);
     if (!clean) return;
     const author = await resolveFeedProfile(user);
     const postRef = db.collection("posts").doc(postId);
     await postRef.collection("comments").add({
-      userId: author.userId,
+      authorId: user.uid,
       authorName: author.authorName,
-      authorAvatar: author.authorAvatar,
-      text: clean,
+      body: clean,
       createdAt: serverTimestamp(),
-      status: "active"
+      updatedAt: serverTimestamp()
     });
-    await postRef.update({ commentsCount: incrementBy(1), updatedAt: serverTimestamp() });
+    const post = _feedPosts.find(item => item.id === postId);
+    if (post) {
+      post.commentsCount = Number(post.commentsCount || 0) + 1;
+      post.previewComments = [...(post.previewComments || []), { authorName: author.authorName, body: clean }].slice(-3);
+      renderFeedTimeline(_feedPosts);
+      hydrateFeedSocialCounts([post]);
+    }
   }
 
   async function reportPost(postId) {
@@ -8740,14 +9085,9 @@ function renderDemoBadge(label = "Démo") {
       postId,
       reporterId: user.uid,
       reporterEmail: user.email || "",
-      reason: "plagiarism_or_abuse",
+      reason: "feed_social_report",
       status: "open",
       createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    });
-    await db.collection("posts").doc(postId).update({
-      reportCount: incrementBy(1),
-      plagiarismStatus: "reported",
       updatedAt: serverTimestamp()
     });
     notifyUser("Signalement transmis à la modération.");
@@ -8759,12 +9099,81 @@ function renderDemoBadge(label = "Démo") {
     if (!user) { openLoginPrompt(); return; }
     if (!db || !postId) return;
     const post = _feedPosts.find(item => item.id === postId);
-    if (!post || ((post.userId || post.authorId) !== user.uid && !isTeomarchiAdmin(user))) return;
-    await db.collection("posts").doc(postId).update({
-      status: "deleted",
-      updatedAt: serverTimestamp()
-    });
+    if (!post || ((post.authorId || post.userId) !== user.uid && !isTeomarchiAdmin(user))) return;
+    await db.collection("posts").doc(postId).update({ status: "deleted", updatedAt: serverTimestamp() });
     notifyUser("Publication supprimée.");
+  }
+
+  async function openFeedProfile(authorId) {
+    if (!authorId) return;
+    const db = getFirestoreDb();
+    const localPosts = _feedPosts.filter(post => (post.authorId || post.userId) === authorId);
+    let profile = localPosts[0] ? {
+      displayName: localPosts[0].authorName,
+      role: localPosts[0].authorRole,
+      schoolOrAgency: localPosts[0].authorSchoolOrAgency,
+      verified: localPosts[0].authorVerified,
+      postsCount: localPosts.length
+    } : {};
+    let posts = localPosts;
+    if (db) {
+      try {
+        const userDoc = await db.collection("users").doc(authorId).get();
+        if (userDoc.exists) profile = { ...profile, ...userDoc.data() };
+        const [snap, followersSnap, followingSnap] = await Promise.all([
+          db.collection("posts").where("status", "==", "active").limit(80).get(),
+          db.collection("users").doc(authorId).collection("followers").get(),
+          db.collection("users").doc(authorId).collection("following").get()
+        ]);
+        profile.followersCount = followersSnap.size;
+        profile.followingCount = followingSnap.size;
+        posts = [];
+        snap.forEach(doc => posts.push({ id: doc.id, ...doc.data() }));
+        posts = posts.filter(post => (post.authorId || post.userId) === authorId && post.status !== "deleted" && post.status !== "hidden")
+          .sort((a, b) => Number(b.createdAt?.seconds || 0) - Number(a.createdAt?.seconds || 0));
+      } catch {}
+    }
+    _feedProfileState = { userId: authorId, profile, posts };
+    renderFeedProfileMount();
+  }
+
+  function closeFeedProfile() {
+    _feedProfileState = null;
+    renderFeedProfileMount();
+  }
+
+  function openFeedComposerModal(draft = null) {
+    if (!getFirebaseUser()) {
+      if (draft) window.TEOMARCHI_FEED_DRAFT = draft;
+      openLoginPrompt();
+      return;
+    }
+    if (draft) window.TEOMARCHI_FEED_DRAFT = draft;
+    _feedComposerOpen = true;
+    initFeed();
+    window.setTimeout(() => document.querySelector("#feed-composer-form [name='title']")?.focus(), 40);
+  }
+
+  function closeFeedComposerModal() {
+    _feedComposerOpen = false;
+    initFeed();
+  }
+
+  function prefillFeedComposerFromAtlas(atlasId) {
+    const atlas = typeof getAtlasWorldEntryById === "function" ? getAtlasWorldEntryById(atlasId) : null;
+    const title = atlas?.title || atlasId || "référence Atlas";
+    const location = [atlas?.city, atlas?.country].filter(Boolean).join(", ");
+    const draft = {
+      type: "decouverte",
+      visibility: "tous",
+      category: "Patrimoine",
+      title: `Inspiration Atlas : ${title}`,
+      body: `Je m’inspire de ${title}${location ? ` (${location})` : ""} pour réfléchir à un projet architectural.`,
+      linkedAtlasIds: atlasId ? [atlasId] : []
+    };
+    window.TEOMARCHI_FEED_DRAFT = draft;
+    try { window.navigateTo?.("feed"); } catch {}
+    window.setTimeout(() => openFeedComposerModal(draft), 120);
   }
 
   function bindFeedEvents(root) {
@@ -8773,17 +9182,10 @@ function renderDemoBadge(label = "Démo") {
 
     root.addEventListener("change", e => {
       const filter = e.target.closest("[data-feed-filter]");
-      if (filter) {
-        _feedFilters[filter.dataset.feedFilter] = filter.value || "";
-        renderFeedPosts(_feedPosts);
-        return;
-      }
-
-      if (e.target.matches("[data-feed-certify]")) {
-        const form = e.target.closest("#feed-composer-form");
-        const btn = form?.querySelector("#feed-submit-btn");
-        if (btn) btn.disabled = !e.target.checked;
-      }
+      if (!filter) return;
+      _feedFilters[filter.dataset.feedFilter] = filter.value || "";
+      const fallbackPosts = shouldShowDemoContent("feed") ? getDemoSocialPosts() : [];
+      renderFeedPosts(_feedPosts.length ? _feedPosts : fallbackPosts);
     });
 
     root.addEventListener("submit", async e => {
@@ -8804,20 +9206,27 @@ function renderDemoBadge(label = "Démo") {
     });
 
     root.addEventListener("click", async e => {
-      const imageFocus = e.target.closest("[data-feed-image-focus]");
-      const reaction = e.target.closest("[data-feed-reaction]");
+      const openComposer = e.target.closest("[data-feed-open-composer]");
+      const closeComposer = e.target.closest("[data-feed-close-composer]");
+      const like = e.target.closest("[data-feed-like]");
+      const follow = e.target.closest("[data-feed-follow]");
+      const profile = e.target.closest("[data-feed-profile]");
+      const closeProfile = e.target.closest("[data-feed-close-profile]");
       const report = e.target.closest("[data-feed-report]");
       const del = e.target.closest("[data-feed-delete]");
-      if (!imageFocus && !reaction && !report && !del) return;
+      const atlas = e.target.closest("[data-feed-atlas-id]");
+      if (!openComposer && !closeComposer && !like && !follow && !profile && !closeProfile && !report && !del && !atlas) return;
       e.preventDefault();
-      if (imageFocus) {
-        root.querySelector("#feed-image-urls")?.focus();
-        return;
-      }
       try {
-        if (reaction) await toggleReaction(reaction.dataset.feedReaction, reaction.dataset.reactionType);
+        if (openComposer) openFeedComposerModal();
+        if (closeComposer) closeFeedComposerModal();
+        if (like) await toggleLike(like.dataset.feedLike);
+        if (follow) await toggleFollow(follow.dataset.feedFollow);
+        if (profile) await openFeedProfile(profile.dataset.feedProfile);
+        if (closeProfile) closeFeedProfile();
         if (report) await reportPost(report.dataset.feedReport);
         if (del) await deleteOwnPost(del.dataset.feedDelete);
+        if (atlas) openAtlasReference(atlas.dataset.feedAtlasId);
       } catch (err) {
         console.error("Erreur action Feed :", err);
         notifyUser("Action impossible pour le moment.");
@@ -8833,16 +9242,18 @@ function renderDemoBadge(label = "Démo") {
       <div class="tm-feed tm-feed-wall ${getFirebaseUser() ? "tm-feed--connected" : "tm-feed--visitor"} tm-shell tm-reveal">
         <aside>
           <section class="tm-feed-editorial tm-editorial-panel">
-            <p class="tm-tech-kicker">Mur d’évolution architecturale</p>
-            <h3>Partager l’avancement réel du projet.</h3>
-            <p>Plans, maquettes, rendus, croquis, essais de matière et décisions constructives.</p>
+            <p class="tm-tech-kicker">Réseau social architectural</p>
+            <h3>Le fil commun des étudiants, agences, écoles et architectes.</h3>
+            <p>Moments d’atelier, questions, ressources, opportunités, normes, chantiers et références Atlas.</p>
           </section>
           ${renderFeedComposer()}
         </aside>
         <section class="tm-feed-timeline" id="feed-timeline" aria-live="polite">
-          ${shouldShowDemoContent("feed") ? renderDemoFeedTimeline() : renderFeedPendingState()}
+          ${renderFeedPendingState()}
         </section>
       </div>
+      ${renderFeedPublishModal()}
+      <div id="feed-profile-mount">${renderFeedProfileView()}</div>
     `;
     bindFeedEvents(root);
     subscribeToFeed();
@@ -9677,11 +10088,11 @@ function renderDemoBadge(label = "Démo") {
         const doc = await firebase.firestore()
           .collection("users").doc(user.uid).get();
         const data = doc.exists ? doc.data() : {};
-        _userPlan = getUserPlan({
-          user,
-          role: data.role,
-          plan: data.plan,
-          customClaims: _authClaims,
+	        _userPlan = getUserPlan({
+	          user,
+	          accessRole: data.accessRole,
+	          plan: data.plan,
+	          customClaims: _authClaims,
           tokenClaims: tokenResult.claims,
           isPremium: data.isPremium === true || data.premium === true
         });
@@ -9820,7 +10231,7 @@ function renderDemoBadge(label = "Démo") {
         });
       } catch(err) {
         root.dataset.loaded = "";
-        root.innerHTML = `<p style="color:var(--danger);font-size:.8rem;padding:1.2rem">Erreur Firestore : ${err.message}</p>`;
+        root.innerHTML = `<p style="color:var(--danger);font-size:.8rem;padding:1.2rem">Erreur Firestore : ${_esc(err.message || "lecture impossible")}</p>`;
         return;
       }
 
@@ -9860,9 +10271,9 @@ function renderDemoBadge(label = "Démo") {
               <tbody>
                 ${users.length ? users.map(u => `
                   <tr>
-                    <td>${u.email}</td>
-                    <td>${u.plan.charAt(0).toUpperCase() + u.plan.slice(1)}</td>
-                    <td>${u.date}</td>
+                    <td>${_esc(u.email)}</td>
+                    <td>${_esc(u.plan.charAt(0).toUpperCase() + u.plan.slice(1))}</td>
+                    <td>${_esc(u.date)}</td>
                     <td><span class="tm-adm-badge ${u.premium ? "tm-adm-badge--premium" : "tm-adm-badge--free"}">
                       ${u.premium ? "Premium" : "Gratuit"}
                     </span></td>

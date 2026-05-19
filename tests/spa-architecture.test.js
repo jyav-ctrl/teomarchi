@@ -416,7 +416,9 @@ test("Feed exposes an architectural evolution wall identity", () => {
   [
     "tm-feed-wall",
     "tm-feed-editorial",
-    "Mur d’évolution architecturale"
+    "Réseau social architectural",
+    "Le fil commun des étudiants, agences, écoles et architectes",
+    "références Atlas"
   ].forEach(token => assert.match(js, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))));
 });
 
@@ -604,7 +606,7 @@ test("demo user data is disabled by default and never creates a fake local sessi
   assert.doesNotMatch(js, /store\.set\(STORAGE\.session,\s*{\s*name:\s*"Jonathan YAV"/);
   assert.doesNotMatch(js, /TEOMARCHI_APP\.session\.set\(\s*{\s*name:\s*"Jonathan YAV"/);
   assert.match(js, /Aucune conversation/);
-  assert.match(js, /Aucun rendu publié|Bientôt disponible/);
+  assert.match(js, /Aucun post publié|Bientôt disponible/);
 });
 
 test("demo content is clearly marked and does not create fake user sessions", () => {
@@ -772,31 +774,41 @@ test("showroom is a premium scalable architectural marketplace shell", () => {
   assert.match(js, /data-checkout-plan="\$\{plan\.id\}"/);
 });
 
-test("feed uses Firestore realtime social primitives without fake posts", () => {
+test("feed uses Firestore realtime social primitives with static demo fallback", () => {
   const js = read("app.js");
 
   [
     "initFeed",
     "renderFeedComposer",
+    "renderFeedPublishModal",
     "renderPost",
     "bindFeedEvents",
     "subscribeToFeed",
     "createPost",
-    "toggleReaction",
+    "toggleLike",
+    "toggleFollow",
+    "hydrateFeedSocialCounts",
+    "openFeedProfile",
+    "renderPostCommentsPreview",
     "addComment",
     "reportPost"
   ].forEach(fn => assert.match(js, new RegExp(`function\\s+${fn}\\s*\\(`)));
 
   assert.match(js, /\.collection\("posts"\)/);
   assert.match(js, /\.onSnapshot\(/);
+  assert.match(js, /\.where\("status",\s*"==",\s*"active"\)/);
   assert.match(js, /serverTimestamp\(\)/);
-  assert.match(js, /\.collection\("reactions"\)/);
+  assert.match(js, /\.collection\("likes"\)/);
   assert.match(js, /\.collection\("comments"\)/);
+  assert.match(js, /\.collection\("following"\)/);
+  assert.match(js, /\.collection\("followers"\)/);
   assert.match(js, /\.collection\("reports"\)/);
   assert.match(js, /status:\s*"active"/);
-  assert.match(js, /plagiarismStatus:\s*"clear"/);
-  assert.match(js, /Je certifie être l’auteur de ce contenu ou disposer des droits nécessaires/);
-  assert.match(js, /Aucun rendu publié/);
+  assert.match(js, /authorId:\s*user\.uid/);
+  assert.match(js, /Référence Atlas/);
+  assert.match(js, /Aucun post publié/);
+  assert.doesNotMatch(js, /tx\.update\(postRef/);
+  assert.doesNotMatch(js, /postRef\.update\(\{\s*commentsCount/);
 });
 
 test("feed initializes safely when opened directly from the URL hash", () => {
@@ -820,7 +832,7 @@ test("journalier and showroom initialize safely when opened directly from the UR
   assert.match(js, /function\s+recoverDirectRichModules|recoverDirectRichModules/);
   assert.match(js, /TEOMARCHI_BOOT_ACTIVE_MODULES/);
   assert.match(js, /root\.dataset\.loaded\s*=\s*""/);
-  assert.match(html, /app\.js\?v=20260518-[a-z0-9-]+/);
+  assert.match(html, /app\.js\?v=20260519-[a-z0-9-]+/);
 });
 
 test("profile editor persists real Firebase profile data in Firestore", () => {
@@ -863,12 +875,17 @@ test("recommended Firestore rules protect social data and moderation", () => {
   const rules = read("firestore.rules");
 
   assert.match(rules, /match \/posts\/\{postId\}/);
-  assert.match(rules, /match \/reactions\/\{userId\}/);
+  assert.match(rules, /match \/likes\/\{userId\}/);
   assert.match(rules, /match \/comments\/\{commentId\}/);
+  assert.match(rules, /match \/following\/\{targetUserId\}/);
+  assert.match(rules, /match \/followers\/\{followerId\}/);
   assert.match(rules, /match \/reports\/\{reportId\}/);
   assert.match(rules, /match \/users\/\{userId\}/);
+  assert.match(rules, /match \/atlas\/\{atlasId\}/);
   assert.match(rules, /isModerator\(\)|isAdmin\(\)/);
-  assert.match(rules, /request\.auth\.uid == resource\.data\.userId|request\.auth\.uid == userId/);
+  assert.match(rules, /request\.auth\.uid == resource\.data\.authorId|request\.auth\.uid == userId/);
+  assert.match(rules, /request\.resource\.data\.likesCount == 0/);
+  assert.doesNotMatch(rules, /"followersCount",\s*"followingCount",\s*"postsCount",\s*"updatedAt"/);
 });
 
 test("Firebase and Stripe security boundaries are explicit", () => {
@@ -1076,7 +1093,7 @@ test("Feed prioritizes timeline space for connected users and uses clearer edito
   const js = read("app.js");
 
   assert.match(js, /tm-feed--connected/);
-  assert.match(js, /Partager l’avancement réel du projet\./);
+  assert.match(js, /Moments d’atelier, questions, ressources, opportunités, normes, chantiers et références Atlas\./);
   assert.doesNotMatch(js, /Publier des étapes, pas du bruit\./);
   assert.match(js, /\.tm-feed--connected[\s\S]*grid-template-columns:\s*minmax\(240px,\s*\.32fr\)\s+minmax\(0,\s*1\.68fr\)/);
 });
@@ -1107,91 +1124,194 @@ test("V1 admin access is role based and not granted from frontend email checks",
   assert.match(rules, /userRole\(\)\s*==\s*"admin"/);
 });
 
-test("V1 feed exposes architecture post schema, filters and named reactions", () => {
+test("V2 feed exposes an architectural social network schema, modal publishing and follows", () => {
   const js = read("app.js");
 
   [
     "FEED_POST_TYPES",
-    "FEED_PROJECT_PHASES",
+    "FEED_VISIBILITIES",
     "FEED_CATEGORIES",
-    "FEED_REACTIONS",
+    "FEED_SOCIAL_ROLES",
     "normalizeFeedPostInput",
+    "renderFeedPublishModal",
+    "openFeedComposerModal",
+    "toggleLike",
+    "toggleFollow",
+    "openFeedProfile",
+    "renderFeedProfileView",
     "renderFeedFilters",
     "applyFeedFilters",
-    "toggleReaction",
     "posts/{postId}/comments",
-    "posts/{postId}/reactions",
-    "Utile",
-    "Merci",
-    "Je cherche aussi"
+    "posts/{postId}/likes",
+    "users/{userId}/following",
+    "users/{userId}/followers",
+    "Moment",
+    "Projet",
+    "Question",
+    "Ressource",
+    "Découverte",
+    "Opportunité",
+    "Norme",
+    "Chantier",
+    "Workshop",
+    "Concours",
+    "Analyse",
+    "Recherche",
+    "Communauté",
+    "Professionnel"
   ].forEach(token => assert.match(js, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))));
 
   [
-    "userId",
+    "authorId",
     "authorName",
+    "authorRole",
+    "authorSchoolOrAgency",
+    "authorVerified",
+    "visibility",
     "type",
     "title",
     "body",
-    "projectPhase",
     "category",
     "tags",
-    "mediaUrls",
     "linkedAtlasIds",
-    "dimensionData",
-    "reactions",
+    "likesCount",
     "commentsCount",
+    "repostsCount",
+    "savesCount",
     "status",
     "createdAt",
     "updatedAt"
   ].forEach(field => assert.match(js, new RegExp(`${field}:`)));
 
-  assert.match(js, /\.collection\("reactions"\)\.doc\(user\.uid\)/);
-  assert.doesNotMatch(js, /\.collection\("likes"\)/);
-  assert.doesNotMatch(js, /\.collection\("reposts"\)/);
+  assert.match(js, /\.collection\("likes"\)\.doc\(user\.uid\)/);
+  assert.match(js, /\.collection\("following"\)\.doc\(targetUserId\)/);
+  assert.match(js, /\.collection\("followers"\)\.doc\(user\.uid\)/);
+  assert.match(js, /data-feed-open-composer/);
+  assert.match(js, /data-feed-profile/);
+  assert.match(js, /data-feed-follow/);
+  assert.match(js, /data-feed-like/);
+  assert.doesNotMatch(js, /\.collection\("reactions"\)/);
 });
 
-test("V1 Atlas technical fiches include at least 30 structured entries and copy controls", () => {
+test("Claude recommendations keep Feed public demos in a separate safe dataset", () => {
+  const html = read("index.html");
   const js = read("app.js");
-  const match = js.match(/const\s+DATA_ATLAS_V1\s*=\s*Object\.freeze\(\[([\s\S]*?)\]\);/);
+  const feedDemo = read("data/feed-demo.js");
 
-  assert.ok(match, "DATA_ATLAS_V1 dataset is missing");
-  const ids = [...match[1].matchAll(/id:\s*"[^"]+"/g)];
-  assert.ok(ids.length >= 30, `expected at least 30 Atlas V1 fiches, got ${ids.length}`);
+  assert.match(html, /<script\s+src="data\/feed-demo\.js(?:\?[^"]*)?"\s+defer><\/script>[\s\S]*<script\s+src="app\.js/);
+  assert.match(feedDemo, /window\.TEOMARCHI_FEED_DEMO\s*=/);
+  assert.match(feedDemo, /Object\.freeze\(\[/);
+  assert.ok((feedDemo.match(/isDemo:\s*true/g) || []).length >= 4, "expected at least four demo posts");
+  assert.match(feedDemo, /label:\s*"Démo"/);
+  assert.match(js, /window\.TEOMARCHI_FEED_DEMO/);
+  assert.match(js, /getFeedDemoSeed/);
+  assert.match(js, /Feed de démonstration/);
+  assert.match(js, /post\.isDemo[\s\S]{0,180}Démo/);
+});
+
+test("V2 Atlas is a geographic world database with at least 80 sourced entries", () => {
+  const js = read("app.js");
+  const atlasSeed = read("data/atlas-seed.js");
+  const match = atlasSeed.match(/window\.TEOMARCHI_ATLAS_SEED\s*=\s*Object\.freeze\(\[([\s\S]*?)\]\);/);
+
+  assert.ok(match, "external TEOMARCHI_ATLAS_SEED dataset is missing");
+  const ids = [...match[1].matchAll(/atlasEntry\("([^"]+)"/g)];
+  assert.ok(ids.length >= 80, `expected at least 80 Atlas world entries, got ${ids.length}`);
+  assert.match(js, /window\.TEOMARCHI_ATLAS_SEED/);
+  assert.match(js, /DATA_ATLAS_FALLBACK/);
+  assert.doesNotMatch(js, /const\s+DATA_ATLAS_WORLD\s*=\s*Object\.freeze\(\[\s*atlasEntry\("fr-centre-pompidou"/);
 
   [
-    "categorie",
-    "titre",
-    "valeur_min",
-    "valeur_recommandee",
-    "norme_reference",
-    "pays",
-    "usage",
-    "note",
+    "atlasEntry",
+    "title",
+    "country",
+    "region",
+    "city",
+    "coordinates",
+    "period",
+    "century",
+    "style",
+    "movement",
+    "architect",
+    "year",
+    "buildingType",
+    "structuralSystem",
+    "dominantMaterials",
+    "climateContext",
+    "culturalContext",
+    "technicalNotes",
+    "heritageStatus",
+    "sourceName",
+    "sourceUrl",
+    "sourceType",
     "tags",
-    "source_status",
-    "renderAtlasV1Panel",
-    "data-atlas-v1-search",
-    "data-atlas-v1-category",
-    "data-atlas-v1-country",
-    "data-atlas-copy-value",
-    "indicatif",
-    "officiel",
-    "à vérifier"
-  ].forEach(token => assert.match(js, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))));
+    "renderAtlasWorldPanel",
+    "data-atlas-world-search",
+    "data-atlas-filter=\"country\"",
+    "data-atlas-filter=\"period\"",
+    "data-atlas-filter=\"style\"",
+    "data-atlas-filter=\"material\"",
+    "data-atlas-filter=\"buildingType\"",
+    "data-atlas-source",
+    "data-atlas-link-feed",
+    "data-atlas-load-more",
+    "UNESCO",
+    "ArchDaily",
+    "Wikidata",
+    "Structurae"
+  ].forEach(token => assert.match(js + atlasSeed, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))));
+
+  [
+    "France", "Belgique", "Suisse", "Italie", "Espagne", "Japon",
+    "États-Unis", "Brésil", "Maroc", "Égypte", "Inde", "Chine",
+    "Burkina Faso", "Mali", "Afrique du Sud", "Niger"
+  ].forEach(country => assert.match(match[1], new RegExp(country.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))));
 });
 
-test("V1 Firestore rules enforce authorship, immutable roles, reports and one reaction per user", () => {
+test("Claude recommendations add skeleton loading and Ctrl K global search shortcut", () => {
+  const js = read("app.js");
+  const css = read("style.css");
+
+  assert.match(js, /function\s+renderFeedSkeleton\s*\(/);
+  assert.match(js, /function\s+renderAtlasSkeleton\s*\(/);
+  assert.match(js, /data-feed-skeleton/);
+  assert.match(js, /data-atlas-skeleton/);
+  assert.match(css, /\.tm-skeleton/);
+  assert.match(css, /@keyframes\s+tm-skeleton-pulse/);
+  assert.match(js, /\(e\.metaKey\s*\|\|\s*e\.ctrlKey\)[\s\S]{0,160}global-search/);
+});
+
+test("V2 Feed and Atlas are linked both ways", () => {
+  const js = read("app.js");
+
+  assert.match(js, /window\.TEOMARCHI_FEED_DRAFT/);
+  assert.match(js, /prefillFeedComposerFromAtlas/);
+  assert.match(js, /data-feed-atlas-id/);
+  assert.match(js, /openAtlasReference/);
+  assert.match(js, /Référence Atlas/);
+  assert.match(js, /Créer un post à partir de cette référence/);
+  assert.match(js, /linkedAtlasIds/);
+});
+
+test("V2 Firestore rules protect posts, likes, follows, profiles and atlas reads", () => {
   const rules = read("firestore.rules");
 
   assert.match(rules, /match \/posts\/\{postId\}/);
   assert.match(rules, /match \/comments\/\{commentId\}/);
-  assert.match(rules, /match \/reactions\/\{userId\}/);
+  assert.match(rules, /match \/likes\/\{userId\}/);
   assert.match(rules, /match \/reports\/\{reportId\}/);
-  assert.match(rules, /request\.resource\.data\.userId == request\.auth\.uid/);
-  assert.match(rules, /request\.auth\.uid == resource\.data\.userId/);
+  assert.match(rules, /match \/following\/\{targetUserId\}/);
+  assert.match(rules, /match \/followers\/\{followerId\}/);
+  assert.match(rules, /match \/atlas\/\{atlasId\}/);
+  assert.match(rules, /request\.resource\.data\.authorId == request\.auth\.uid/);
+  assert.match(rules, /request\.auth\.uid == resource\.data\.authorId/);
   assert.match(rules, /request\.auth\.uid == userId/);
+  assert.match(rules, /request\.auth\.uid == followerId/);
+  assert.match(rules, /targetUserId == request\.resource\.data\.targetUserId/);
   assert.match(rules, /request\.resource\.data\.diff\(resource\.data\)\.affectedKeys\(\)\.hasOnly\(publicProfileFields\(\)\)/);
   assert.match(rules, /allow update:[\s\S]*isAdmin\(\)/);
+  assert.match(rules, /"wip", "moment", "projet", "question", "ressource", "norme", "chantier", "workshop", "concours", "analyse", "recherche", "opportunite", "decouverte"/);
+  assert.match(rules, /"communaute", "professionnel", "tous"/);
   assert.doesNotMatch(rules, /validRole\(request\.resource\.data\.role\)[\s\S]{0,240}request\.auth\.uid == userId/);
 });
 

@@ -245,6 +245,49 @@ body.is-authenticated [data-open-login] {
     var(--surface);
 }
 
+.tm-skeleton {
+  position: relative;
+  overflow: hidden;
+  border: var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.tm-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(201, 169, 110, 0.11), transparent);
+  animation: tm-skeleton-pulse 1.35s ease-in-out infinite;
+}
+
+@keyframes tm-skeleton-pulse {
+  to { transform: translateX(100%); }
+}
+
+.tm-skeleton-line {
+  display: block;
+  height: 0.72rem;
+  border-radius: var(--r-pill);
+  background: rgba(201, 169, 110, 0.10);
+}
+
+.tm-feed-skeleton,
+.tm-atlas-skeleton {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+}
+
+.tm-feed-skeleton__card,
+.tm-atlas-skeleton__card {
+  display: grid;
+  gap: 0.72rem;
+  min-height: 132px;
+  padding: 1rem;
+}
+
 .tm-feed-demo-stats {
   display: flex;
   flex-wrap: wrap;

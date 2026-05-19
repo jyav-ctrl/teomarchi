@@ -13,7 +13,11 @@ service cloud.firestore {
 
     function userRole() {
       return signedIn() && exists(userDoc())
-        ? get(userDoc()).data.role
+        ? (
+          get(userDoc()).data.accessRole in ["moderator", "admin"]
+            ? get(userDoc()).data.accessRole
+            : (get(userDoc()).data.role == "admin" ? "admin" : "free")
+        )
         : "free";
     }
 
@@ -26,17 +30,17 @@ service cloud.firestore {
       return isAdmin() || userRole() == "moderator";
     }
 
-    function validRole(role) {
-      return role in ["free", "studio", "agency", "moderator", "admin"];
+    function validSocialRole(role) {
+      return role in ["etudiant", "architecte", "agence", "ecole"];
     }
 
     function validStatus(status) {
-      return status in ["active", "hidden", "suspended", "deleted", "resolved", "open"];
+      return status in ["active", "reported", "hidden", "suspended", "deleted", "resolved", "open"];
     }
 
     function publicProfileFields() {
       return [
-        "displayName", "bio", "schoolOrAgency", "level", "city",
+        "displayName", "username", "role", "bio", "schoolOrAgency", "level", "city",
         "specialties", "avatarUrl", "portfolioUrl", "email", "photoURL",
         "createdAt", "updatedAt"
       ];
@@ -44,16 +48,18 @@ service cloud.firestore {
 
     function ownerProfileCreateFields() {
       return [
-        "displayName", "bio", "schoolOrAgency", "level", "city",
+        "displayName", "username", "role", "bio", "schoolOrAgency", "level", "city",
         "specialties", "avatarUrl", "portfolioUrl", "email", "photoURL",
-        "createdAt", "updatedAt", "role", "status", "plan", "isPremium", "premium"
+        "followersCount", "followingCount", "postsCount", "verified",
+        "createdAt", "updatedAt", "status", "plan", "isPremium", "premium"
       ];
     }
 
     function adminUserUpdateFields() {
       return [
-        "displayName", "bio", "schoolOrAgency", "level", "city",
+        "displayName", "username", "role", "bio", "schoolOrAgency", "level", "city",
         "specialties", "avatarUrl", "portfolioUrl", "email", "photoURL",
+        "followersCount", "followingCount", "postsCount", "verified",
         "createdAt", "updatedAt", "status", "suspendedBy", "moderatedBy"
       ];
     }
@@ -62,41 +68,52 @@ service cloud.firestore {
       return signedIn()
         && request.auth.uid == userId
         && request.resource.data.keys().hasOnly(ownerProfileCreateFields())
-        && (!("role" in request.resource.data) || request.resource.data.role == "free")
+        && (!("role" in request.resource.data) || validSocialRole(request.resource.data.role))
         && (!("status" in request.resource.data) || request.resource.data.status == "active")
         && (!("plan" in request.resource.data) || request.resource.data.plan == "free")
         && (!("isPremium" in request.resource.data) || request.resource.data.isPremium == false)
-        && (!("premium" in request.resource.data) || request.resource.data.premium == false);
+        && (!("premium" in request.resource.data) || request.resource.data.premium == false)
+        && (!("verified" in request.resource.data) || request.resource.data.verified == false)
+        && (!("followersCount" in request.resource.data) || request.resource.data.followersCount == 0)
+        && (!("followingCount" in request.resource.data) || request.resource.data.followingCount == 0)
+        && (!("postsCount" in request.resource.data) || request.resource.data.postsCount == 0);
     }
 
     function validPostCreate() {
       return signedIn()
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.type in ["wip", "question", "ressource", "norme"]
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.type in ["wip", "moment", "projet", "question", "ressource", "norme", "chantier", "workshop", "concours", "analyse", "recherche", "opportunite", "decouverte"]
+        && request.resource.data.visibility in ["communaute", "professionnel", "tous"]
+        && (validSocialRole(request.resource.data.authorRole) || (isAdmin() && request.resource.data.authorRole == "admin"))
+        && (request.resource.data.authorVerified == false || (exists(userDoc()) && get(userDoc()).data.verified == true))
+        && request.resource.data.likesCount == 0
+        && request.resource.data.commentsCount == 0
+        && request.resource.data.repostsCount == 0
+        && request.resource.data.savesCount == 0
         && request.resource.data.status == "active"
         && request.resource.data.keys().hasOnly([
-          "userId", "authorName", "authorAvatar", "type", "title", "body",
-          "projectPhase", "category", "tags", "mediaUrls", "linkedAtlasIds",
-          "dimensionData", "reactions", "commentsCount", "reportCount",
-          "status", "plagiarismStatus", "createdAt", "updatedAt"
+          "authorId", "authorName", "authorRole", "authorSchoolOrAgency", "authorVerified",
+          "visibility", "type", "title", "body", "tags", "projectPhase", "category",
+          "linkedAtlasIds", "likesCount", "commentsCount", "repostsCount", "savesCount",
+          "status", "createdAt", "updatedAt"
         ]);
     }
 
     function ownerPostUpdate() {
       return signedIn()
-        && request.auth.uid == resource.data.userId
-        && request.resource.data.userId == resource.data.userId
+        && request.auth.uid == resource.data.authorId
+        && request.resource.data.authorId == resource.data.authorId
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          "type", "title", "body", "projectPhase", "category", "tags",
-          "mediaUrls", "linkedAtlasIds", "dimensionData", "updatedAt"
+          "visibility", "type", "title", "body", "projectPhase", "category", "tags",
+          "linkedAtlasIds", "updatedAt"
         ]);
     }
 
     function moderatorPostUpdate() {
       return isModerator()
-        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.authorId == resource.data.authorId
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          "status", "plagiarismStatus", "moderatedBy", "updatedAt"
+          "status", "moderatedBy", "updatedAt"
         ]);
     }
 
@@ -110,11 +127,32 @@ service cloud.firestore {
         signedIn()
         && request.auth.uid == userId
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(publicProfileFields())
+        && (!("role" in request.resource.data) || validSocialRole(request.resource.data.role))
       ) || (
         isAdmin()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(adminUserUpdateFields())
       );
       allow delete: if isAdmin();
+
+      match /following/{targetUserId} {
+        allow read: if signedIn() && request.auth.uid == userId;
+        allow create: if signedIn()
+          && request.auth.uid == userId
+          && targetUserId == request.resource.data.targetUserId
+          && request.resource.data.keys().hasOnly(["targetUserId", "createdAt"]);
+        allow delete: if signedIn() && request.auth.uid == userId;
+        allow update: if false;
+      }
+
+      match /followers/{followerId} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && request.auth.uid == followerId
+          && request.resource.data.followerId == request.auth.uid
+          && request.resource.data.keys().hasOnly(["followerId", "createdAt"]);
+        allow delete: if signedIn() && request.auth.uid == followerId;
+        allow update: if false;
+      }
 
       match /journalier/{docId} {
         allow read, write: if signedIn() && (request.auth.uid == userId || isAdmin());
@@ -125,39 +163,36 @@ service cloud.firestore {
       allow read: if resource.data.status == "active" || isModerator();
       allow create: if validPostCreate();
       allow update: if ownerPostUpdate() || moderatorPostUpdate();
-      allow delete: if signedIn() && (request.auth.uid == resource.data.userId || isModerator());
+      allow delete: if signedIn() && (request.auth.uid == resource.data.authorId || isModerator());
 
       match /comments/{commentId} {
         allow read: if signedIn();
         allow create: if signedIn()
-          && request.resource.data.userId == request.auth.uid
-          && request.resource.data.status == "active"
+          && request.resource.data.authorId == request.auth.uid
           && request.resource.data.keys().hasOnly([
-            "userId", "authorName", "authorAvatar", "text", "createdAt", "updatedAt", "status"
+            "authorId", "authorName", "body", "createdAt", "updatedAt"
           ]);
         allow update: if signedIn() && (
           (
-            request.auth.uid == resource.data.userId
-            && request.resource.data.userId == resource.data.userId
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["text", "updatedAt"])
+            request.auth.uid == resource.data.authorId
+            && request.resource.data.authorId == resource.data.authorId
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["body", "updatedAt"])
           ) || (
             isModerator()
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "moderatedBy", "updatedAt"])
           )
         );
-        allow delete: if signedIn() && (request.auth.uid == resource.data.userId || isModerator());
+        allow delete: if signedIn() && (request.auth.uid == resource.data.authorId || isModerator());
       }
 
-      match /reactions/{userId} {
+      match /likes/{userId} {
         allow read: if signedIn();
-        allow create, update: if signedIn()
+        allow create: if signedIn()
           && request.auth.uid == userId
           && request.resource.data.userId == request.auth.uid
-          && request.resource.data.reactionType in ["utile", "merci", "cherche"]
-          && request.resource.data.keys().hasOnly([
-            "userId", "reactionType", "createdAt", "updatedAt"
-          ]);
+          && request.resource.data.keys().hasOnly(["userId", "createdAt"]);
         allow delete: if signedIn() && request.auth.uid == userId;
+        allow update: if false;
       }
     }
 
@@ -173,6 +208,11 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           "status", "resolvedBy", "resolvedAt", "updatedAt"
         ]);
+    }
+
+    match /atlas/{atlasId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
     }
 
     match /securityLogs/{logId} {
