@@ -9,6 +9,8 @@ test("index delegates CSS and application JavaScript to external files", () => {
 
   assert.match(html, /<link\s+rel="stylesheet"\s+href="style\.css(?:\?[^"]+)?"\s*\/?>/);
   assert.match(html, /<script\s+src="app\.js(?:\?[^"]+)?"\s+defer><\/script>/);
+  assert.match(html, /style\.css\?v=20260520-feed-preview/);
+  assert.match(html, /app\.js\?v=20260520-feed-preview/);
   assert.doesNotMatch(html, /<style[\s>]/);
 });
 
@@ -720,7 +722,7 @@ test("showroom is a premium scalable architectural marketplace shell", () => {
   assert.match(js, /data-checkout-plan="\$\{plan\.id\}"/);
 });
 
-test("feed uses Firestore realtime social primitives without fake posts", () => {
+test("feed uses Firestore realtime social primitives with a public fallback preview", () => {
   const js = read("app.js");
 
   [
@@ -733,9 +735,15 @@ test("feed uses Firestore realtime social primitives without fake posts", () => 
     "toggleLike",
     "addComment",
     "repostPost",
-    "reportPost"
+    "reportPost",
+    "renderPublicFeedFallback",
+    "getPublicFeedFallback"
   ].forEach(fn => assert.match(js, new RegExp(`function\\s+${fn}\\s*\\(`)));
 
+  assert.match(js, /const\s+PUBLIC_FEED_FALLBACK\s*=\s*\[/);
+  assert.match(js, /PUBLIC_FEED_FALLBACK\.slice\(0,\s*limit\)/);
+  assert.match(js, /_feedFallbackTimer\s*=\s*setTimeout/);
+  assert.match(js, /clearFeedFallbackTimer\(\)/);
   assert.match(js, /\.collection\("posts"\)/);
   assert.match(js, /\.onSnapshot\(/);
   assert.match(js, /serverTimestamp\(\)/);
@@ -746,6 +754,7 @@ test("feed uses Firestore realtime social primitives without fake posts", () => 
   assert.match(js, /status:\s*"active"/);
   assert.match(js, /plagiarismStatus:\s*"clear"/);
   assert.match(js, /Je certifie être l’auteur de ce contenu ou disposer des droits nécessaires/);
+  assert.match(js, /Aperçu public du Feed/);
   assert.match(js, /Aucun rendu publié/);
 });
 

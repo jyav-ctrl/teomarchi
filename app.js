@@ -7579,8 +7579,98 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     "TEOMARCHI peut suspendre ou supprimer un compte en cas d’abus."
   ];
 
+  const PUBLIC_FEED_FALLBACK = [
+    {
+      id: "public-preview-bordeaux",
+      authorId: "demo_public_sarah",
+      authorName: "Sarah Mbeki",
+      authorAvatar: "",
+      text: "Façade bois-béton pour un concours ANRU à Bordeaux : lames Douglas 24 mm, brise-soleil orientables et noyau béton banché sur un programme ERP R+5.",
+      imageUrls: [],
+      createdAt: "2026-05-12T09:14:00Z",
+      updatedAt: "2026-05-12T09:14:00Z",
+      likeCount: 18,
+      commentCount: 4,
+      repostCount: 2,
+      reportCount: 0,
+      status: "active",
+      plagiarismStatus: "preview"
+    },
+    {
+      id: "public-preview-unite-habitation",
+      authorId: "demo_public_theo",
+      authorName: "Théo Vanderberg",
+      authorAvatar: "",
+      text: "Analyse constructive de l’Unité d’Habitation de Marseille : trame structurelle, refends en béton banché, façade libre et lecture thermique actuelle vs RE2020.",
+      imageUrls: [],
+      createdAt: "2026-05-10T14:22:00Z",
+      updatedAt: "2026-05-10T14:22:00Z",
+      likeCount: 31,
+      commentCount: 8,
+      repostCount: 5,
+      reportCount: 0,
+      status: "active",
+      plagiarismStatus: "preview"
+    },
+    {
+      id: "public-preview-clt",
+      authorId: "demo_public_ines",
+      authorName: "Inès Kourouma",
+      authorAvatar: "",
+      text: "Coupe habitée au 1/20 d’un logement collectif CLT : structure 24 cm, fibres de bois 16 cm, menuiseries triple vitrage et seuils étanchés.",
+      imageUrls: [],
+      createdAt: "2026-05-08T16:05:00Z",
+      updatedAt: "2026-05-08T16:05:00Z",
+      likeCount: 44,
+      commentCount: 6,
+      repostCount: 7,
+      reportCount: 0,
+      status: "active",
+      plagiarismStatus: "preview"
+    },
+    {
+      id: "public-preview-paille-terre",
+      authorId: "demo_public_nassim",
+      authorName: "Nassim Ferrahi",
+      authorAvatar: "",
+      text: "Retour chantier paille & terre : soubassement béton contre les remontées capillaires, ossature bois, bottes Greb et enduit argile projeté.",
+      imageUrls: [],
+      createdAt: "2026-05-06T11:30:00Z",
+      updatedAt: "2026-05-06T11:30:00Z",
+      likeCount: 27,
+      commentCount: 3,
+      repostCount: 4,
+      reportCount: 0,
+      status: "active",
+      plagiarismStatus: "preview"
+    },
+    {
+      id: "public-preview-workshop-bois",
+      authorId: "demo_public_chiara",
+      authorName: "Chiara Lombardi",
+      authorAvatar: "",
+      text: "Workshop pavillon bois à Nantes : assemblage à sec, portée 6 m, tenon-mortaise et chevilles hêtre. Question ouverte sur l’humidité variable.",
+      imageUrls: [],
+      createdAt: "2026-05-04T08:45:00Z",
+      updatedAt: "2026-05-04T08:45:00Z",
+      likeCount: 52,
+      commentCount: 11,
+      repostCount: 9,
+      reportCount: 0,
+      status: "active",
+      plagiarismStatus: "preview"
+    }
+  ];
+
   let _feedUnsubscribe = null;
+  let _feedFallbackTimer = null;
   let _feedPosts = [];
+
+  function clearFeedFallbackTimer() {
+    if (!_feedFallbackTimer) return;
+    clearTimeout(_feedFallbackTimer);
+    _feedFallbackTimer = null;
+  }
 
   function injectFeedCSS() {
     if (document.getElementById("tm-feed-social-css")) return;
@@ -7629,9 +7719,15 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       .tm-feed-comment-form { display:flex; gap:.55rem; align-items:center; min-width:0; }
       .tm-feed-comment-form input { flex:1; min-width:0; border:var(--border); border-radius:var(--r-pill); background:var(--surface-2); color:var(--ink); padding:.55rem .8rem; }
       .tm-feed-empty { padding:2.2rem; text-align:center; border:var(--border); border-radius:var(--r-xl); color:var(--muted); background:color-mix(in srgb,var(--surface) 78%,transparent); }
+      .tm-feed-preview { padding:1rem 1.1rem; border:var(--border-gold); border-radius:var(--r-lg); background:var(--gold-glow); color:var(--ink-2); font-size:.76rem; line-height:1.55; }
+      .tm-feed-preview strong { display:block; color:var(--gold); font-size:.62rem; letter-spacing:.14em; text-transform:uppercase; margin-bottom:.26rem; }
       @media (max-width:900px) { .tm-feed { grid-template-columns:1fr; } }
     `;
     document.head.appendChild(s);
+  }
+
+  function getPublicFeedFallback(limit = 5) {
+    return PUBLIC_FEED_FALLBACK.slice(0, limit);
   }
 
   function renderFeedComposer() {
@@ -7727,7 +7823,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
     `;
   }
 
-  function renderFeedTimeline(posts) {
+  function renderFeedTimeline(posts, options = {}) {
     const timeline = document.getElementById("feed-timeline");
     if (!timeline) return;
     if (!posts.length) {
@@ -7739,19 +7835,44 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       `;
       return;
     }
-    timeline.innerHTML = posts.map(renderPost).join("");
+    const preview = options.isPublicPreview ? `
+      <div class="tm-feed-preview" role="status">
+        <strong>Aperçu public du Feed</strong>
+        ${_esc(options.message || "Voici quelques publications exemples pendant le chargement des contenus communautaires.")}
+      </div>
+    ` : "";
+    timeline.innerHTML = preview + posts.map(renderPost).join("");
+  }
+
+  function renderPublicFeedFallback(message) {
+    renderFeedTimeline(getPublicFeedFallback(), {
+      isPublicPreview: true,
+      message: message || "Les publications réelles apparaîtront ici dès que Firestore renverra du contenu actif."
+    });
+  }
+
+  function scheduleFeedFallback() {
+    clearFeedFallbackTimer();
+    _feedFallbackTimer = setTimeout(() => {
+      _feedFallbackTimer = null;
+      const timeline = document.getElementById("feed-timeline");
+      if (!timeline || _feedPosts.length) return;
+      if (!timeline.textContent.includes("Chargement du Feed")) return;
+      renderPublicFeedFallback("Connexion Firestore lente : affichage de l’aperçu public.");
+    }, 3500);
   }
 
   function subscribeToFeed() {
     const db = getFirestoreDb();
     const timeline = document.getElementById("feed-timeline");
     if (!timeline) return;
+    clearFeedFallbackTimer();
     if (_feedUnsubscribe) {
       try { _feedUnsubscribe(); } catch {}
       _feedUnsubscribe = null;
     }
     if (!db) {
-      timeline.innerHTML = `<div class="tm-feed-empty">Service temps réel indisponible. Le Feed ne peut pas être chargé pour le moment.</div>`;
+      renderPublicFeedFallback("Service temps réel indisponible : affichage de l’aperçu public.");
       return;
     }
 
@@ -7759,6 +7880,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       .orderBy("createdAt", "desc")
       .limit(50)
       .onSnapshot(snapshot => {
+        clearFeedFallbackTimer();
         const canModerate = isTeomarchiAdmin();
         _feedPosts = [];
         snapshot.forEach(doc => {
@@ -7767,11 +7889,17 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
           if (data.status === "hidden" && !canModerate) return;
           _feedPosts.push(data);
         });
+        if (!_feedPosts.length) {
+          renderPublicFeedFallback("Le Feed communautaire est vide pour le moment : voici un aperçu public.");
+          return;
+        }
         renderFeedTimeline(_feedPosts);
       }, err => {
+        clearFeedFallbackTimer();
         console.error("Erreur Feed Firestore :", err);
-        timeline.innerHTML = `<div class="tm-feed-empty">Erreur de chargement du Feed.</div>`;
+        renderPublicFeedFallback("Erreur de chargement Firestore : affichage de l’aperçu public.");
       });
+    scheduleFeedFallback();
   }
 
   async function resolveFeedProfile(user) {
@@ -8005,6 +8133,7 @@ window.TEOMARCHI_OPEN_LOGIN = window.TEOMARCHI_OPEN_LOGIN || (() => {
       else if (_feedUnsubscribe) {
         try { _feedUnsubscribe(); } catch {}
         _feedUnsubscribe = null;
+        clearFeedFallbackTimer();
       }
     }).observe(mod, { attributes: true, attributeFilter: ["class"] });
     if (mod.classList.contains("is-active")) initFeed();
