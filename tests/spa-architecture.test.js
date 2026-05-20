@@ -9,6 +9,8 @@ test("index delegates CSS and application JavaScript to external files", () => {
 
   assert.match(html, /<link\s+rel="stylesheet"\s+href="style\.css(?:\?[^"]+)?"\s*\/?>/);
   assert.match(html, /<script\s+src="app\.js(?:\?[^"]+)?"\s+defer><\/script>/);
+  assert.match(html, /style\.css\?v=20260520-feed-preview/);
+  assert.match(html, /app\.js\?v=20260520-feed-preview/);
   assert.doesNotMatch(html, /<style[\s>]/);
 });
 
